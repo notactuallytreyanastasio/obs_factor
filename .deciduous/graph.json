@@ -20,6 +20,16 @@
       "to_change_id": "9f57e789-4465-4655-84ac-ef144f53d491",
       "weight": 1.0
     },
+    "0a9193ce1c209b31cce4": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-19T03:39:19.436203-05:00",
+      "edge_id": "0a9193ce1c209b31cce4",
+      "edge_type": "leads_to",
+      "from_change_id": "d025ec0b-4481-4ed2-a9b8-3e8c6d700eca",
+      "rationale": "rollout",
+      "to_change_id": "1190c87e-b14c-4370-9f5f-0a4b00a2b943",
+      "weight": 1.0
+    },
     "10d573f50eb8ed242e6f": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-18T17:31:49.884476-05:00",
@@ -410,6 +420,16 @@
       "to_change_id": "ecab76ce-52bf-4a79-a2f8-844f41fe77a5",
       "weight": 1.0
     },
+    "c4185e541f6a31e25d9c": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-19T03:39:19.470685-05:00",
+      "edge_id": "c4185e541f6a31e25d9c",
+      "edge_type": "leads_to",
+      "from_change_id": "1190c87e-b14c-4370-9f5f-0a4b00a2b943",
+      "rationale": "result",
+      "to_change_id": "e496a1e8-9043-4e37-b3dc-44d2e963d969",
+      "weight": 1.0
+    },
     "c4eb1bf3e2c85573fe9e": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-18T17:31:50.200729-05:00",
@@ -570,6 +590,20 @@
       "status": "pending",
       "title": "Prometheus + Grafana + cAdvisor + exporters, factory reads Grafana",
       "updated_at": "2026-11-18T17:31:49.717525-05:00"
+    },
+    "1190c87e-b14c-4370-9f5f-0a4b00a2b943": {
+      "author": "Bobby Grayson",
+      "change_id": "1190c87e-b14c-4370-9f5f-0a4b00a2b943",
+      "created_at": "2026-11-19T03:39:19.359582-05:00",
+      "metadata": {
+        "branch": "04-factory-per-subdomain",
+        "commit": "f88c62551eb1510caecd6230e93c581e5245dd83",
+        "confidence": 90
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Vendor factory_report into blog, Blinks, Marginalia and Gifmaker (dep, supervision child, JSON log formatter, Dockerfile), deploy each, add their report URLs to the production topology",
+      "updated_at": "2026-11-19T03:39:19.359582-05:00"
     },
     "11c167ae-4f87-4a39-abb7-904be8199d5b": {
       "author": "Bobby Grayson",
@@ -1179,6 +1213,19 @@
       "status": "pending",
       "title": "Caddy writes a JSON access log to a capped file in a shared volume; the observer tails it",
       "updated_at": "2026-11-19T02:06:02.684847-05:00"
+    },
+    "e496a1e8-9043-4e37-b3dc-44d2e963d969": {
+      "author": "Bobby Grayson",
+      "change_id": "e496a1e8-9043-4e37-b3dc-44d2e963d969",
+      "created_at": "2026-11-19T03:39:19.400344-05:00",
+      "metadata": {
+        "branch": "04-factory-per-subdomain",
+        "confidence": 95
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "Four Phoenix apps report in production: BEAM gauges, routes, Ecto queries and outbound calls attributed to the route that made them, JSON logs; observer reads all four (8 sources ok). Tyler and Dave held back: local source does not match the box",
+      "updated_at": "2026-11-19T03:39:19.400344-05:00"
     },
     "ecab76ce-52bf-4a79-a2f8-844f41fe77a5": {
       "author": "Bobby Grayson",
