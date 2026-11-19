@@ -28,6 +28,10 @@
 # Per-subdomain detail): what the thing is, not what it measures. A node
 # without one gets the plain building of its kind.
 #
+# `report` is where a sub-app serves its own inside (docs/contract.md,
+# Reports): the four Phoenix apps that carry vendor/factory_report. Tyler and
+# Dave do not yet: their source here does not match what the box runs.
+#
 # Unverified items are marked UNVERIFIED with what exactly is not known.
 
 %{
@@ -61,23 +65,23 @@
       hosts: ["old.bobbby.online"],
       via: ["bobbby.online/hotel-carbon*", "bobbby.online/static/hotel-carbon/*",
             "bobbby.online/tennis-potatoes*", "bobbby.online/static/tennis-potatoes/*"],
-      probe: "http://app:4000/", databases: ["blog_prod"]},
+      probe: "http://app:4000/", report: "http://app:9568/report", databases: ["blog_prod"]},
 
     # bobbbys.link is host-routed inside the blinks app (Caddyfile comment).
     %{id: "blinks", label: "Blinks", kind: :app, style: "switchyard", service: "blinks",
       platform: "main", pos: {2, 2},
       hosts: ["links.bobbby.online", "bobbbys.link", "www.bobbbys.link"],
-      probe: "http://blinks:4000/", databases: ["blinks_backend_prod"]},
+      probe: "http://blinks:4000/", report: "http://blinks:9568/report", databases: ["blinks_backend_prod"]},
 
     %{id: "nathan", label: "Gifmaker", kind: :app, style: "studio", service: "nathan",
       platform: "main", pos: {2, 3},
       hosts: ["gifmaker.bobbby.online"],
-      probe: "http://nathan:4001/", databases: ["nathan_for_us_prod"]},
+      probe: "http://nathan:4001/", report: "http://nathan:9568/report", databases: ["nathan_for_us_prod"]},
 
     %{id: "marginalia", label: "Marginalia", kind: :app, style: "library", service: "marginalia",
       platform: "main", pos: {2, 4},
       hosts: ["marginalia.bobbby.online"],
-      probe: "http://marginalia:4000/", databases: ["marginalia_prod"]},
+      probe: "http://marginalia:4000/", report: "http://marginalia:9568/report", databases: ["marginalia_prod"]},
 
     %{id: "tyler", label: "Tyler", kind: :app, service: "tyler",
       platform: "main", pos: {2, 5},
