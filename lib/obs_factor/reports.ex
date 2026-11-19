@@ -13,13 +13,27 @@ defmodule ObsFactor.Reports do
   A report is external input. It is validated here, at the boundary, and what
   leaves this module is bounded whatever the reporter sent: at most
   100 units, 20 members per unit, 300 streams (the busiest by `count`), 100
-  keys per gauge/counter/version map, strings cut at 120 characters. What is cut here is added to the reporter's own `truncated`.
+  keys per gauge/counter/version map, 50 events, strings cut at 120
+  characters (an event's message at 300). What is cut here is added to the reporter's own `truncated`.
   A gauge or counter whose value is not a number is ignored.
 
-  A restart resets every counter. When `uptime_s` is smaller than at the
-  previous read, or any counter or stream total went backwards, every rate of
-  that read is `nil`: no negative, no spike. Rates are over the observer's
-  clock, between the two moments the answers arrived.
+  A stream row is one `kind` + `name` + `by`: a breakdown row (`by` says
+  whose process caused it) and its total (no `by`) are different rows, each
+  with its own rates.
+
+  A restart resets every counter. Every rate of a read is `nil` (no negative,
+  no spike) when, against the previous good read:
+
+    * `uptime_s` is smaller, or
+    * any counter or stream total went backwards, or
+    * `uptime_s` advanced by much less than the time that passed here: by
+      less than half of it, and at least 10 s short. A process that
+      restarted during a long gap can already be older than its predecessor
+      was, with every total higher; its clock still cannot account for the
+      gap.
+
+  Rates are over the observer's clock, between the two moments the answers
+  arrived.
   """
 
   @behaviour ObsFactor.Collector
@@ -34,6 +48,8 @@ defmodule ObsFactor.Reports do
   @max_streams 300
   @max_keys 100
   @max_string 120
+  @max_events 50
+  @max_message 300
 
   @impl true
   def name, do: :reports
@@ -109,6 +125,7 @@ defmodule ObsFactor.Reports do
       runtime: reading.runtime |> Map.delete(:counters) |> Map.put(:rates, rates.runtime),
       units: reading.units,
       streams: rates.streams,
+      events: reading.events,
       truncated: reading.truncated
     }
 
@@ -123,7 +140,7 @@ defmodule ObsFactor.Reports do
   Rates between two readings of one node (each with `:at_ms`). `prev` nil
   (the first read) gives nil rates. Returns `%{restart, runtime, streams}`:
   `runtime` maps every counter of `cur` to its rate per second, `streams` is
-  `cur`'s streams as `%{kind, name, count, rate, err_rate, avg_ms}`.
+  `cur`'s streams as `%{kind, name, by, count, rate, err_rate, avg_ms}`.
 
   A counter the previous reading did not have has no rate yet. A stream it
   did not have started from zero, unless the previous reading was truncated:
@@ -134,8 +151,8 @@ defmodule ObsFactor.Reports do
 
   def rates(prev, cur) do
     dt_s = (cur.at_ms - prev.at_ms) / 1000
-    prev_streams = Map.new(prev.streams, &{{&1.kind, &1.name}, &1})
-    restart = restart?(prev, prev_streams, cur)
+    prev_streams = Map.new(prev.streams, &{identity(&1), &1})
+    restart = restart?(prev, prev_streams, cur, dt_s)
 
     if restart or dt_s <= 0 do
       unknown(cur, restart)
@@ -152,7 +169,7 @@ defmodule ObsFactor.Reports do
 
       streams =
         Enum.map(cur.streams, fn s ->
-          case Map.get(prev_streams, {s.kind, s.name}, zero) do
+          case Map.get(prev_streams, identity(s), zero) do
             nil ->
               stream(s, nil, nil, nil)
 
@@ -170,8 +187,18 @@ defmodule ObsFactor.Reports do
     end
   end
 
-  defp restart?(prev, prev_streams, cur) do
-    cur.runtime.uptime_s < prev.runtime.uptime_s or
+  # How far behind the observer's clock a report's uptime may fall before it
+  # is another process: both conditions must hold.
+  @uptime_short_s 10
+  @uptime_short_fraction 0.5
+
+  defp identity(s), do: {s.kind, s.name, s.by}
+
+  defp restart?(prev, prev_streams, cur, dt_s) do
+    advanced = cur.runtime.uptime_s - prev.runtime.uptime_s
+
+    advanced < 0 or
+      (advanced < dt_s * @uptime_short_fraction and dt_s - advanced >= @uptime_short_s) or
       Enum.any?(cur.runtime.counters, fn {key, value} ->
         case prev.runtime.counters do
           %{^key => before} -> value < before
@@ -179,7 +206,7 @@ defmodule ObsFactor.Reports do
         end
       end) or
       Enum.any?(cur.streams, fn s ->
-        case Map.get(prev_streams, {s.kind, s.name}) do
+        case Map.get(prev_streams, identity(s)) do
           nil -> false
           p -> s.count < p.count or s.errors < p.errors or s.duration_us < p.duration_us
         end
@@ -195,7 +222,15 @@ defmodule ObsFactor.Reports do
   end
 
   defp stream(s, rate, err_rate, avg_ms) do
-    %{kind: s.kind, name: s.name, count: s.count, rate: rate, err_rate: err_rate, avg_ms: avg_ms}
+    %{
+      kind: s.kind,
+      name: s.name,
+      by: s.by,
+      count: s.count,
+      rate: rate,
+      err_rate: err_rate,
+      avg_ms: avg_ms
+    }
   end
 
   ## The document
@@ -217,7 +252,7 @@ defmodule ObsFactor.Reports do
   `{:ok, reading}` or `{:error, reason}` naming the first thing that is wrong.
 
   A reading is `%{app, reported_at, runtime: %{kind, versions, uptime_s,
-  gauges, counters}, units, streams, truncated}`; the open maps (`versions`,
+  gauges, counters}, units, streams, events, truncated}`; the open maps (`versions`,
   `gauges`, `counters`) keep the reporter's string keys.
   """
   def validate(doc) do
@@ -251,17 +286,27 @@ defmodule ObsFactor.Reports do
       |> list!("streams")
       |> Enum.with_index()
       |> Enum.map(fn {s, i} -> stream!(s, "streams[#{i}]") end)
-      # One row per kind + name; a reporter that repeats one is counted once.
-      |> Enum.uniq_by(&{&1.kind, &1.name})
+      # One row per kind + name + by; a reporter that repeats one is counted once.
+      |> Enum.uniq_by(&identity/1)
 
     {streams, cut_streams} =
       if length(streams) > @max_streams do
+        # Totals (no `by`) first, then breakdown rows, each busiest first.
         # Stable: among equal counts the reporter's order stands.
-        {keep, cut} = streams |> Enum.sort_by(&(-&1.count)) |> Enum.split(@max_streams)
+        {keep, cut} =
+          streams |> Enum.sort_by(&{&1.by != nil, -&1.count}) |> Enum.split(@max_streams)
+
         {keep, length(cut)}
       else
         {streams, 0}
       end
+
+    events =
+      doc["events"]
+      |> list!("events")
+      |> Enum.take(@max_events)
+      |> Enum.with_index()
+      |> Enum.map(fn {e, i} -> event!(e, "events[#{i}]") end)
 
     truncated = optional_object!(doc["truncated"], "truncated")
 
@@ -277,6 +322,7 @@ defmodule ObsFactor.Reports do
       },
       units: units,
       streams: streams,
+      events: events,
       truncated: %{
         units: optional_count!(truncated, "units", "truncated.units") + length(cut_units),
         members: optional_count!(truncated, "members", "truncated.members") + cut_members,
@@ -323,6 +369,7 @@ defmodule ObsFactor.Reports do
     %{
       kind: string!(s, "kind", "#{where}.kind"),
       name: string!(s, "name", "#{where}.name"),
+      by: by!(s["by"], "#{where}.by"),
       count: count!(s, "count", "#{where}.count"),
       errors: count!(s, "errors", "#{where}.errors"),
       duration_us: count!(s, "duration_us", "#{where}.duration_us")
@@ -330,6 +377,27 @@ defmodule ObsFactor.Reports do
   end
 
   defp stream!(_other, where), do: fail("#{where} is not an object")
+
+  defp event!(e, where) when is_map(e) do
+    %{
+      at: string!(e, "at", "#{where}.at"),
+      level: string!(e, "level", "#{where}.level"),
+      name: optional_string!(e, "name", "#{where}.name"),
+      message: e |> string!("message", "#{where}.message", @max_message),
+      by: by!(e["by"], "#{where}.by")
+    }
+  end
+
+  defp event!(_other, where), do: fail("#{where} is not an object")
+
+  # Whose process caused it: a unit or a route, by kind and name.
+  defp by!(nil, _where), do: nil
+
+  defp by!(by, where) when is_map(by) do
+    %{kind: string!(by, "kind", "#{where}.kind"), name: string!(by, "name", "#{where}.name")}
+  end
+
+  defp by!(_other, where), do: fail("#{where} is not an object")
 
   # An open `"key": number` map. Values that are not numbers are ignored; an
   # absent map is empty; anything else in its place is a wrong shape.
@@ -370,9 +438,9 @@ defmodule ObsFactor.Reports do
   defp list!(list, _where) when is_list(list), do: list
   defp list!(_other, where), do: fail("#{where} is not a list")
 
-  defp string!(map, key, where) do
+  defp string!(map, key, where, max \\ @max_string) do
     case map[key] do
-      s when is_binary(s) -> clip(s)
+      s when is_binary(s) -> String.slice(s, 0, max)
       nil -> fail("#{where} is missing")
       _ -> fail("#{where} is not a string")
     end

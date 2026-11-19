@@ -28,3 +28,15 @@ AGENTS.md
 CLAUDE.md
 Dockerfile
 .dockerignore
+
+# lab/liveapp's image is built from this same context, because the app
+# depends on packages/factory_report by path:
+#   docker build -f lab/liveapp/Dockerfile -t obslab-liveapp .
+# The same rule holds for it: source only, named file by named file.
+!lab/liveapp/mix.exs
+!lab/liveapp/mix.lock
+!lab/liveapp/config
+!lab/liveapp/lib
+packages/*/*
+!packages/*/mix.exs
+!packages/*/lib

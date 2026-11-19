@@ -10,6 +10,16 @@
       "to_change_id": "d4e8aefe-984f-4b9e-9a1e-a37e0d38947b",
       "weight": 1.0
     },
+    "04b0cf2fd26780ed0926": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-19T03:28:14.211279-05:00",
+      "edge_id": "04b0cf2fd26780ed0926",
+      "edge_type": "leads_to",
+      "from_change_id": "11c167ae-4f87-4a39-abb7-904be8199d5b",
+      "rationale": "result",
+      "to_change_id": "9f57e789-4465-4655-84ac-ef144f53d491",
+      "weight": 1.0
+    },
     "10d573f50eb8ed242e6f": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-18T17:31:49.884476-05:00",
@@ -418,6 +428,16 @@
       "from_change_id": "d45b6fc9-bb48-4fbe-bd37-07115dd8bca0",
       "rationale": "rejected: gives the observer remote code execution in every app, and only works for the BEAM",
       "to_change_id": "49a681fd-b54a-430c-b8fb-d85cdbcf1e4c",
+      "weight": 1.0
+    },
+    "c86fbd465a64e1f883c9": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-19T03:28:14.177366-05:00",
+      "edge_id": "c86fbd465a64e1f883c9",
+      "edge_type": "leads_to",
+      "from_change_id": "5bf6b46d-8f76-4b1d-9e4b-985850f09996",
+      "rationale": "result",
+      "to_change_id": "9f57e789-4465-4655-84ac-ef144f53d491",
       "weight": 1.0
     },
     "d27eb761db79c4d57d02": {
@@ -910,6 +930,19 @@
       "status": "pending",
       "title": "Workstream 12 done; real backend under real frontend verified on the lab stack (fire on a stopped app, 5xx alert, memory warning); 90 tests pass",
       "updated_at": "2026-11-18T18:12:54.205967-05:00"
+    },
+    "9f57e789-4465-4655-84ac-ef144f53d491": {
+      "author": "Bobby Grayson",
+      "change_id": "9f57e789-4465-4655-84ac-ef144f53d491",
+      "created_at": "2026-11-19T03:28:14.139659-05:00",
+      "metadata": {
+        "branch": "04-factory-per-subdomain",
+        "confidence": 95
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "Reports end to end in the lab: packages/factory_report (59 tests on Phoenix 1.7/LV 1.0 and 1.8/LV 1.2) in a real LiveView app; the observer (219 tests) shows its sessions, attributed streams and logged warnings; the building opens into its own floor",
+      "updated_at": "2026-11-19T03:28:14.139659-05:00"
     },
     "a0b3e89d-a862-4c46-851c-1443f4a3ac3e": {
       "author": "Bobby Grayson",

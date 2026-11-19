@@ -537,7 +537,8 @@
       "count": 88120,
       "rate": 3.1,
       "err_rate": 0,
-      "avg_ms": 0.4
+      "avg_ms": 0.4,
+      "by": null
      },
      {
       "kind": "db.query",
@@ -545,7 +546,62 @@
       "count": 991200,
       "rate": 2.1,
       "err_rate": 0,
-      "avg_ms": 1.8
+      "avg_ms": 1.8,
+      "by": null
+     },
+     {
+      "kind": "db.query",
+      "name": "Blog.Repo",
+      "count": 412000,
+      "rate": 1.2,
+      "err_rate": 0,
+      "avg_ms": 1.4,
+      "by": {
+       "kind": "liveview",
+       "name": "BlogWeb.HotelCarbonLive"
+      }
+     },
+     {
+      "kind": "db.query",
+      "name": "Blog.Repo",
+      "count": 201000,
+      "rate": 0.6,
+      "err_rate": 0,
+      "avg_ms": 2.6,
+      "by": {
+       "kind": "liveview",
+       "name": "BlogWeb.PostLive.Show"
+      }
+     },
+     {
+      "kind": "outbound.http",
+      "name": "api.deepseek.com",
+      "count": 400,
+      "rate": 0.01,
+      "err_rate": 0.002,
+      "avg_ms": 1840,
+      "by": {
+       "kind": "liveview",
+       "name": "BlogWeb.TennisPotatoesLive"
+      }
+     },
+     {
+      "kind": "log",
+      "name": "warning",
+      "count": 310,
+      "rate": 0.002,
+      "err_rate": 0,
+      "avg_ms": null,
+      "by": null
+     },
+     {
+      "kind": "log",
+      "name": "error",
+      "count": 12,
+      "rate": 0,
+      "err_rate": 0,
+      "avg_ms": null,
+      "by": null
      },
      {
       "kind": "http.route",
@@ -553,7 +609,8 @@
       "count": 4410,
       "rate": 0.05,
       "err_rate": 0,
-      "avg_ms": 31
+      "avg_ms": 31,
+      "by": null
      },
      {
       "kind": "liveview.event",
@@ -561,7 +618,8 @@
       "count": 3120,
       "rate": 0.04,
       "err_rate": 0,
-      "avg_ms": 6.2
+      "avg_ms": 6.2,
+      "by": null
      },
      {
       "kind": "outbound.http",
@@ -569,7 +627,8 @@
       "count": 412,
       "rate": 0.01,
       "err_rate": 0.002,
-      "avg_ms": 1840
+      "avg_ms": 1840,
+      "by": null
      },
      {
       "kind": "outbound.http",
@@ -577,7 +636,8 @@
       "count": 2880,
       "rate": 0.003,
       "err_rate": 0,
-      "avg_ms": 210
+      "avg_ms": 210,
+      "by": null
      },
      {
       "kind": "liveview.mount",
@@ -585,7 +645,8 @@
       "count": 9120,
       "rate": 0.02,
       "err_rate": 0,
-      "avg_ms": 12
+      "avg_ms": 12,
+      "by": null
      },
      {
       "kind": "channel.join",
@@ -593,7 +654,8 @@
       "count": 120,
       "rate": 0,
       "err_rate": 0,
-      "avg_ms": null
+      "avg_ms": null,
+      "by": null
      },
      {
       "kind": "custom",
@@ -601,7 +663,27 @@
       "count": 2880,
       "rate": 0.003,
       "err_rate": 0,
-      "avg_ms": 220
+      "avg_ms": 220,
+      "by": null
+     }
+    ],
+    "events": [
+     {
+      "at": "2026-11-18T22:34:07.000Z",
+      "level": "warning",
+      "name": "Blog.GitHub.WorkLogPoller",
+      "message": "poll failed: GitHub answered 403 (rate limited), next try in 300 s",
+      "by": null
+     },
+     {
+      "at": "2026-11-18T22:31:37.000Z",
+      "level": "error",
+      "name": "BlogWeb.TennisPotatoesLive",
+      "message": "DeepSeek request failed: timeout after 15000 ms",
+      "by": {
+       "kind": "liveview",
+       "name": "BlogWeb.TennisPotatoesLive"
+      }
      }
     ],
     "truncated": {
@@ -752,7 +834,8 @@
       "count": 44100,
       "rate": 0.4,
       "err_rate": 0,
-      "avg_ms": 14
+      "avg_ms": 14,
+      "by": null
      },
      {
       "kind": "db.query",
@@ -760,9 +843,11 @@
       "count": 120400,
       "rate": 0.1,
       "err_rate": 0,
-      "avg_ms": 1.1
+      "avg_ms": 1.1,
+      "by": null
      }
     ],
+    "events": [],
     "truncated": {
      "units": 0,
      "members": 0,
@@ -967,7 +1052,8 @@
       "count": 2412000,
       "rate": 5.4,
       "err_rate": 0,
-      "avg_ms": 2.4
+      "avg_ms": 2.4,
+      "by": null
      },
      {
       "kind": "http.route",
@@ -975,7 +1061,8 @@
       "count": 9120,
       "rate": 0.07,
       "err_rate": 0.01,
-      "avg_ms": 410
+      "avg_ms": 410,
+      "by": null
      },
      {
       "kind": "outbound.http",
@@ -983,7 +1070,8 @@
       "count": 1210,
       "rate": 0.02,
       "err_rate": 0,
-      "avg_ms": 2210
+      "avg_ms": 2210,
+      "by": null
      },
      {
       "kind": "liveview.event",
@@ -991,9 +1079,11 @@
       "count": 4410,
       "rate": 0.03,
       "err_rate": 0,
-      "avg_ms": 9.1
+      "avg_ms": 9.1,
+      "by": null
      }
     ],
+    "events": [],
     "truncated": {
      "units": 0,
      "members": 0,
@@ -1134,7 +1224,8 @@
     "runtime": null,
     "units": null,
     "streams": null,
-    "truncated": null
+    "truncated": null,
+    "events": null
    }
   },
   {
@@ -1298,7 +1389,8 @@
       "count": 88120,
       "rate": 0.4,
       "err_rate": 0.013,
-      "avg_ms": 180
+      "avg_ms": 180,
+      "by": null
      },
      {
       "kind": "db.query",
@@ -1306,7 +1398,8 @@
       "count": 412000,
       "rate": 0.4,
       "err_rate": 0,
-      "avg_ms": 12
+      "avg_ms": 12,
+      "by": null
      },
      {
       "kind": "custom",
@@ -1314,9 +1407,11 @@
       "count": 5120,
       "rate": 0.02,
       "err_rate": 0.001,
-      "avg_ms": 3400
+      "avg_ms": 3400,
+      "by": null
      }
     ],
+    "events": [],
     "truncated": {
      "units": 0,
      "members": 0,

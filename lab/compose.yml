@@ -68,6 +68,23 @@ services:
       - ./relay:/app:ro
       - ./state:/state:ro
 
+  # A real Phoenix LiveView app (lab/liveapp) that serves a report of its own
+  # inside on :9568 (packages/factory_report), like the box's Phoenix apps
+  # will. The report port is not published and not behind Caddy: only the
+  # compose network reaches it.
+  liveapp:
+    build:
+      context: ..
+      dockerfile: lab/liveapp/Dockerfile
+    image: obslab-liveapp
+    restart: always
+    mem_limit: 384m
+    environment:
+      PORT: "4000"
+      PHX_HOST: live.lab.test
+    ports:
+      - "127.0.0.1:14100:4000"
+
   # A one-shot job that ran and exited 0, like the box's temper-link. It
   # should read as idle, never as down.
   migrate:

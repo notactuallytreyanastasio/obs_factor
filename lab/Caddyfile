@@ -113,6 +113,13 @@ http://factory.lab.test {
 	}
 }
 
+# The LiveView app: pages and their websocket, never its report port.
+http://live.lab.test {
+	import access
+	encode gzip zstd
+	reverse_proxy liveapp:4000
+}
+
 # A static site Caddy serves from a directory, like deciduous.dev.
 http://docs.lab.test {
 	import access

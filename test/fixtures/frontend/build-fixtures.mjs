@@ -162,7 +162,8 @@ const beam = (app, phoenix, live, memMB, procs, up, units, streams) => ({
     rates: { reductions: 48211.4, "gc.count": 3.2, "io.in_bytes": 5120.0, "io.out_bytes": 20480.0, context_switches: 310.5 },
   },
   units,
-  streams: streams.map(([kind, name, count, rate, err_rate, avg_ms]) => ({ kind, name, count, rate, err_rate, avg_ms })),
+  streams: streams.map(([kind, name, count, rate, err_rate, avg_ms, by]) => ({ kind, name, count, rate, err_rate, avg_ms, by: by ? { kind: by[0], name: by[1] } : null })),
+  events: [],
   truncated: { units: 0, members: 0, streams: 0 },
 });
 const INSIDE = {
@@ -173,6 +174,10 @@ const INSIDE = {
     lv("BlogWeb.CursorTrackerLive", "/cursor-tracker", [["/cursor-tracker", 5, 940]], 240000),
   ], [
     ["liveview.event", "BlogWeb.CursorTrackerLive#move", 88120, 3.1, 0, 0.4], ["db.query", "Blog.Repo", 991200, 2.1, 0, 1.8],
+    ["db.query", "Blog.Repo", 412000, 1.2, 0, 1.4, ["liveview", "BlogWeb.HotelCarbonLive"]],
+    ["db.query", "Blog.Repo", 201000, 0.6, 0, 2.6, ["liveview", "BlogWeb.PostLive.Show"]],
+    ["outbound.http", "api.deepseek.com", 400, 0.01, 0.002, 1840.0, ["liveview", "BlogWeb.TennisPotatoesLive"]],
+    ["log", "warning", 310, 0.002, 0, null], ["log", "error", 12, 0, 0, null],
     ["http.route", "GET /hotel-carbon", 4410, 0.05, 0, 31.0], ["liveview.event", "BlogWeb.HotelCarbonLive#place", 3120, 0.04, 0, 6.2],
     ["outbound.http", "api.deepseek.com", 412, 0.01, 0.002, 1840.0], ["outbound.http", "api.github.com", 2880, 0.003, 0, 210.0],
     ["liveview.mount", "BlogWeb.PostLive.Show", 9120, 0.02, 0, 12.0], ["channel.join", "room:*", 120, 0, 0, null],
@@ -194,8 +199,14 @@ const INSIDE = {
   blinks: beam("blinks_backend", "1.8.9", "1.2.7", 96, 610, 90, [], [
     ["http.route", "GET /", 44100, 0.4, 0, 14.0], ["db.query", "BlinksBackend.Repo", 120400, 0.1, 0, 1.1],
   ]),
-  dave: { ok: false, error: "connect ECONNREFUSED dave:9568", at: null, runtime: null, units: null, streams: null, truncated: null },
 };
+INSIDE.app.events = [
+  { at: new Date(Date.parse(AT) - 40000).toISOString(), level: "warning", name: "Blog.GitHub.WorkLogPoller", message: "poll failed: GitHub answered 403 (rate limited), next try in 300 s", by: null },
+  { at: new Date(Date.parse(AT) - 190000).toISOString(), level: "error", name: "BlogWeb.TennisPotatoesLive", message: "DeepSeek request failed: timeout after 15000 ms", by: { kind: "liveview", name: "BlogWeb.TennisPotatoesLive" } },
+];
+Object.assign(INSIDE, {
+  dave: { ok: false, error: "connect ECONNREFUSED dave:9568", at: null, runtime: null, units: null, streams: null, truncated: null, events: null },
+});
 
 const fmtBytes = (b) => {
   if (b == null) return "-";

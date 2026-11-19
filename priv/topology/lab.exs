@@ -43,6 +43,11 @@
       via: ["blog.lab.test/arena/*"], probe: "http://arena:80/health"},
     %{id: "relay", label: "Relay (96 MB)", kind: :relay, service: "relay", platform: "main", pos: {2, 4},
       hosts: ["relay.lab.test"], probe: "http://relay:8788/health"},
+    # A real Phoenix LiveView app that reports its own inside (docs/contract.md,
+    # Reports): click it on the floor to go in.
+    %{id: "liveapp", label: "Live app", kind: :app, style: "studio", service: "liveapp",
+      platform: "main", pos: {3, 2}, hosts: ["live.lab.test"],
+      probe: "http://liveapp:4000/health", report: "http://liveapp:9568/report"},
     # One-shot, restart "no", exits 0: should read idle, never down.
     %{id: "migrate", label: "Migrate job", kind: :app, service: "migrate", platform: "main", pos: {3, 4}},
 

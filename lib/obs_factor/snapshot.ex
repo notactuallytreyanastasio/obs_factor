@@ -502,6 +502,7 @@ defmodule ObsFactor.Snapshot do
     runtime: nil,
     units: nil,
     streams: nil,
+    events: nil,
     truncated: nil
   }
 
@@ -521,7 +522,9 @@ defmodule ObsFactor.Snapshot do
       true ->
         {streams, cut} =
           report.streams
-          |> Enum.sort_by(&{-(&1.rate || 0), -&1.count, &1.kind, &1.name})
+          # Totals first, then the breakdown rows (`by`), each busiest first:
+          # the cut takes breakdown rows before it takes any total.
+          |> Enum.sort_by(&{&1.by != nil, -(&1.rate || 0), -&1.count, &1.kind, &1.name})
           |> Enum.split(@inside_streams)
 
         %{
@@ -542,6 +545,7 @@ defmodule ObsFactor.Snapshot do
                   avg_ms: round_to(s.avg_ms, 1)
               }
             end),
+          events: report.events,
           # What is not shown here is counted, whoever cut it.
           truncated: %{report.truncated | streams: report.truncated.streams + length(cut)}
         }

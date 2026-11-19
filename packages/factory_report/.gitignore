@@ -1,0 +1,6 @@
+/_build/
+/_build_compat/
+/deps/
+/deps_compat/
+/doc/
+erl_crash.dump

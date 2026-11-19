@@ -105,11 +105,13 @@ defmodule ObsFactor.ReportsTest do
       assert stream!(reading.streams, "GET /post/:slug") == %{
                kind: "http.route",
                name: "GET /post/:slug",
+               by: nil,
                count: 4410,
                errors: 2,
                duration_us: 98_765_432
              }
 
+      assert reading.events == []
       assert reading.truncated == %{units: 0, members: 0, streams: 0}
     end
 
@@ -232,6 +234,157 @@ defmodule ObsFactor.ReportsTest do
       assert reading.truncated == %{units: 25, members: 1001, streams: 52}
     end
 
+    test "by on a stream: a breakdown row and its total are two rows" do
+      reading = validated!(Fixtures.liveapp_doc())
+      repo = Enum.filter(reading.streams, &(&1.name == "Liveapp.Repo"))
+
+      assert repo == [
+               %{
+                 kind: "db.query",
+                 name: "Liveapp.Repo",
+                 by: nil,
+                 count: 40,
+                 errors: 0,
+                 duration_us: 9000
+               },
+               %{
+                 kind: "db.query",
+                 name: "Liveapp.Repo",
+                 by: %{kind: "liveview", name: "LiveappWeb.CounterLive"},
+                 count: 30,
+                 errors: 0,
+                 duration_us: 7000
+               }
+             ]
+
+      # The same row twice is still one row.
+      doc = update_in(Fixtures.liveapp_doc(), ["streams"], &(&1 ++ [Enum.at(&1, 2)]))
+      assert length(validated!(doc).streams) == 5
+
+      long = String.duplicate("k", 200)
+
+      doc =
+        put_in(Fixtures.liveapp_doc(), ["streams", Access.at(2), "by"], %{
+          "kind" => long,
+          "name" => long,
+          "pid" => "ignored"
+        })
+
+      by = Enum.at(validated!(doc).streams, 2).by
+      assert by == %{kind: String.duplicate("k", 120), name: String.duplicate("k", 120)}
+    end
+
+    test "a by of the wrong shape fails the report, saying where" do
+      doc = Fixtures.liveapp_doc()
+      error = fn doc -> elem({:error, _} = Reports.validate(doc), 1) end
+      by = fn value -> put_in(doc, ["streams", Access.at(2), "by"], value) end
+
+      assert error.(by.("LiveappWeb.CounterLive")) == "streams[2].by is not an object"
+      assert error.(by.(["liveview", "x"])) == "streams[2].by is not an object"
+      assert error.(by.(%{"kind" => "liveview"})) == "streams[2].by.name is missing"
+      assert error.(by.(%{"kind" => 1, "name" => "x"})) == "streams[2].by.kind is not a string"
+    end
+
+    test "events: as reported, newest first, at most 50, strings cut" do
+      assert validated!(Fixtures.liveapp_doc()).events == [
+               %{
+                 at: "2026-11-19T08:12:33Z",
+                 level: "warning",
+                 name: "LiveappWeb.RoomLive",
+                 message: "room 42 is getting loud",
+                 by: %{kind: "liveview", name: "LiveappWeb.RoomLive"}
+               }
+             ]
+
+      event = fn i ->
+        %{
+          "at" => "2026-11-19T08:12:33Z",
+          "level" => "error",
+          "name" => String.duplicate("M", 200),
+          "message" => "#{i} " <> String.duplicate("x", 400)
+        }
+      end
+
+      doc = Map.put(Fixtures.liveapp_doc(), "events", Enum.map(1..60, event))
+      events = validated!(doc).events
+
+      assert length(events) == 50
+      assert Enum.map(events, &hd(String.split(&1.message))) == Enum.map(1..50, &"#{&1}")
+      assert Enum.all?(events, &(String.length(&1.message) == 300))
+      assert Enum.all?(events, &(String.length(&1.name) == 120))
+      assert Enum.all?(events, &(&1.by == nil))
+
+      # name and by are optional.
+      doc =
+        Map.put(Fixtures.liveapp_doc(), "events", [
+          %{"at" => "t", "level" => "l", "message" => ""}
+        ])
+
+      assert validated!(doc).events == [%{at: "t", level: "l", name: nil, message: "", by: nil}]
+    end
+
+    test "a malformed event fails the report, saying where" do
+      doc = Fixtures.liveapp_doc()
+      error = fn doc -> elem({:error, _} = Reports.validate(doc), 1) end
+      event = fn key, value -> put_in(doc, ["events", Access.at(0), key], value) end
+
+      assert error.(%{doc | "events" => %{}}) == "events is not a list"
+      assert error.(%{doc | "events" => ["boom"]}) == "events[0] is not an object"
+      assert error.(event.("at", nil)) == "events[0].at is missing"
+      assert error.(event.("at", 1_795_000_000)) == "events[0].at is not a string"
+      assert error.(event.("level", nil)) == "events[0].level is missing"
+      assert error.(event.("message", nil)) == "events[0].message is missing"
+      assert error.(event.("message", %{"a" => 1})) == "events[0].message is not a string"
+      assert error.(event.("name", 7)) == "events[0].name is not a string"
+      assert error.(event.("by", "x")) == "events[0].by is not an object"
+      assert error.(event.("by", %{"name" => "x"})) == "events[0].by.kind is missing"
+    end
+
+    test "the real reporter's document: a null route, gauges and counters we do not name" do
+      reading = validated!(Fixtures.liveapp_doc())
+
+      assert Enum.map(reading.units, &{&1.kind, &1.name, &1.route, &1.count}) == [
+               {"liveview", "LiveappWeb.CounterLive", "/", 2},
+               {"channel", "room:*", nil, 1}
+             ]
+
+      assert reading.runtime.gauges["port.limit"] == 65536
+      assert reading.runtime.gauges["scheduler.utilization"] == 0.0334
+      assert map_size(reading.runtime.gauges) == 16
+      assert reading.runtime.counters["report.handler_errors"] == 0
+      assert map_size(reading.runtime.counters) == 7
+      assert length(reading.streams) == 5
+      assert reading.truncated == %{units: 0, members: 0, streams: 0}
+    end
+
+    test "over 300 streams: totals are kept before breakdown rows" do
+      total = fn i ->
+        %{"kind" => "custom", "name" => "t#{i}", "count" => i, "errors" => 0, "duration_us" => 0}
+      end
+
+      part = fn i ->
+        total.(i)
+        |> Map.put("count", 10_000 + i)
+        |> Map.put("by", %{"kind" => "u", "name" => "x"})
+      end
+
+      doc =
+        Map.put(
+          Fixtures.report_doc(),
+          "streams",
+          Enum.map(1..200, part) ++ Enum.map(1..200, total)
+        )
+
+      reading = validated!(doc)
+      {totals, parts} = Enum.split_with(reading.streams, &(&1.by == nil))
+
+      # Every total, though each is less busy than every breakdown row, and
+      # the 100 busiest breakdown rows.
+      assert length(totals) == 200
+      assert parts |> Enum.map(& &1.count) |> Enum.sort() == Enum.to_list(10_101..10_200)
+      assert reading.truncated.streams == 100
+    end
+
     test "a stream reported twice is one row" do
       doc = update_in(Fixtures.report_doc(), ["streams"], &(&1 ++ [hd(&1)]))
       assert length(validated!(doc).streams) == 4
@@ -266,6 +419,7 @@ defmodule ObsFactor.ReportsTest do
       assert stream!(rates.streams, "GET /post/:slug") == %{
                kind: "http.route",
                name: "GET /post/:slug",
+               by: nil,
                count: 4410,
                rate: nil,
                err_rate: nil,
@@ -282,6 +436,7 @@ defmodule ObsFactor.ReportsTest do
       assert stream!(rates.streams, "GET /post/:slug") == %{
                kind: "http.route",
                name: "GET /post/:slug",
+               by: nil,
                count: 4416,
                rate: 1.2,
                err_rate: 0.0,
@@ -343,7 +498,15 @@ defmodule ObsFactor.ReportsTest do
     end
 
     test "a stream that was not there before started from zero", %{first: first, second: second} do
-      new = %{kind: "custom", name: "gif.rendered", count: 10, errors: 5, duration_us: 30_000}
+      new = %{
+        kind: "custom",
+        name: "gif.rendered",
+        by: nil,
+        count: 10,
+        errors: 5,
+        duration_us: 30_000
+      }
+
       rates = Reports.rates(first, %{second | streams: [new | second.streams]})
 
       assert %{rate: 2.0, err_rate: 1.0, avg_ms: 3.0} = stream!(rates.streams, "gif.rendered")
@@ -354,7 +517,16 @@ defmodule ObsFactor.ReportsTest do
       second: second
     } do
       first = put_in(first.truncated.streams, 12)
-      new = %{kind: "custom", name: "gif.rendered", count: 10, errors: 5, duration_us: 30_000}
+
+      new = %{
+        kind: "custom",
+        name: "gif.rendered",
+        by: nil,
+        count: 10,
+        errors: 5,
+        duration_us: 30_000
+      }
+
       rates = Reports.rates(first, %{second | streams: [new | second.streams]})
 
       assert %{rate: nil, err_rate: nil, avg_ms: nil} = stream!(rates.streams, "gif.rendered")
@@ -368,6 +540,96 @@ defmodule ObsFactor.ReportsTest do
 
       assert rates.runtime["gc.count"] == nil
       assert rates.runtime["reductions"] == 51_200.0
+    end
+
+    test "the real reporter's document, read twice: a breakdown row has its own rates" do
+      first = Fixtures.liveapp_doc() |> validated!() |> at(1_000_000)
+      second = Fixtures.liveapp_doc_later() |> validated!() |> at(1_005_000)
+      rates = Reports.rates(first, second)
+
+      assert rates.restart == false
+      assert rates.runtime["reductions"] == 10_000.0
+      assert rates.runtime["report.handler_errors"] == 0.0
+      assert map_size(rates.runtime) == 7
+
+      assert Enum.filter(rates.streams, &(&1.name == "Liveapp.Repo")) == [
+               %{
+                 kind: "db.query",
+                 name: "Liveapp.Repo",
+                 by: nil,
+                 count: 50,
+                 rate: 2.0,
+                 err_rate: 0.0,
+                 avg_ms: 0.2
+               },
+               %{
+                 kind: "db.query",
+                 name: "Liveapp.Repo",
+                 by: %{kind: "liveview", name: "LiveappWeb.CounterLive"},
+                 count: 40,
+                 rate: 2.0,
+                 err_rate: 0.0,
+                 avg_ms: 0.2
+               }
+             ]
+
+      assert %{kind: "log", count: 3, rate: 0.2, avg_ms: +0.0} = stream!(rates.streams, "warning")
+    end
+
+    test "a breakdown row going backwards is a restart, its total untouched or not" do
+      first = Fixtures.liveapp_doc() |> validated!() |> at(1_000_000)
+      second = Fixtures.liveapp_doc_later() |> validated!() |> at(1_005_000)
+
+      streams =
+        Enum.map(second.streams, fn s -> if s.by, do: %{s | count: 1}, else: s end)
+
+      assert Reports.rates(first, %{second | streams: streams}).restart == true
+    end
+
+    test "a new breakdown row of a total that was there starts from zero" do
+      first = Fixtures.liveapp_doc() |> validated!() |> at(1_000_000)
+      second = Fixtures.liveapp_doc_later() |> validated!() |> at(1_005_000)
+
+      new = %{
+        kind: "db.query",
+        name: "Liveapp.Repo",
+        by: %{kind: "http.route", name: "GET /"},
+        count: 5,
+        errors: 0,
+        duration_us: 1_000
+      }
+
+      rates = Reports.rates(first, %{second | streams: second.streams ++ [new]})
+      assert %{rate: 1.0, avg_ms: 0.2} = Enum.find(rates.streams, &(&1.by == new.by))
+      assert rates.restart == false
+    end
+
+    test "uptime far behind our own clock is a restart, though nothing went backwards", %{
+      first: first,
+      second: second
+    } do
+      # Read again 100 s later; the process says it is 1 s older than it was,
+      # and every total is higher: it restarted and has caught up.
+      short = second |> put_in([:runtime, :uptime_s], first.runtime.uptime_s + 1) |> at(1_100_000)
+      assert %{restart: true, runtime: %{"reductions" => nil}} = Reports.rates(first, short)
+
+      # Both conditions must hold. Less than half, but under 10 s short: a
+      # normal tick with a slow answer (5 s here, 0 s there).
+      same = second |> put_in([:runtime, :uptime_s], first.runtime.uptime_s) |> at(1_005_000)
+      assert Reports.rates(first, same).restart == false
+
+      # 19 s here, 9 s there: exactly 10 s short and less than half.
+      edge = second |> put_in([:runtime, :uptime_s], first.runtime.uptime_s + 9) |> at(1_019_000)
+      assert Reports.rates(first, edge).restart == true
+
+      # 19 s here, 10 s there: 9 s short.
+      near = second |> put_in([:runtime, :uptime_s], first.runtime.uptime_s + 10) |> at(1_019_000)
+      assert Reports.rates(first, near).restart == false
+
+      # 100 s here, 60 s there: 40 s short but more than half (a paused
+      # machine, a slow clock): the same process.
+      slow = second |> put_in([:runtime, :uptime_s], first.runtime.uptime_s + 60) |> at(1_100_000)
+      assert %{restart: false, runtime: %{"reductions" => 2_560.0}} = Reports.rates(first, slow)
     end
 
     test "two reads at the same instant give no rates", %{first: first, second: second} do

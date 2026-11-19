@@ -223,6 +223,16 @@ const STREAM_COLOR = { "http.route": "#ffd166", "liveview.event": "#4cc9f0", "li
 const gaugeText = (k, v) => (!isNum(v) ? UNKNOWN : /^memory\b|memory$|_bytes$/.test(k) ? bytes(v) : k.endsWith("utilization") ? `${(v * 100).toFixed(1)}%` : num(v));
 const ago = (iso) => { const s = (Date.now() - Date.parse(iso)) / 1000; return Number.isFinite(s) ? duration(Math.max(0, s)) : UNKNOWN; };
 
+// What the app logged at warning and above, newest first.
+export function eventsList(events) {
+  if (!events) return "";
+  if (!events.length) return "";
+  const col = { error: "#ff4d4d", critical: "#ff4d4d", alert: "#ff4d4d", emergency: "#ff4d4d", warning: "#ff9f1c" };
+  return `<div class="sec"><h3>Logged <span class="h3note">warnings and errors, newest first</span></h3><ul class="logs">${events.map((e) => `<li style="--c:${col[e.level] ?? "#9aa5b8"}">
+      <div class="lrow"><span class="llevel">${esc(e.level)}</span><span class="lname" title="${esc(e.name ?? "")}">${esc(e.name ?? "")}</span><time>${esc(ago(e.at))} ago</time></div>
+      <div class="lmsg">${esc(e.message)}</div>${e.by ? `<div class="lby">while serving ${esc(e.by.name)}</div>` : ""}</li>`).join("")}</ul></div>`;
+}
+
 function inside(n) {
   const r = n.inside;
   if (!r) return "";
@@ -271,11 +281,12 @@ function inside(n) {
   if (streams.length) {
     const top = Math.max(...streams.map((x) => x.rate ?? 0), 1e-9);
     out += `<div class="sec"><h3>What happens inside <span class="h3note">per second</span></h3><ul class="paths streams">${streams.map((x) => `<li style="--c:${STREAM_COLOR[x.kind] ?? "#9aa5b8"}">
-        <div class="prow"><span class="path" title="${esc(x.name)}"><i class="skind">${esc(x.kind)}</i> ${esc(x.name)}</span><span class="v">${x.rate == null ? `<span class="unk">${UNKNOWN}</span>` : esc(num(x.rate))}</span></div>
+        <div class="prow"><span class="path" title="${esc(x.name)}${x.by ? ` by ${esc(x.by.name)}` : ""}"><i class="skind">${esc(x.kind)}</i> ${esc(x.name)}${x.by ? ` <i class="sby">by ${esc(x.by.name.split(".").slice(-2).join("."))}</i>` : ""}</span><span class="v">${x.rate == null ? `<span class="unk">${UNKNOWN}</span>` : esc(num(x.rate))}</span></div>
         <div class="pbar"><span style="width:${x.rate ? Math.max(2, (x.rate / top) * 100) : 0}%;background:var(--c)"></span></div>
         <div class="pmeta"><span>${isNum(x.avg_ms) ? `avg ${esc(num(x.avg_ms))} ms` : "avg -"}</span><span>${esc(num(x.count))} since start</span>${x.err_rate > 0 ? `<span class="bad">${esc(num(x.err_rate))} err/s</span>` : ""}</div>
       </li>`).join("")}</ul></div>`;
   }
+  out += eventsList(r.events);
   const t = r.truncated ?? {};
   if ((t.units ?? 0) + (t.members ?? 0) + (t.streams ?? 0) > 0) out += `<p class="note">The report was cut: ${esc(num(t.units ?? 0))} units, ${esc(num(t.members ?? 0))} members, ${esc(num(t.streams ?? 0))} streams not shown.</p>`;
   return out;

@@ -35,7 +35,11 @@ export function interiorSnapshot(outer, node) {
   const rt = r.runtime ?? {};
   const g = rt.gauges ?? {};
   const units = r.units ?? [];
-  const streams = r.streams ?? [];
+  const all = r.streams ?? [];
+  // Rows with `by` break a total down by who caused it; the totals are the rows without.
+  const streams = all.filter((s) => !s.by);
+  const breakdown = all.filter((s) => s.by);
+  const events = r.events ?? [];
   const kind = rt.kind ?? "runtime";
 
   const blank = (o) => ({
@@ -87,7 +91,10 @@ export function interiorSnapshot(outer, node) {
   sorted.forEach((u, i) => {
     const id = `unit:${u.kind}:${u.name}`;
     if (u.route) routeOwner.set(u.route, id);
-    const mine = streams.filter((s) => s.name === u.name || s.name.startsWith(`${u.name}#`) || (u.route && s.kind === "http.route" && s.name.split(" ").slice(1).join(" ") === u.route));
+    const mine = [
+      ...streams.filter((s) => s.name === u.name || s.name.startsWith(`${u.name}#`) || (u.route && s.kind === "http.route" && s.name.split(" ").slice(1).join(" ") === u.route)),
+      ...breakdown.filter((s) => s.by.kind === u.kind && s.by.name === u.name),
+    ];
     nodes.push(blank({
       id, label: short(u.name), kind: "app", platform: "alive", pos: [i % cols, Math.floor(i / cols)],
       status: (u.count ?? 0) > 0 ? "working" : "idle",
@@ -97,7 +104,8 @@ export function interiorSnapshot(outer, node) {
         ...(u.route ? [{ label: "route", value: u.route }] : []),
       ],
       // the inspector shows this unit's members and its own streams
-      inside: { ok: true, error: null, at: r.at, runtime: null, units: [u], streams: mine, truncated: null },
+      inside: { ok: true, error: null, at: r.at, runtime: null, units: [u], streams: mine, truncated: null,
+        events: events.filter((e) => e.by && e.by.kind === u.kind && e.by.name === u.name) },
     }));
     const evs = live.filter((s) => s.name === u.name || s.name.startsWith(`${u.name}#`));
     if (evs.length) edge("sockets", id, "events", sum(evs.map((s) => s.rate)), "events/s", "mounts, params, events");
@@ -118,10 +126,39 @@ export function interiorSnapshot(outer, node) {
       id: "routes", label: "Plain routes", kind: "app", style: "switchyard", platform: "work", pos: [1, 0],
       status: active(rate), reason: why(rate), headline: { value: round(rate, 2), unit: "req/s" },
       facts: [{ label: "what", value: `${plain.length} routes that are not a live page` }],
-      inside: { ok: true, error: null, at: r.at, runtime: null, units: [], streams: plain, truncated: null },
+      inside: { ok: true, error: null, at: r.at, runtime: null, units: [], streams: [...plain, ...breakdown.filter((s) => s.by.kind === "http.route" && !routeOwner.has(s.by.name.split(" ").slice(1).join(" ")))], truncated: null,
+        events: events.filter((e) => e.by && e.by.kind === "http.route") },
     }));
     edge("hub", "routes", "requests", rate, "req/s", `${plain.length} routes`);
   }
+
+  // Who caused a query or a call, when the report says: a belt from that page
+  // (or from the plain routes) to the store, and only the rest from the hub.
+  const causeOf = (by) => {
+    if (by.kind === "http.route") return routeOwner.get(by.name.split(" ").slice(1).join(" ")) ?? (plain.length ? "routes" : null);
+    const id = `unit:${by.kind}:${by.name}`;
+    return nodes.some((n) => n.id === id) ? id : null;
+  };
+  const feed = (target, total, item, unit) => {
+    const parts = breakdown.filter((s) => s.kind === total.kind && s.name === total.name);
+    const byCause = new Map();
+    for (const p of parts) {
+      const from = causeOf(p.by);
+      if (!from) continue;
+      byCause.set(from, [...(byCause.get(from) ?? []), p]);
+    }
+    let attributed = 0, unknown = false;
+    for (const [from, list] of byCause) {
+      const rate = sum(list.map((s) => s.rate));
+      if (rate == null) unknown = true; else attributed += rate;
+      edge(from, target, item, rate, unit, list.map((s) => s.by.name).join(", "));
+    }
+    const rest = total.rate == null || unknown ? null : Math.max(0, total.rate - attributed);
+    // the hub's belt stays unless everything is known to come from named causes
+    if (!(byCause.size && rest === 0 && total.count === parts.reduce((a, s) => a + s.count, 0))) {
+      edge("hub", target, item, byCause.size ? rest : total.rate, unit, byCause.size ? "not attributed to a page" : "from anywhere inside");
+    }
+  };
 
   // ---- stores and outside -------------------------------------------------
   streams.filter((s) => s.kind === "db.query").forEach((s, i) => {
@@ -131,9 +168,9 @@ export function interiorSnapshot(outer, node) {
       status: active(s.rate), reason: why(s.rate), headline: { value: round(s.rate, 2), unit: "queries/s" },
       facts: [{ label: "repo", value: s.name }, { label: "average", value: isNum(s.avg_ms) ? `${s.avg_ms} ms` : null },
         { label: "since start", value: `${s.count} queries, ${s.errors ?? 0} errors` }],
-      inside: { ok: true, error: null, at: r.at, runtime: null, units: [], streams: [s], truncated: null },
+      inside: { ok: true, error: null, at: r.at, runtime: null, units: [], streams: [s, ...breakdown.filter((b) => b.kind === s.kind && b.name === s.name)], truncated: null },
     }));
-    edge("hub", id, "queries", s.rate, "queries/s", "from anywhere inside");
+    feed(id, s, "queries", "queries/s");
   });
   streams.filter((s) => s.kind === "outbound.http").forEach((s, i) => {
     const id = `out:${s.name}`;
@@ -142,14 +179,14 @@ export function interiorSnapshot(outer, node) {
       status: active(s.rate), reason: why(s.rate), headline: { value: round(s.rate, 3), unit: "calls/s" },
       facts: [{ label: "host", value: s.name }, { label: "average", value: isNum(s.avg_ms) ? `${s.avg_ms} ms` : null },
         { label: "since start", value: `${s.count} calls, ${s.errors ?? 0} errors` }],
-      inside: { ok: true, error: null, at: r.at, runtime: null, units: [], streams: [s], truncated: null },
+      inside: { ok: true, error: null, at: r.at, runtime: null, units: [], streams: [s, ...breakdown.filter((b) => b.kind === s.kind && b.name === s.name)], truncated: null },
     }));
-    edge("hub", id, "calls", s.rate, "calls/s", "from anywhere inside");
+    feed(id, s, "calls", "calls/s");
   });
 
   // ---- everything else: one station each ----------------------------------
   const known = new Set(["http.route", "db.query", "outbound.http"]);
-  const other = streams.filter((s) => !known.has(s.kind) && !s.kind.startsWith("liveview."));
+  const other = streams.filter((s) => !known.has(s.kind) && !s.kind.startsWith("liveview.") && s.kind !== "log");
   other.slice(0, MAX_OTHER).forEach((s, i) => {
     const id = `stream:${s.kind}:${s.name}`;
     nodes.push(blank({
@@ -204,7 +241,7 @@ export function interiorSnapshot(outer, node) {
   ].filter((p) => nodes.some((n) => n.platform === p.id));
 
   return {
-    interior: { of: node.id, label: node.label, kind, versions: rt.versions ?? {}, uptime_s: rt.uptime_s ?? null },
+    interior: { of: node.id, label: node.label, kind, versions: rt.versions ?? {}, uptime_s: rt.uptime_s ?? null, events },
     at: outer.at, tick_ms: outer.tick_ms,
     sources: { report: { ok: true, at: r.at, error: null } },
     host, platforms, nodes, edges,

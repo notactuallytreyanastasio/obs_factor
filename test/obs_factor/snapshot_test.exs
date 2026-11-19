@@ -763,6 +763,7 @@ defmodule ObsFactor.SnapshotTest do
                  %{
                    "kind" => "db.query",
                    "name" => "Blog.Repo",
+                   "by" => nil,
                    "count" => 99_170,
                    "rate" => 10.0,
                    "err_rate" => 0.0,
@@ -771,6 +772,7 @@ defmodule ObsFactor.SnapshotTest do
                  %{
                    "kind" => "http.route",
                    "name" => "GET /post/:slug",
+                   "by" => nil,
                    "count" => 4416,
                    "rate" => 1.2,
                    "err_rate" => 0.0,
@@ -779,6 +781,7 @@ defmodule ObsFactor.SnapshotTest do
                  %{
                    "kind" => "outbound.http",
                    "name" => "api.deepseek.com",
+                   "by" => nil,
                    "count" => 42,
                    "rate" => 0.2,
                    "err_rate" => 0.2,
@@ -787,14 +790,152 @@ defmodule ObsFactor.SnapshotTest do
                  %{
                    "kind" => "liveview.event",
                    "name" => "BlogWeb.PostLive#like",
+                   "by" => nil,
                    "count" => 120,
                    "rate" => 0.0,
                    "err_rate" => 0.0,
                    "avg_ms" => nil
                  }
                ],
+               "events" => [],
                "truncated" => %{"units" => 0, "members" => 0, "streams" => 0}
              }
+    end
+
+    defp liveapp_twice do
+      {:ok, first} = ObsFactor.Reports.validate(Fixtures.liveapp_doc())
+      {:ok, second} = ObsFactor.Reports.validate(Fixtures.liveapp_doc_later())
+      new = ObsFactor.Reports.new_node()
+      {_, state} = ObsFactor.Reports.step(new, {:ok, first}, Fixtures.now_ms() - 5_000)
+      {data, _} = ObsFactor.Reports.step(state, {:ok, second}, Fixtures.now_ms())
+      data
+    end
+
+    test "the real reporter's report read twice: by on rows, events, totals first", %{
+      topology: t
+    } do
+      {s, _} =
+        Snapshot.build(
+          t,
+          Fixtures.sources(%{reports: Fixtures.ok(%{"app" => liveapp_twice()})}),
+          Snapshot.empty_memory(),
+          Fixtures.now()
+        )
+
+      json = s |> Jason.encode!() |> Jason.decode!()
+      inside = Enum.find(json["nodes"], &(&1["id"] == "app"))["inside"]
+
+      assert inside["ok"] == true
+
+      # Totals busiest first, then the breakdown row, though it is as busy
+      # as the busiest total.
+      assert inside["streams"] == [
+               %{
+                 "kind" => "db.query",
+                 "name" => "Liveapp.Repo",
+                 "by" => nil,
+                 "count" => 50,
+                 "rate" => 2.0,
+                 "err_rate" => 0.0,
+                 "avg_ms" => 0.2
+               },
+               %{
+                 "kind" => "log",
+                 "name" => "warning",
+                 "by" => nil,
+                 "count" => 3,
+                 "rate" => 0.2,
+                 "err_rate" => 0.0,
+                 "avg_ms" => 0.0
+               },
+               %{
+                 "kind" => "liveview.event",
+                 "name" => "LiveappWeb.CounterLive#inc",
+                 "by" => nil,
+                 "count" => 10,
+                 "rate" => 0.0,
+                 "err_rate" => 0.0,
+                 "avg_ms" => nil
+               },
+               %{
+                 "kind" => "http.route",
+                 "name" => "GET /",
+                 "by" => nil,
+                 "count" => 3,
+                 "rate" => 0.0,
+                 "err_rate" => 0.0,
+                 "avg_ms" => nil
+               },
+               %{
+                 "kind" => "db.query",
+                 "name" => "Liveapp.Repo",
+                 "by" => %{"kind" => "liveview", "name" => "LiveappWeb.CounterLive"},
+                 "count" => 40,
+                 "rate" => 2.0,
+                 "err_rate" => 0.0,
+                 "avg_ms" => 0.2
+               }
+             ]
+
+      assert inside["events"] == [
+               %{
+                 "at" => "2026-11-19T08:12:33Z",
+                 "level" => "warning",
+                 "name" => "LiveappWeb.RoomLive",
+                 "message" => "room 42 is getting loud",
+                 "by" => %{"kind" => "liveview", "name" => "LiveappWeb.RoomLive"}
+               }
+             ]
+
+      assert Enum.map(inside["units"], & &1["route"]) == ["/", nil]
+      assert inside["runtime"]["gauges"]["port.limit"] == 65536
+      assert inside["runtime"]["rates"]["reductions"] == 10_000.0
+      assert inside["runtime"]["rates"]["report.handler_errors"] == 0.0
+    end
+
+    test "the cut at 40 takes breakdown rows before any total", %{topology: t} do
+      %{"app" => report} = Fixtures.reports()
+
+      row = fn name, by, rate ->
+        %{kind: "custom", name: name, by: by, count: 1, rate: rate, err_rate: 0.0, avg_ms: nil}
+      end
+
+      # 30 quiet totals and 30 busy breakdown rows.
+      totals = for i <- 1..30, do: row.("t#{i}", nil, i / 100)
+      parts = for i <- 1..30, do: row.("t1", %{kind: "unit", name: "u#{i}"}, 100.0 + i)
+      report = %{report | streams: parts ++ totals}
+
+      {s, _} =
+        Snapshot.build(
+          t,
+          Fixtures.sources(%{reports: Fixtures.ok(%{"app" => report})}),
+          Snapshot.empty_memory(),
+          Fixtures.now()
+        )
+
+      inside = node!(s, "app").inside
+      assert length(inside.streams) == 40
+
+      assert Enum.map(inside.streams, &{&1.name, &1.by && &1.by.name}) ==
+               Enum.map(30..1//-1, &{"t#{&1}", nil}) ++ Enum.map(30..21//-1, &{"t1", "u#{&1}"})
+
+      assert inside.truncated.streams == 20
+
+      # More totals than fit: only totals, the busiest 40.
+      report = %{report | streams: parts ++ for(i <- 1..45, do: row.("t#{i}", nil, i / 100))}
+
+      {s, _} =
+        Snapshot.build(
+          t,
+          Fixtures.sources(%{reports: Fixtures.ok(%{"app" => report})}),
+          Snapshot.empty_memory(),
+          Fixtures.now()
+        )
+
+      inside = node!(s, "app").inside
+      assert Enum.map(inside.streams, & &1.name) == Enum.map(45..6//-1, &"t#{&1}")
+      assert Enum.all?(inside.streams, &(&1.by == nil))
+      assert inside.truncated.streams == 35
     end
 
     test "one read: the inside is there, its rates are nil, streams by count", %{topology: t} do
@@ -832,6 +973,7 @@ defmodule ObsFactor.SnapshotTest do
           %{
             kind: "custom",
             name: "s#{i}",
+            by: nil,
             count: 1000 - i,
             # s1..s10 have no rate yet; the rest are busier the higher they are.
             rate: if(i > 10, do: i / 1, else: nil),
@@ -879,6 +1021,7 @@ defmodule ObsFactor.SnapshotTest do
                runtime: nil,
                units: nil,
                streams: nil,
+               events: nil,
                truncated: nil
              }
 
@@ -924,6 +1067,7 @@ defmodule ObsFactor.SnapshotTest do
                runtime: nil,
                units: nil,
                streams: nil,
+               events: nil,
                truncated: nil
              }
 

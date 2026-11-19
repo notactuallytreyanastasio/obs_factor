@@ -259,6 +259,39 @@ defmodule ObsFactor.Fixtures do
     end)
   end
 
+  @liveapp Path.expand("../fixtures/report_liveapp.json", __DIR__)
+
+  @doc """
+  A report as the real reporter (packages/factory_report in lab/liveapp)
+  served it, 2026-11-19: a breakdown row with `by`, `events`, a unit whose
+  `route` is null.
+  """
+  def liveapp_doc, do: @liveapp |> File.read!() |> Jason.decode!()
+
+  @doc """
+  The same process 5 s later: 50000 reductions more, ten more queries (2 ms
+  in all), all ten from the counter LiveView, and one more warning logged.
+  """
+  def liveapp_doc_later do
+    liveapp_doc()
+    |> update_in(["runtime", "uptime_s"], &(&1 + 5))
+    |> update_in(["runtime", "counters", "reductions"], &(&1 + 50_000))
+    |> update_in(["streams"], fn streams ->
+      Enum.map(streams, fn s ->
+        case {s["kind"], s["name"]} do
+          {"db.query", _} ->
+            s |> Map.update!("count", &(&1 + 10)) |> Map.update!("duration_us", &(&1 + 2_000))
+
+          {"log", "warning"} ->
+            Map.update!(s, "count", &(&1 + 1))
+
+          _ ->
+            s
+        end
+      end)
+    end)
+  end
+
   @doc "Reports data: the app's report read twice, 5 s apart."
   def reports do
     {:ok, first} = ObsFactor.Reports.validate(report_doc())

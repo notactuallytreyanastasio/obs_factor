@@ -517,3 +517,36 @@ Three ideas, and nothing else:
 - History, per node with a report: `beam_memory` (`memory.total`), 
   `process_count` (`process.count`), `run_queue`, and `units` (the sum of
   unit counts), where those gauges exist.
+
+### Reports, second round: who did it, and what was logged *(agreed 2026-11-19)*
+
+- **`by` on a stream.** A stream row may carry `"by": {"kind": "liveview",
+  "name": "BlogWeb.PostLive"}` (or `{"kind": "http.route", "name": "GET /cases"}`):
+  the unit or route whose process caused it. Rows with `by` are a breakdown;
+  the row with the same `kind` + `name` and no `by` stays and is the total,
+  so nothing is counted twice by reading only rows without `by`. A reporter
+  attributes what it can (the Elixir one: `db.query`, `outbound.http`,
+  `custom` and `log`, from the process that made the call, or its caller for
+  a task) and leaves the rest in the total alone. Breakdown rows count
+  towards the 300-stream bound; the totals are kept first.
+- **`log` streams.** `kind: "log"`, `name` the level (`"error"`,
+  `"warning"`, ...): how many log events of that level, cumulative.
+  `duration_us` is 0.
+- **`events`.** The report gains `"events"`: the most recent notable things,
+  newest first, at most 50:
+  `{"at": "2026-11-19T08:40:02Z", "level": "error", "name": "Blog.GitHub.WorkLogPoller", "message": "poll failed: timeout", "by": {"kind": "liveview", "name": "..."} | null}`.
+  The Elixir reporter records log events at `warning` and above; `name` is
+  the module that logged; `message` is cut at 300 characters. Messages are
+  the app's own words and can contain anything the app logs: the factory is
+  behind its password, and the reporter never adds request parameters or
+  session data itself.
+- **The observer** passes `by` through on stream rows (`null` when absent)
+  and adds `"events"` to `inside` (as reported, at most 50, strings cut;
+  `[]` when the reporter sends none, `null` with a failing report). Stream
+  rows with `by` get rates like any other. The 40-row cut keeps totals
+  first.
+- **Structured stdout** is separate from the report: the Elixir package ships
+  a JSON formatter an app can give its default logger handler, one object
+  per line (`time`, `level`, `msg`, `app`, `module`, `request_id`, `page`).
+  Nothing reads those lines yet; they are for `docker logs` and for a later
+  log source.
