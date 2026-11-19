@@ -22,6 +22,60 @@ The interface between the observer, the browser and this wiring is
 | `deploy/` | what production needs, as files a human applies |
 | `deploy.sh` | ships the source to the box and rebuilds the service |
 
+## Setting up on another machine
+
+To work on it (laptop):
+
+```bash
+git clone git@github.com:notactuallytreyanastasio/obs_factor.git && cd obs_factor
+mix deps.get && mix test          # Elixir 1.18+ / OTP 27+; no database, no node, no asset build
+```
+
+Then one of three ways to see it, cheapest first:
+
+1. **Frontend only, from fixtures** (needs Node 20+, nothing else):
+   `node scripts/dev-static.mjs --fixture bad-day`, open
+   http://localhost:4010, password `dev`.
+2. **The whole thing against the lab** (needs Docker): the commands under
+   "The lab" below, then http://localhost:14000, password `obslab`. With
+   Colima the checkout must be under `$HOME` (it mounts nothing else), and
+   if only the standalone binary is installed, spell it `docker-compose`.
+3. **`mix phx.server` against the lab**: "Running `mix phx.server` on the
+   laptop instead", below. On macOS the host source fails (no `/proc`) and
+   says so.
+
+To deploy from that machine, `./deploy.sh` needs `ssh root@5.161.181.91`
+to work without a prompt, and `rsync`. It runs the suite, syncs the tree to
+`/opt/obs_factor`, checks the wiring, rebuilds `obs-factor` and checks
+`https://factory.bobbby.online/health`. Nothing else is needed locally:
+the secrets live in `/opt/blog/.env` on the box. The login password is
+`OBS_FACTOR_PASSWORD` there:
+
+```bash
+ssh root@5.161.181.91 "grep '^OBS_FACTOR_PASSWORD=' /opt/blog/.env"
+```
+
+To change what the box runs around it (the compose services, the Caddy
+site), edit `~/code/blog` and ship with that repo's `deploy.sh`; see
+"Production wiring".
+
+To stand it up on a different server, that server needs Docker Compose,
+Caddy 2.10.x and (optionally) Postgres in one compose project. Then:
+
+1. Write a topology for it, starting from `priv/topology/lab.exs`
+   (`docs/contract.md` has the format; containers you do not list still
+   show up, on the "unplaced" pad), and point `TOPOLOGY` at it.
+2. Add the two services and the network from
+   `deploy/compose.obs-factor.yml` to its compose file, changing
+   `PHX_HOST`, the site mounts and the build context.
+3. Apply the three Caddyfile pieces in `deploy/Caddyfile.patch`:
+   `metrics { per_host }`, the `http://:9180` metrics site, and the
+   reverse proxy site for your hostname.
+4. Put the three keys from `deploy/env.example` in the stack's `.env`,
+   run `deploy/postgres-role.sql`, `mkdir -p /var/lib/obs_factor/statfs`.
+5. Point DNS at it, set `HOST`, `STACK_DIR` and `URL` at the top of
+   `deploy.sh`, and run it.
+
 ## The lab
 
 `lab/compose.yml` (project `obslab`) is the box's shape on a laptop: real
@@ -266,11 +320,12 @@ would get in at 97+, by taking a slot kept for an admin fixing exactly that.
 
 ## Production wiring
 
-Nothing here has been applied to the box. Everything in `deploy/` is for a
-human, and the compose file and Caddyfile changes go into the **blog repo**,
-not onto the box: `blog/deploy.sh` rsyncs both over `/opt/blog` (the
-Caddyfile `--inplace`), so an edit made only on the box is undone by the
-next blog deploy.
+Applied on 2026-11-19: the observer runs at https://factory.bobbby.online
+as `obs-factor` in the blog stack, with `docker-proxy` beside it. The
+compose file and Caddyfile changes live in the **blog repo**, not only on
+the box: `blog/deploy.sh` rsyncs both over `/opt/blog` (the Caddyfile
+`--inplace`), so an edit made only on the box is undone by the next blog
+deploy. What was applied, for doing it again elsewhere:
 
 | file | what to do with it |
 |---|---|
@@ -393,26 +448,22 @@ six sources ok, `GET /health` 200 `ok`, login, `/api/snapshot`, SSE.
 
 ## Not done, not known
 
-- Nothing is deployed and the box was not contacted. Every production
-  claim above was checked against copies of its files and the
-  2026-11-18 capture, not against the box.
-- The box's `docker-compose.yml` says `image: caddy:2`; the box runs 2.10.2
-  because that is what was pulled. A `docker compose pull` would move it to
-  the newest 2.x, and the metrics series this was all checked against could
-  change. Pinning it is a one-word change in the blog repo, not made here.
-- `classifier` and `icecast` run on the box but are in neither the compose
-  file nor the Caddyfile (`archive_classifier/deploy.sh` adds the
-  classifier at archive.bobbby.online, a site the Caddyfile no longer has).
-  A `docker compose up --remove-orphans` would delete them.
+- The first production snapshot (2026-11-19) had all six sources reading
+  and 45 nodes. `/opt/gaming` is mode 700 on the box, so that one site's
+  size is unknown and the banner says why; fixing it is a `chmod` in
+  whatever deploys that site.
+- `caddy:2` is now pinned to `caddy:2.10.2` in the blog repo. The
+  `classifier` and `icecast` containers were removed on 2026-11-19 (their
+  `docker inspect` output is in `/opt/blog-config-backups/` on the box,
+  root-only; the images, `/opt/archive_classifier` and the
+  `archive_classifier_prod` database are still there). That freed ten
+  Postgres connections: 86 of 100 in use, 87 with the observer.
 - Unverified in `priv/topology/prod.exs`, each marked `UNVERIFIED` there:
   dave's `/` (no router found locally), soldat's `/` on :8901 (repo not on
-  this laptop), slides-relay answering a plain GET (426 expected),
-  icecast's `/` on :8000, the classifier's port and database, whether
+  this laptop), slides-relay answering a plain GET (426 expected), whether
   deciduous-mcp's `/ready` on the box matches the local image, whether the
   Phoenix app's Jetstream client is enabled in the box's config, and which
   S3 provider `bobbby-media` is on.
 - Who the external belts are drawn from is the compose env and the apps'
   source: a key being present says an app can call a service, not that it
   does.
-- The static sites' directories must be readable by `nobody` (the release
-  user) for their sizes; how `/opt/*` is owned on the box is not known.

@@ -144,24 +144,6 @@
       probe: "http://lumines:8903/healthz"},
 
     # ---------------------------------------------------------------- col 4
-    # Neither is in /opt/blog/docker-compose.yml nor has a Caddy site, yet
-    # both run (capture.json). archive_classifier/deploy.sh adds the
-    # classifier "as a sidecar" at archive.bobbby.online; the current
-    # Caddyfile has no such block, so nothing outside reaches it.
-    # Its database by name: archive_classifier_prod is in pg_stat_database.
-    # UNVERIFIED: the classifier's PORT on the box (its runtime.exs
-    # defaults to 4000) and that the box's container env uses that database.
-    %{id: "classifier", label: "Archive classifier", kind: :app, service: "classifier",
-      platform: "main", pos: {4, 3},
-      probe: "http://classifier:4000/", databases: ["archive_classifier_prod"]},
-
-    # libretime/icecast:2.4.4 exposing 8000 (capture.json); the classifier's
-    # prod config points icecast_host at it (start_radio: true).
-    # UNVERIFIED: that "/" on :8000 answers below 500 (Icecast's status page).
-    %{id: "icecast", label: "Icecast", kind: :relay, service: "icecast",
-      platform: "main", pos: {4, 4},
-      probe: "http://icecast:8000/"},
-
     # A `docker compose run` of the marginalia image (labels: service
     # marginalia, oneoff True) that ran a folder analysis and exited 0 on
     # 2026-09-20. Matched by name so it never stands in for marginalia.
@@ -265,8 +247,6 @@
     # MTA_API_KEY (/mta-bus-map).
     %{from: "mta", to: "blimp-blog", item: "bus positions"},
     # Noteflight Learning imports (compose comment on dave).
-    %{from: "noteflight", to: "dave", item: "scores"},
-    # The classifier's radio streams through icecast (icecast_host: "icecast").
-    %{from: "classifier", to: "icecast", item: "audio"}
+    %{from: "noteflight", to: "dave", item: "scores"}
   ]
 }

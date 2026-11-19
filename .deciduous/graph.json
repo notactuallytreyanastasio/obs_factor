@@ -40,6 +40,16 @@
       "to_change_id": "07e01e0b-b303-4ec3-b04d-d817037f3799",
       "weight": 1.0
     },
+    "3c3a24f9c47420b389a5": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-19T00:31:07.002825-05:00",
+      "edge_id": "3c3a24f9c47420b389a5",
+      "edge_type": "leads_to",
+      "from_change_id": "8f727b32-cbec-4e48-b138-d96f05be1599",
+      "rationale": "result",
+      "to_change_id": "db243864-fc0a-4514-bce7-612f6b32a67f",
+      "weight": 1.0
+    },
     "3d39d0be79c619b9ca0c": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-18T17:33:58.201952-05:00",
@@ -407,6 +417,19 @@
       "status": "pending",
       "title": "Only 2 of 18 containers have a Docker healthcheck; Caddy 2.10.2 exposes no HTTP metrics yet",
       "updated_at": "2026-11-18T17:31:49.594659-05:00"
+    },
+    "db243864-fc0a-4514-bce7-612f6b32a67f": {
+      "author": "Bobby Grayson",
+      "change_id": "db243864-fc0a-4514-bce7-612f6b32a67f",
+      "created_at": "2026-11-19T00:31:06.956772-05:00",
+      "metadata": {
+        "branch": "main",
+        "confidence": 90
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "Deployed: factory.bobbby.online live behind Cloudflare, six sources ok, 45 nodes; classifier and icecast removed (86 connections); caddy pinned 2.10.2; Sites panel added; one unreadable site no longer fails the sites source",
+      "updated_at": "2026-11-19T00:31:06.956772-05:00"
     }
   },
   "tags": {},
