@@ -197,6 +197,26 @@ defmodule ObsFactor.RulesTest do
              node!(s, "site-deciduous")
   end
 
+  test "a static site whose directory cannot be read is unknown, alone", %{topology: t} do
+    unreadable = %{
+      bytes: nil,
+      files: nil,
+      newest_mtime: nil,
+      error: "could not list directory \"/sites/deciduous\": permission denied"
+    }
+
+    s = build(t, %{sites: Fixtures.ok(%{"deciduous" => unreadable})})
+
+    assert %{status: "unknown", reason: "site directory unreadable"} = node!(s, "site-deciduous")
+
+    assert Enum.any?(
+             s.attention,
+             &(&1.node == "site-deciduous" and &1.text =~ "permission denied")
+           )
+
+    assert s.sources.sites.ok
+  end
+
   test "OOM killed", %{topology: t, docker: d} do
     d =
       with_container(
