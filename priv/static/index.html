@@ -39,6 +39,7 @@
 
   <div id="controls">
     <button class="ctl" id="legendbtn" aria-expanded="false">Legend</button>
+    <button class="ctl" id="sitesbtn" aria-expanded="false">Sites</button>
     <span class="grow"></span>
     <button class="ctl sq" id="zoomout" aria-label="Zoom out">−</button>
     <button class="ctl sq" id="zoomin" aria-label="Zoom in">+</button>
@@ -59,6 +60,13 @@
     <div class="lg-items" id="legend-items"></div>
     <h4>Sources</h4>
     <ul id="sources"></ul>
+  </aside>
+
+  <aside id="sites" hidden aria-label="Every hostname and route, and the service behind it">
+    <table>
+      <thead><tr><th></th><th>address</th><th>service</th><th class="r">req/s</th><th></th></tr></thead>
+      <tbody id="sites-rows"></tbody>
+    </table>
   </aside>
 
   <aside id="inspector" hidden aria-label="Inspector">
