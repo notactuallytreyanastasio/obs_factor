@@ -1,0 +1,30 @@
+# Only mix.exs, mix.lock, config/, lib/ and priv/ go into the image.
+# Everything else is excluded so a lab state file, a secret or a build
+# directory can never end up in a layer.
+_build/
+deps/
+.git/
+.github/
+.elixir_ls/
+.deciduous/
+.claude/
+.prs/
+.env
+.env.*
+*.ez
+erl_crash.dump
+cover/
+doc/
+tmp/
+test/
+lab/
+deploy/
+deploy.sh
+docs/
+scripts/
+node_modules/
+README.md
+AGENTS.md
+CLAUDE.md
+Dockerfile
+.dockerignore

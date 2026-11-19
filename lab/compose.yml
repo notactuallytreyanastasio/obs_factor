@@ -1,0 +1,156 @@
+# obslab: the production stack (/opt/blog's docker-compose.yml) in miniature,
+# so the observer can be run against real Docker, real Caddy metrics and real
+# Postgres on a laptop. See README.md, "The lab".
+#
+#   docker compose -f lab/compose.yml up -d                      # the stack
+#   docker compose -f lab/compose.yml --profile observer up -d --build   # + the release image
+#
+# Everything bind-mounted lives under lab/ (Colima only shares $HOME).
+# Every published port binds 127.0.0.1 and is off the usual numbers.
+
+name: obslab
+
+services:
+  db:
+    image: postgres:17.11-alpine
+    restart: always
+    # Low on purpose: the box runs at 96 of 100, and lab/db-connections.sh can
+    # push this one to the same edge with a handful of sessions.
+    command: ["postgres", "-c", "max_connections=30"]
+    environment:
+      POSTGRES_USER: blog
+      POSTGRES_PASSWORD: obslab
+      POSTGRES_DB: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blog -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "127.0.0.1:15433:5432"
+
+  # Host-routed app with a database, like blimp-blog (bobbby.online).
+  blog:
+    image: traefik/whoami:latest
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Host-routed app with a database, like blinks (links.bobbby.online).
+  links:
+    image: traefik/whoami:latest
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Path-routed on blog's host, like soldat behind bobbby.online/arena/*.
+  arena:
+    image: traefik/whoami:latest
+    restart: unless-stopped
+
+  # Memory-limited Node relay, bind-mounted like skee-relay. Its failure
+  # switches are files in lab/state/ (see lab/relay/relay.mjs).
+  relay:
+    image: node:24-alpine
+    restart: always
+    mem_limit: 96m
+    working_dir: /app
+    command: ["node", "relay.mjs"]
+    environment:
+      PORT: "8788"
+      STATE_DIR: /state
+    volumes:
+      - ./relay:/app:ro
+      - ./state:/state:ro
+
+  # A one-shot job that ran and exited 0, like the box's temper-link. It
+  # should read as idle, never as down.
+  migrate:
+    image: alpine:3.22
+    restart: "no"
+    command: ["sh", "-c", "echo 'lab migrate: nothing to do'; exit 0"]
+
+  caddy:
+    image: caddy:2.10.2
+    restart: always
+    ports:
+      - "127.0.0.1:18080:80"
+      - "127.0.0.1:19180:9180"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./sites/docs:/srv/docs:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  # Read-only Docker API: three GET endpoints, 403 for everything else.
+  # The socket's :ro does NOT make the API read-only (connect() on a
+  # read-only bind of a socket still works; see README); the allowlist does.
+  # The config is production's own file, so the lab tests exactly it.
+  #
+  # Only on the "obs" network: inspect returns every container's env, so no
+  # app container may reach this. Production makes "obs" internal: true; the
+  # lab cannot, because an internal network cannot publish the port that
+  # `mix phx.server` on the laptop uses.
+  docker-proxy:
+    image: caddy:2.10.2
+    restart: always
+    mem_limit: 64m
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ../deploy/docker-proxy:/etc/caddy:ro
+    networks: [obs]
+    ports:
+      - "127.0.0.1:12375:2375"
+
+  # The release image, run as production will run it. Opt-in:
+  #   docker compose -f lab/compose.yml --profile observer up -d --build observer
+  observer:
+    profiles: ["observer"]
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: obslab-observer
+    restart: always
+    mem_limit: 512m
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PHX_SERVER: "true"
+      PHX_HOST: localhost
+      PORT: "4000"
+      # Lab-only values. Production's come from /opt/blog/.env.
+      SECRET_KEY_BASE: obslab-not-a-secret-obslab-not-a-secret-obslab-not-a-secret-obslab
+      OBS_FACTOR_PASSWORD: obslab
+      DOCKER_URL: http://docker-proxy:2375
+      CADDY_METRICS_URL: http://caddy:9180/metrics
+      PG_URL: postgres://obs_factor:obslab@db/postgres
+      # A container's /proc/{stat,meminfo,loadavg} are the host kernel's
+      # (verified, README "Host numbers"), so no /proc mount is needed.
+      HOST_PROC: /proc
+      HOST_DISK_PATH: /hostfs
+      SITES_DIR: /sites
+      TOPOLOGY: /app/topology/lab.exs
+    volumes:
+      # An empty directory, only so statfs() has a path on the filesystem we
+      # mean. In the lab that is the laptop's disk (Colima's virtiofs share).
+      - ./state/hostfs:/hostfs:ro
+      - ./sites:/sites:ro
+    networks: [default, obs]
+    ports:
+      - "127.0.0.1:14000:4000"
+
+networks:
+  default:
+  obs:
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

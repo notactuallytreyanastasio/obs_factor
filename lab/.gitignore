@@ -1,0 +1,5 @@
+# Written by the lab while it runs (break switches, cookies, logs).
+state/*
+!state/hostfs/
+state/hostfs/*
+!state/hostfs/.keep

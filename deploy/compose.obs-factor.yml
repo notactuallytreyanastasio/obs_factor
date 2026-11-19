@@ -1,0 +1,103 @@
+# What the blog stack's docker-compose.yml needs for obs_factor. NOT applied
+# by anything in this repo. A human pastes the two service blocks under
+# `services:` and the `networks:` block at the top level, next to `volumes:`,
+# in the BLOG REPO (~/code/blog), and ships it with blog/deploy.sh: that
+# script rsyncs docker-compose.yml over /opt/blog, so an edit made only on
+# the box is undone by the next blog deploy.
+#
+# Before obs_factor's ./deploy.sh can start it:
+#   1. /opt/blog/.env has the keys in deploy/env.example (on the box; .env
+#      is never synced)
+#   2. the obs_factor Postgres role exists (deploy/postgres-role.sql)
+#   3. the Caddyfile has deploy/Caddyfile.patch applied (blog repo too)
+# ./deploy.sh checks all three plus this file's two services, and stops
+# with these steps if any is missing.
+#
+# Checked by merging with a copy of the production file (README,
+# "Production wiring"): `docker compose -f docker-compose.yml -f this config`
+# is valid, and the config hash of every existing service is unchanged, so
+# `up -d obs-factor` recreates nothing else.
+
+services:
+  # obs_factor — the live factory view of this stack (factory.bobbby.online).
+  # Own source tree at /opt/obs_factor (rsynced by obs_factor's deploy.sh).
+  # It reads, and only reads: Docker through docker-proxy, Caddy's :9180
+  # metrics, one Postgres connection as the obs_factor role, the host's
+  # /proc (a container's own /proc/{stat,meminfo,loadavg} are the host
+  # kernel's, so nothing is mounted for it), statfs on an empty directory,
+  # and the static sites' directories, read-only.
+  obs-factor:
+    build:
+      context: /opt/obs_factor
+    restart: always
+    mem_limit: 512m
+    depends_on:
+      db:
+        condition: service_healthy
+      docker-proxy:
+        condition: service_started
+    environment:
+      PHX_HOST: factory.bobbby.online
+      PORT: "4000"
+      SECRET_KEY_BASE: ${OBS_FACTOR_SECRET_KEY_BASE}
+      OBS_FACTOR_PASSWORD: ${OBS_FACTOR_PASSWORD}
+      DOCKER_URL: http://docker-proxy:2375
+      CADDY_METRICS_URL: http://caddy:9180/metrics
+      # Hex password (openssl rand -hex 24): it sits in a URL unescaped.
+      PG_URL: postgres://obs_factor:${OBS_FACTOR_DB_PASSWORD}@db/postgres
+      HOST_PROC: /proc
+      HOST_DISK_PATH: /hostfs
+      SITES_DIR: /sites
+      TOPOLOGY: /app/topology/prod.exs
+    volumes:
+      # statfs() needs a path on the host's root filesystem and nothing else.
+      # An empty directory, created by Docker (as root) on first `up`. NOT
+      # /opt/blog (its .env holds every secret) and NOT /: a container's own
+      # "/" is overlayfs and statfs reports the Docker data filesystem,
+      # which is only the root filesystem if /var/lib/docker is on it.
+      - /var/lib/obs_factor/statfs:/hostfs:ro
+      # The static sites, read-only, one directory each, named as Caddy
+      # mounts them under /srv. Every byte here is already public (Caddy's
+      # file_server serves it), except that /opt/arena is mounted only at
+      # its play/ subdirectory, which is all Caddy serves of it.
+      - /opt/deciduous-site:/sites/deciduous:ro
+      - /opt/phstats:/sites/phstats:ro
+      - /opt/donny:/sites/donny:ro
+      - /opt/blimp:/sites/blimp:ro
+      - /opt/arena/play:/sites/arena:ro
+      - /opt/soldat-landing:/sites/soldat-landing:ro
+      - /opt/slides:/sites/slides:ro
+      - /opt/downloader:/sites/downloader:ro
+      - /opt/lumines:/sites/lumines:ro
+      - /opt/gaming:/sites/gaming:ro
+      - /opt/padmac:/sites/padmac:ro
+    networks: [default, obs]
+    # Not exposed to host - Caddy proxies factory.bobbby.online to port 4000
+
+  # The observer's only door to the Docker Engine API: GET container list,
+  # inspect and stats; 403 for everything else (deploy/docker-proxy/Caddyfile,
+  # proven request by request in the README). The socket's :ro does not
+  # make the API read-only - connect() works on a read-only bind of a
+  # socket - so the allowlist is the boundary.
+  #
+  # On the "obs" network ONLY. Inspect returns every container's
+  # Config.Env, i.e. every secret in .env; on the default network any app
+  # (a public relay, say) could read them all. Only obs-factor joins "obs".
+  docker-proxy:
+    image: caddy:2.10.2
+    restart: always
+    mem_limit: 64m
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /opt/obs_factor/deploy/docker-proxy:/etc/caddy:ro
+    networks: [obs]
+    # Not exposed to host, and not on the default network
+
+# Top level, next to `volumes:`. The stack's implicit default network
+# (blog_default) does not need listing: `docker compose config` on the
+# merged file keeps every other service on it, unchanged.
+networks:
+  # internal: no route out of the box; only obs-factor and docker-proxy.
+  obs:
+    internal: true

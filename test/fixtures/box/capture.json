@@ -1,0 +1,2442 @@
+{
+ "captured_at": "2026-11-18T22:34:47Z",
+ "containers": [
+  {
+   "Id": "8764f23e6606c6e37a832a7cda1b1225739b5739049a53c9e82ffbf239bb87a6",
+   "Names": [
+    "/blog-caddy-1"
+   ],
+   "Image": "caddy:2",
+   "ImageID": "sha256:aac61abc4024c323602ccb9ee38bd68b147601f518626b2a055e06944e01c510",
+   "Command": "caddy run --config /etc/caddy/Caddyfile --adapter caddyfile",
+   "Created": 1794799121,
+   "Ports": [
+    {
+     "IP": "",
+     "PrivatePort": 2019,
+     "Type": "tcp"
+    },
+    {
+     "IP": "0.0.0.0",
+     "PrivatePort": 443,
+     "PublicPort": 443,
+     "Type": "tcp"
+    },
+    {
+     "IP": "::",
+     "PrivatePort": 443,
+     "PublicPort": 443,
+     "Type": "tcp"
+    },
+    {
+     "IP": "0.0.0.0",
+     "PrivatePort": 443,
+     "PublicPort": 443,
+     "Type": "udp"
+    },
+    {
+     "IP": "::",
+     "PrivatePort": 443,
+     "PublicPort": 443,
+     "Type": "udp"
+    },
+    {
+     "IP": "0.0.0.0",
+     "PrivatePort": 80,
+     "PublicPort": 80,
+     "Type": "tcp"
+    },
+    {
+     "IP": "::",
+     "PrivatePort": 80,
+     "PublicPort": 80,
+     "Type": "tcp"
+    }
+   ],
+   "Labels": {
+    "com.docker.compose.config-hash": "d5e1d40529b487e19bb7dd93e47b033c3db5c28b47cf869f2b13f8943f6cb31f",
+    "com.docker.compose.container-number": "1",
+    "com.docker.compose.depends_on": "",
+    "com.docker.compose.image": "sha256:aac61abc4024c323602ccb9ee38bd68b147601f518626b2a055e06944e01c510",
+    "com.docker.compose.oneoff": "False",
+    "com.docker.compose.project": "blog",
+    "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+    "com.docker.compose.project.working_dir": "/opt/blog",
+    "com.docker.compose.replace": "418dcdaeb79eeec5f4a0847466ba9c2f80365067210a97348edcbfb0502927b5",
+    "com.docker.compose.service": "caddy",
+    "com.docker.compose.version": "2.37.1",
+    "org.opencontainers.image.description": "a powerful, enterprise-ready, open source web server with automatic HTTPS written in Go",
+    "org.opencontainers.image.documentation": "https://caddyserver.com/docs",
+    "org.opencontainers.image.licenses": "Apache-2.0",
+    "org.opencontainers.image.source": "https://github.com/caddyserver/caddy-docker",
+    "org.opencontainers.image.title": "Caddy",
+    "org.opencontainers.image.url": "https://caddyserver.com",
+    "org.opencontainers.image.vendor": "Light Code Labs",
+    "org.opencontainers.image.version": "v2.10.2"
+   },
+   "State": "running",
+   "Status": "Up 2 days",
+   "HostConfig": {
+    "NetworkMode": "blog_default"
+   },
+   "Health": {
+    "Status": "none",
+    "FailingStreak": 0
+   },
+   "NetworkSettings": {
+    "Networks": {
+     "blog_default": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "736d4833b9ab163547b7ae87f1411871457a56fa4a6e51bcb92fd60651c5dd19",
+      "EndpointID": "8acedbb510684df4708e5dfa7baace6a020490a0e1dafc5bc3121a4df4519c2a",
+      "Gateway": "172.18.0.1",
+      "IPAddress": "172.18.0.4",
+      "MacAddress": "ba:00:4e:6f:04:c1",
+      "IPPrefixLen": 16,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   }
+  },
+  {
+   "Id": "8713074699aa56428db3fdc14c4909b652f6577e56b5ef5920222dcd2d45184e",
+   "Names": [
+    "/blog-skyfeed-1"
+   ],
+   "Image": "blog-skyfeed",
+   "ImageID": "sha256:d47534c3924d04a3a467df66e7169389bf661ffa260b39cdf4cd01366f1615c9",
+   "Command": "/app/bin/server",
+   "Created": 1794280466,
+   "Ports": [],
+   "Labels": {
+    "com.docker.compose.config-hash": "751ad0af8b39c210f95114efdcffb56aeb17822f0c608776404c7beae4ab16bc",
+    "com.docker.compose.container-number": "1",
+    "com.docker.compose.depends_on": "",
+    "com.docker.compose.image": "sha256:d47534c3924d04a3a467df66e7169389bf661ffa260b39cdf4cd01366f1615c9",
+    "com.docker.compose.oneoff": "False",
+    "com.docker.compose.project": "blog",
+    "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+    "com.docker.compose.project.working_dir": "/opt/blog",
+    "com.docker.compose.replace": "2a85a9a073c09a8f568efa9b0565298855b5cdc25d9573f5e8265db9d9077c38",
+    "com.docker.compose.service": "skyfeed",
+    "com.docker.compose.version": "2.37.1"
+   },
+   "State": "running",
+   "Status": "Up 8 days",
+   "HostConfig": {
+    "NetworkMode": "blog_default"
+   },
+   "Health": {
+    "Status": "none",
+    "FailingStreak": 0
+   },
+   "NetworkSettings": {
+    "Networks": {
+     "blog_default": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "736d4833b9ab163547b7ae87f1411871457a56fa4a6e51bcb92fd60651c5dd19",
+      "EndpointID": "7060d9cba229390d71b07ff7d77761afa3940aff8bdc3b505ca7b0d6cc1f465f",
+      "Gateway": "172.18.0.1",
+      "IPAddress": "172.18.0.19",
+      "MacAddress": "06:72:5a:a2:0e:6f",
+      "IPPrefixLen": 16,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   }
+  },
+  {
+   "Id": "2c63f531fdd463e2145bcdea7d4b7c5beffb12fa9b8773500f47f0106ce8f738",
+   "Names": [
+    "/blog-app-1"
+   ],
+   "Image": "blog-app",
+   "ImageID": "sha256:f016c4344d0b10e0bed2b0d663ea355805740c911614814777c46253064f4428",
+   "Command": "/app/bin/server",
+   "Created": 1794248487,
+   "Ports": [],
+   "Labels": {
+    "com.docker.compose.config-hash": "9e6016d39326bf15cec2769de7dba1cbb8a3be04fa2d8d449f59a0ed9fbeb214",
+    "com.docker.compose.container-number": "1",
+    "com.docker.compose.depends_on": "db:service_healthy:false",
+    "com.docker.compose.image": "sha256:f016c4344d0b10e0bed2b0d663ea355805740c911614814777c46253064f4428",
+    "com.docker.compose.oneoff": "False",
+    "com.docker.compose.project": "blog",
+    "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+    "com.docker.compose.project.working_dir": "/opt/blog",
+    "com.docker.compose.replace": "c887475ca8a4203cd6d59969ae2f2414f8aa53e72677bcd08f0c92bd3b48e06c",
+    "com.docker.compose.service": "app",
+    "com.docker.compose.version": "2.37.1"
+   },
+   "State": "running",
+   "Status": "Up 9 days",
+   "HostConfig": {
+    "NetworkMode": "blog_default"
+   },
+   "Health": {
+    "Status": "none",
+    "FailingStreak": 0
+   },
+   "NetworkSettings": {
+    "Networks": {
+     "blog_default": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "736d4833b9ab163547b7ae87f1411871457a56fa4a6e51bcb92fd60651c5dd19",
+      "EndpointID": "9e1bbe7c83c4cb93557d23d8be06904ccd9cd20252ffd6450839d3a217be7409",
+      "Gateway": "172.18.0.1",
+      "IPAddress": "172.18.0.10",
+      "MacAddress": "d6:12:54:96:84:c1",
+      "IPPrefixLen": 16,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   }
+  },
+  {
+   "Id": "1d796af0de86bc8a422fd196b41efdcb1ae28adb0a0c464d04325ece3316ccc3",
+   "Names": [
+    "/blog-blimp-blog-1"
+   ],
+   "Image": "blog-blimp-blog",
+   "ImageID": "sha256:e026cc24d9e7477be2c3374d6a2ac73bbdcfc462c7661985cf5d8b3e9d84e1f0",
+   "Command": "blimp --serve _build/site.blimp --tick 'site <- :tick' --control site.sock",
+   "Created": 1793896627,
+   "Ports": [
+    {
+     "IP": "",
+     "PrivatePort": 4100,
+     "Type": "tcp"
+    }
+   ],
+   "Labels": {
+    "com.docker.compose.config-hash": "2cf98e8deb047f81dc9605965a70bb6e252c7874af58ff39ebdb27f556527856",
+    "com.docker.compose.container-number": "1",
+    "com.docker.compose.depends_on": "",
+    "com.docker.compose.image": "sha256:e026cc24d9e7477be2c3374d6a2ac73bbdcfc462c7661985cf5d8b3e9d84e1f0",
+    "com.docker.compose.oneoff": "False",
+    "com.docker.compose.project": "blog",
+    "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+    "com.docker.compose.project.working_dir": "/opt/blog",
+    "com.docker.compose.replace": "ad4abecb2b079683add05beb87e27323b70ec136ec8500fc94fa296bb9405b06",
+    "com.docker.compose.service": "blimp-blog",
+    "com.docker.compose.version": "2.37.1"
+   },
+   "State": "running",
+   "Status": "Up 13 days",
+   "HostConfig": {
+    "NetworkMode": "blog_default"
+   },
+   "Health": {
+    "Status": "none",
+    "FailingStreak": 0
+   },
+   "NetworkSettings": {
+    "Networks": {
+     "blog_default": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "736d4833b9ab163547b7ae87f1411871457a56fa4a6e51bcb92fd60651c5dd19",
+      "EndpointID": "30ba7bcc35a32bebd1b126de51fec7541777a4439242b647b4cd8d6280a7bab5",
+      "Gateway": "172.18.0.1",
+      "IPAddress": "172.18.0.14",
+      "MacAddress": "e2:77:60:80:f0:7d",
+      "IPPrefixLen": 16,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   }
+  },
+  {
+   "Id": "ab854bc7e9f8b50b1979f051365929c81971163d9f9e31671e8f1952dfc864fc",
+   "Names": [
+    "/blog-skee-relay-1"
+   ],
+   "Image": "node:24-alpine",
+   "ImageID": "sha256:1746248f2a138f128577ca74d86c9d4a0a17fcc9922c77dfdf92ba7307a4fa3c",
+   "Command": "docker-entrypoint.sh node relay.mjs",
+   "Created": 1793811862,
+   "Ports": [
+    {
+     "IP": "",
+     "PrivatePort": 8788,
+     "Type": "tcp"
+    }
+   ],
+   "Labels": {
+    "com.docker.compose.config-hash": "f5e6cda488d53697c005792f0f4f98d4d0705cfbde3c16118fa0230e8d80c29f",
+    "com.docker.compose.container-number": "1",
+    "com.docker.compose.depends_on": "",
+    "com.docker.compose.image": "sha256:1746248f2a138f128577ca74d86c9d4a0a17fcc9922c77dfdf92ba7307a4fa3c",
+    "com.docker.compose.oneoff": "False",
+    "com.docker.compose.project": "blog",
+    "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+    "com.docker.compose.project.working_dir": "/opt/blog",
+    "com.docker.compose.service": "skee-relay",
+    "com.docker.compose.version": "2.37.1"
+   },
+   "State": "running",
+   "Status": "Up 2 weeks",
+   "HostConfig": {
+    "NetworkMode": "blog_default"
+   },
+   "Health": {
+    "Status": "none",
+    "FailingStreak": 0
+   },
+   "NetworkSettings": {
+    "Networks": {
+     "blog_default": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "736d4833b9ab163547b7ae87f1411871457a56fa4a6e51bcb92fd60651c5dd19",
+      "EndpointID": "661a4c01417a993019edc04b17b53195841105eb98ec75fc7a80cfff4de40122",
+      "Gateway": "172.18.0.1",
+      "IPAddress": "172.18.0.18",
+      "MacAddress": "4e:85:c7:d5:49:a8",
+      "IPPrefixLen": 16,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   }
+  },
+  {
+   "Id": "5100aab1753fc578c6e26a81e7de52749a1e012db60320b3fe1ca72420a6094c",
+   "Names": [
+    "/blog-dtree-ai-1"
+   ],
+   "Image": "blog-dtree-ai",
+   "ImageID": "sha256:2106e1bd26f7c580b52a542e641c21ea414ee1464a2232c6d153bfca82037e82",
+   "Command": "docker-entrypoint.sh node server.mjs",
+   "Created": 1793663135,
+   "Ports": [
+    {
+     "IP": "",
+     "PrivatePort": 8080,
+     "Type": "tcp"
+    }
+   ],
+   "Labels": {
+    "com.docker.compose.config-hash": "ce1af603245bd05362c939d3459e5d04227aa19814baa9bfe4c7d8c119aa12ab",
+    "com.docker.compose.container-number": "1",
+    "com.docker.compose.depends_on": "",
+    "com.docker.compose.image": "sha256:2106e1bd26f7c580b52a542e641c21ea414ee1464a2232c6d153bfca82037e82",
+    "com.docker.compose.oneoff": "False",
+    "com.docker.compose.project": "blog",
+    "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+    "com.docker.compose.project.working_dir": "/opt/blog",
+    "com.docker.compose.replace": "f6452eff0e0f4c28108e304c5ce555c60e221b916d810145efc5e358a1b21b44",
+    "com.docker.compose.service": "dtree-ai",
+    "com.docker.compose.version": "2.37.1"
+   },
+   "State": "running",
+   "Status": "Up 2 weeks",
+   "HostConfig": {
+    "NetworkMode": "blog_default"
+   },
+   "Health": {
+    "Status": "none",
+    "FailingStreak": 0
+   },
+   "NetworkSettings": {
+    "Networks": {
+     "blog_default": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "736d4833b9ab163547b7ae87f1411871457a56fa4a6e51bcb92fd60651c5dd19",
+      "EndpointID": "85d68a6e47c4848d95d7c1523afb71b4b6a1ff1e12c679c458eda824c09761e1",
+      "Gateway": "172.18.0.1",
+      "IPAddress": "172.18.0.17",
+      "MacAddress": "2e:59:3f:9b:00:06",
+      "IPPrefixLen": 16,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   }
+  },
+  {
+   "Id": "3efc86709675797ce8a43dfa63095908527d988210b61d9e9211be2ca8654468",
+   "Names": [
+    "/blog-dave-1"
+   ],
+   "Image": "blog-dave",
+   "ImageID": "sha256:913fa7ce229adb6865126af076309e334914d0876d9ce4c8eefb751fbcea1cbe",
+   "Command": "/app/bin/server",
+   "Created": 1792596862,
+   "Ports": [],
+   "Labels": {
+    "com.docker.compose.config-hash": "fc65a4f5ec26af78680041a73cc934041b800def7356e01ec7ddd02c28899312",
+    "com.docker.compose.container-number": "1",
+    "com.docker.compose.depends_on": "db:service_healthy:false",
+    "com.docker.compose.image": "sha256:913fa7ce229adb6865126af076309e334914d0876d9ce4c8eefb751fbcea1cbe",
+    "com.docker.compose.oneoff": "False",
+    "com.docker.compose.project": "blog",
+    "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+    "com.docker.compose.project.working_dir": "/opt/blog",
+    "com.docker.compose.replace": "a18d1e1b5a7de093216bcdd84e7f0b2c3fa8c5bdd1c1b8ce51e08b89534d1778",
+    "com.docker.compose.service": "dave",
+    "com.docker.compose.version": "2.37.1"
+   },
+   "State": "running",
+   "Status": "Up 4 weeks",
+   "HostConfig": {
+    "NetworkMode": "blog_default"
+   },
+   "Health": {
+    "Status": "none",
+    "FailingStreak": 0
+   },
+   "NetworkSettings": {
+    "Networks": {
+     "blog_default": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "736d4833b9ab163547b7ae87f1411871457a56fa4a6e51bcb92fd60651c5dd19",
+      "EndpointID": "dd715a63c2a455f127e7ee68c1f4b589249b181f4080af41858dad3995b4912b",
+      "Gateway": "172.18.0.1",
+      "IPAddress": "172.18.0.16",
+      "MacAddress": "f2:f4:62:e6:0e:7e",
+      "IPPrefixLen": 16,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   }
+  },
+  {
+   "Id": "20c541f0e1242b1ec76be25eeb05c9d243eb6e36d96661af74b260b814686590",
+   "Names": [
+    "/blog-tyler-1"
+   ],
+   "Image": "blog-tyler",
+   "ImageID": "sha256:5981aeb39a4e1148f7aaa78ff2cd15d14b4b2bf583920534a9bcf0c4f88fda9e",
+   "Command": "/app/bin/server",
+   "Created": 1790817323,
+   "Ports": [],
+   "Labels": {
+    "com.docker.compose.config-hash": "77eed73ce42281399253aaed9d22233b1527186b95095a07815b59b1a0f98fd5",
+    "com.docker.compose.container-number": "1",
+    "com.docker.compose.depends_on": "db:service_healthy:false",
+    "com.docker.compose.image": "sha256:5981aeb39a4e1148f7aaa78ff2cd15d14b4b2bf583920534a9bcf0c4f88fda9e",
+    "com.docker.compose.oneoff": "False",
+    "com.docker.compose.project": "blog",
+    "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+    "com.docker.compose.project.working_dir": "/opt/blog",
+    "com.docker.compose.replace": "e7ffce11f2ca83f74ea9ff16213756ca09e3c1012c8c2082ef56e011d5c6bb67",
+    "com.docker.compose.service": "tyler",
+    "com.docker.compose.version": "2.37.1"
+   },
+   "State": "running",
+   "Status": "Up 6 weeks",
+   "HostConfig": {
+    "NetworkMode": "blog_default"
+   },
+   "Health": {
+    "Status": "none",
+    "FailingStreak": 0
+   },
+   "NetworkSettings": {
+    "Networks": {
+     "blog_default": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "736d4833b9ab163547b7ae87f1411871457a56fa4a6e51bcb92fd60651c5dd19",
+      "EndpointID": "ce0d3a2e2b6903ffd99cb13b2e80eb6c8b7335374bab83157aa457fa5c4cad3b",
+      "Gateway": "172.18.0.1",
+      "IPAddress": "172.18.0.15",
+      "MacAddress": "1a:a6:50:06:24:30",
+      "IPPrefixLen": 16,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   }
+  },
+  {
+   "Id": "1882d60f8c0525412999bbe2097cebddf62cec6de8cdda1b4a1af66c27f678f7",
+   "Names": [
+    "/blog-deciduous-mcp-1"
+   ],
+   "Image": "blog-deciduous-mcp",
+   "ImageID": "sha256:6ca298fc64e2571b8a822f3d812c2377e6bb785ba9e4d225315f171385322ddb",
+   "Command": "/bin/sh /app/docker-entrypoint.sh",
+   "Created": 1790633027,
+   "Ports": [
+    {
+     "IP": "",
+     "PrivatePort": 4000,
+     "Type": "tcp"
+    }
+   ],
+   "Labels": {
+    "com.docker.compose.config-hash": "870cea593f92d3f8a2d70e4054b1cc2fca058c5b93df17a27053d3f9e62fd617",
+    "com.docker.compose.container-number": "1",
+    "com.docker.compose.depends_on": "",
+    "com.docker.compose.image": "sha256:6ca298fc64e2571b8a822f3d812c2377e6bb785ba9e4d225315f171385322ddb",
+    "com.docker.compose.oneoff": "False",
+    "com.docker.compose.project": "blog",
+    "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+    "com.docker.compose.project.working_dir": "/opt/blog",
+    "com.docker.compose.replace": "da12945ea9c94ce70ae59886707f76e3a183d196efb60e60956528dbe9a81baa",
+    "com.docker.compose.service": "deciduous-mcp",
+    "com.docker.compose.version": "2.37.1"
+   },
+   "State": "running",
+   "Status": "Up 7 weeks (healthy)",
+   "HostConfig": {
+    "NetworkMode": "blog_default"
+   },
+   "Health": {
+    "Status": "healthy",
+    "FailingStreak": 0
+   },
+   "NetworkSettings": {
+    "Networks": {
+     "blog_default": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "736d4833b9ab163547b7ae87f1411871457a56fa4a6e51bcb92fd60651c5dd19",
+      "EndpointID": "cb6fcc08b967601333282d50805a87deefd93311a42d79771169a77995075bdd",
+      "Gateway": "172.18.0.1",
+      "IPAddress": "172.18.0.13",
+      "MacAddress": "5e:51:1e:d7:a2:f8",
+      "IPPrefixLen": 16,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   }
+  },
+  {
+   "Id": "6c06f2008e0b7329160d0e0ec993db92c6f40ae141d2dd581124a75c70d8506a",
+   "Names": [
+    "/blog-marginalia-1"
+   ],
+   "Image": "blog-marginalia",
+   "ImageID": "sha256:b8e88834f80dd533b116af01ee68b39588b4afe64f584ec768ddeb66eaeee44d",
+   "Command": "/app/bin/server",
+   "Created": 1790170807,
+   "Ports": [],
+   "Labels": {
+    "com.docker.compose.config-hash": "1caa6bb801c9a29dccaa51339e06283253882ed26566d1f65830c21fd4fa1587",
+    "com.docker.compose.container-number": "1",
+    "com.docker.compose.depends_on": "db:service_healthy:false",
+    "com.docker.compose.image": "sha256:b8e88834f80dd533b116af01ee68b39588b4afe64f584ec768ddeb66eaeee44d",
+    "com.docker.compose.oneoff": "False",
+    "com.docker.compose.project": "blog",
+    "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+    "com.docker.compose.project.working_dir": "/opt/blog",
+    "com.docker.compose.replace": "30b5f86a23dbfa7b2b28f5521b3a16d72d9e98f73d80af66db271aacf551856c",
+    "com.docker.compose.service": "marginalia",
+    "com.docker.compose.version": "2.37.1"
+   },
+   "State": "running",
+   "Status": "Up 8 weeks",
+   "HostConfig": {
+    "NetworkMode": "blog_default"
+   },
+   "Health": {
+    "Status": "none",
+    "FailingStreak": 0
+   },
+   "NetworkSettings": {
+    "Networks": {
+     "blog_default": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "736d4833b9ab163547b7ae87f1411871457a56fa4a6e51bcb92fd60651c5dd19",
+      "EndpointID": "dddc28322bbe9ab84da0c9eb8236e4a6a380e34ec4a0ef99b7396f06753a7de6",
+      "Gateway": "172.18.0.1",
+      "IPAddress": "172.18.0.12",
+      "MacAddress": "d6:65:62:50:8f:cf",
+      "IPPrefixLen": 16,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   }
+  },
+  {
+   "Id": "163aeff437ff538c6a562087c888f6d0c8819ebac55b41fb83b0675d5268e03e",
+   "Names": [
+    "/temper-link"
+   ],
+   "Image": "sha256:13fe74bd9071d51ae8a92653e8179b9534be15483681e3ff8c78a08811dec1f9",
+   "ImageID": "sha256:13fe74bd9071d51ae8a92653e8179b9534be15483681e3ff8c78a08811dec1f9",
+   "Command": "/app/bin/marginalia eval '# Runs to completion in its own container, synchronously, logging to stdout.\n# A `docker compose run` container is not recreated by `docker compose up -d\n# marginalia`, so a deploy no longer kills this halfway through.\n{:ok, _} = Application.ensure_all_started(:marginalia)\n\nimport Ecto.Query\nalias Marginalia.{Repo, Works, Links, Analysis, Stacks}\nalias Marginalia.Works.Work\nalias Marginalia.Analysis.Linker\n\nfolder = 26\n\nsay = fn msg ->\n  IO.puts(\"#{DateTime.utc_now() |> DateTime.to_string()}  #{msg}\")\nend\n\nt0 = System.monotonic_time(:second)\nsay.(\"=== folder #{folder} ===\")\n\nworks = Work |> where([w], w.folder_id == ^folder) |> Repo.all()\ntodo = Enum.reject(works, &(&1.status == \"read\"))\nsay.(\"phase 1: read #{length(todo)} of #{length(works)}\")\n\ntodo\n|> Task.async_stream(\n  fn w ->\n    s = System.monotonic_time(:second)\n\n    case Analysis.run(w) do\n      {:ok, _} ->\n        say.(\"read #{w.id} ok #{length(Works.list_nodes(w.id))} nodes #{System.monotonic_time(:second) - s}s\")\n\n      other ->\n        say.(\"read #{w.id} FAILED #{inspect(other)}\")\n    end\n  end,\n  max_concurrency: 4,\n  timeout: :infinity\n)\n|> Stream.run()\n\nunread = Work |> where([w], w.folder_id == ^folder and w.status != \"read\") |> Repo.aggregate(:count)\nsay.(\"phase 1 done in #{System.monotonic_time(:second) - t0}s \u2014 #{unread} still unread\")\n\nsteps = Stacks.Step |> where([s], s.folder_id == ^folder) |> Repo.all()\nwork_of = Map.new(steps, &{&1.ordinal, &1.work_id})\n\nreq = Enum.uniq(for s <- steps, r <- s.requires, do: {r, s.ordinal})\ndepended = req |> Enum.map(&elem(&1, 0)) |> MapSet.new()\n\nisolated =\n  steps\n  |> Enum.filter(&(&1.requires == [] and not MapSet.member?(depended, &1.ordinal)))\n  |> Enum.map(& &1.ordinal)\n\nchain = for o <- isolated, o > 1, do: {o - 1, o}\npairs = (req ++ chain) |> Enum.uniq() |> Enum.sort_by(fn {a, b} -> {b, a} end)\n\nsay.(\"phase 2: #{length(pairs)} pairs (#{length(req)} requires, #{length(chain)} chained)\")\n\ndone = :counters.new(1, [])\n\npairs\n|> Task.async_stream(\n  fn {from_ord, to_ord} ->\n    case Links.get_or_create(work_of[from_ord], work_of[to_ord]) do\n      {:ok, %{status: \"linked\"}} ->\n        :counters.add(done, 1, 1)\n        say.(\"skip #{from_ord}->#{to_ord} already linked (#{:counters.get(done, 1)}/#{length(pairs)})\")\n\n      {:ok, link} ->\n        s = System.monotonic_time(:second)\n\n        case Linker.run(link) do\n          {:ok, %{kept: k, dropped: d}} ->\n            :counters.add(done, 1, 1)\n            say.(\"link #{from_ord}->#{to_ord} kept=#{k} dropped=#{d} #{System.monotonic_time(:second) - s}s (#{:counters.get(done, 1)}/#{length(pairs)})\")\n\n          other ->\n            :counters.add(done, 1, 1)\n            say.(\"link #{from_ord}->#{to_ord} FAILED #{inspect(other)}\")\n        end\n\n      other ->\n        say.(\"pair #{from_ord}->#{to_ord} not created: #{inspect(other)}\")\n    end\n  end,\n  max_concurrency: 8,\n  timeout: :infinity\n)\n|> Stream.run()\n\nsay.(\"=== done in #{System.monotonic_time(:second) - t0}s ===\")'",
+   "Created": 1789927483,
+   "Ports": [],
+   "Labels": {
+    "com.docker.compose.config-hash": "0226e10f5a1f68b7f081723eb6c9a2e8e9ab2b92c01bd6a6d51a7df9d528c2db",
+    "com.docker.compose.depends_on": "",
+    "com.docker.compose.image": "sha256:13fe74bd9071d51ae8a92653e8179b9534be15483681e3ff8c78a08811dec1f9",
+    "com.docker.compose.oneoff": "True",
+    "com.docker.compose.project": "blog",
+    "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+    "com.docker.compose.project.working_dir": "/opt/blog",
+    "com.docker.compose.service": "marginalia",
+    "com.docker.compose.slug": "53f93046d9ce6015a92960706ba92895bbe39596caa5364f164f89ba1005f182",
+    "com.docker.compose.version": "2.37.1"
+   },
+   "State": "exited",
+   "Status": "Exited (0) 8 weeks ago",
+   "HostConfig": {
+    "NetworkMode": "blog_default"
+   },
+   "Health": {
+    "Status": "none",
+    "FailingStreak": 0
+   },
+   "NetworkSettings": {
+    "Networks": {
+     "blog_default": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "736d4833b9ab163547b7ae87f1411871457a56fa4a6e51bcb92fd60651c5dd19",
+      "EndpointID": "",
+      "Gateway": "",
+      "IPAddress": "",
+      "MacAddress": "",
+      "IPPrefixLen": 0,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   }
+  },
+  {
+   "Id": "e4e98ff0b4bd9b51b170a21124ae2cdc3d57dc0e8290e772dd01d78e6ea2c3aa",
+   "Names": [
+    "/blog-soldat-1"
+   ],
+   "Image": "blog-soldat",
+   "ImageID": "sha256:825d605f611af1e171c5fc45d29f6c06275c05752817499385932ca86300dd43",
+   "Command": "docker-entrypoint.sh node deploy/arena-supervisor.mjs",
+   "Created": 1787888568,
+   "Ports": [
+    {
+     "IP": "",
+     "PrivatePort": 8902,
+     "Type": "tcp"
+    }
+   ],
+   "Labels": {
+    "com.docker.compose.config-hash": "add9d46147803ec4fd2b762785901ae3e94c9c66628d1c0fe947d4b032e69b7b",
+    "com.docker.compose.container-number": "1",
+    "com.docker.compose.depends_on": "",
+    "com.docker.compose.image": "sha256:825d605f611af1e171c5fc45d29f6c06275c05752817499385932ca86300dd43",
+    "com.docker.compose.oneoff": "False",
+    "com.docker.compose.project": "blog",
+    "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+    "com.docker.compose.project.working_dir": "/opt/blog",
+    "com.docker.compose.replace": "8f37edd94d352ce015a07675776710f3315873afd3bd8d472d4593526305c50b",
+    "com.docker.compose.service": "soldat",
+    "com.docker.compose.version": "2.37.1"
+   },
+   "State": "running",
+   "Status": "Up 2 months",
+   "HostConfig": {
+    "NetworkMode": "blog_default"
+   },
+   "Health": {
+    "Status": "none",
+    "FailingStreak": 0
+   },
+   "NetworkSettings": {
+    "Networks": {
+     "blog_default": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "736d4833b9ab163547b7ae87f1411871457a56fa4a6e51bcb92fd60651c5dd19",
+      "EndpointID": "5179a872c0bb5278e172fea5c7f5dd6fcb50a95330ad4f59986640ef85b06b18",
+      "Gateway": "172.18.0.1",
+      "IPAddress": "172.18.0.2",
+      "MacAddress": "de:34:f9:db:3e:2b",
+      "IPPrefixLen": 16,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   }
+  },
+  {
+   "Id": "e9f0ab143230db46a97ea6118a718f712f7e3a99c008c9a909ea99cf8753d2fa",
+   "Names": [
+    "/blog-lumines-1"
+   ],
+   "Image": "node:24-alpine",
+   "ImageID": "sha256:1746248f2a138f128577ca74d86c9d4a0a17fcc9922c77dfdf92ba7307a4fa3c",
+   "Command": "docker-entrypoint.sh node server.cjs",
+   "Created": 1787073942,
+   "Ports": [
+    {
+     "IP": "",
+     "PrivatePort": 8903,
+     "Type": "tcp"
+    }
+   ],
+   "Labels": {
+    "com.docker.compose.config-hash": "0e17efbefbbf01f11851b3d36cf9806569530ec8e71b515019dad0ed932c5051",
+    "com.docker.compose.container-number": "1",
+    "com.docker.compose.depends_on": "",
+    "com.docker.compose.image": "sha256:1746248f2a138f128577ca74d86c9d4a0a17fcc9922c77dfdf92ba7307a4fa3c",
+    "com.docker.compose.oneoff": "False",
+    "com.docker.compose.project": "blog",
+    "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+    "com.docker.compose.project.working_dir": "/opt/blog",
+    "com.docker.compose.service": "lumines",
+    "com.docker.compose.version": "2.37.1"
+   },
+   "State": "running",
+   "Status": "Up 2 months",
+   "HostConfig": {
+    "NetworkMode": "blog_default"
+   },
+   "Health": {
+    "Status": "none",
+    "FailingStreak": 0
+   },
+   "NetworkSettings": {
+    "Networks": {
+     "blog_default": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "736d4833b9ab163547b7ae87f1411871457a56fa4a6e51bcb92fd60651c5dd19",
+      "EndpointID": "9d1279f394f157e3d2c149e457225c8771b416c8db55766b34d97ea5c6ec632e",
+      "Gateway": "172.18.0.1",
+      "IPAddress": "172.18.0.11",
+      "MacAddress": "3e:f3:be:d0:62:2f",
+      "IPPrefixLen": 16,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   }
+  },
+  {
+   "Id": "7a4a3003b06d22c36cb05b5e7fe4820ac6ae3741a05f91e864b04087978143c9",
+   "Names": [
+    "/blog-nathan-1"
+   ],
+   "Image": "blog-nathan",
+   "ImageID": "sha256:2b2b7bed76e1225bafd2eff585d95c8230ca35d67c2809bf108b885b4c83a2a5",
+   "Command": "/app/bin/server",
+   "Created": 1785569270,
+   "Ports": [],
+   "Labels": {
+    "com.docker.compose.config-hash": "5614fdfa7eb0d281d74b07d77aa146c7b35693e149781e272160a48a67da8231",
+    "com.docker.compose.container-number": "1",
+    "com.docker.compose.depends_on": "db:service_healthy:false",
+    "com.docker.compose.image": "sha256:2b2b7bed76e1225bafd2eff585d95c8230ca35d67c2809bf108b885b4c83a2a5",
+    "com.docker.compose.oneoff": "False",
+    "com.docker.compose.project": "blog",
+    "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+    "com.docker.compose.project.working_dir": "/opt/blog",
+    "com.docker.compose.replace": "678dd0ef46166694e760077670e15c746ce8ab61d32067e27e519765162c7aa2",
+    "com.docker.compose.service": "nathan",
+    "com.docker.compose.version": "2.37.1"
+   },
+   "State": "running",
+   "Status": "Up 3 months",
+   "HostConfig": {
+    "NetworkMode": "blog_default"
+   },
+   "Health": {
+    "Status": "none",
+    "FailingStreak": 0
+   },
+   "NetworkSettings": {
+    "Networks": {
+     "blog_default": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "736d4833b9ab163547b7ae87f1411871457a56fa4a6e51bcb92fd60651c5dd19",
+      "EndpointID": "ee370fc3efe6141ad5ffa53b7b4da2024f300629fbc0256076a2dee461ac3688",
+      "Gateway": "172.18.0.1",
+      "IPAddress": "172.18.0.8",
+      "MacAddress": "fa:a4:b8:3f:59:ed",
+      "IPPrefixLen": 16,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   }
+  },
+  {
+   "Id": "43f0a3a6798d3937ed82f071c3000693a0cf980fcf9a2e947fa18e9fc6318f8c",
+   "Names": [
+    "/blog-blinks-1"
+   ],
+   "Image": "blog-blinks",
+   "ImageID": "sha256:fb6197bb5f4bb1167c135afa37f5a41cec8cd84f18a73ca40cd663e5a6469656",
+   "Command": "/app/bin/server",
+   "Created": 1785569270,
+   "Ports": [],
+   "Labels": {
+    "com.docker.compose.config-hash": "fb3c3dc3714ebb267bec05f30070b1510b7006b69329b3dbb741d056a39a28cc",
+    "com.docker.compose.container-number": "1",
+    "com.docker.compose.depends_on": "db:service_healthy:false",
+    "com.docker.compose.image": "sha256:fb6197bb5f4bb1167c135afa37f5a41cec8cd84f18a73ca40cd663e5a6469656",
+    "com.docker.compose.oneoff": "False",
+    "com.docker.compose.project": "blog",
+    "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+    "com.docker.compose.project.working_dir": "/opt/blog",
+    "com.docker.compose.replace": "dc816faf063694ac14c87167fc880063ab3a46dac6607ab0217cf86e668fdf41",
+    "com.docker.compose.service": "blinks",
+    "com.docker.compose.version": "2.37.1"
+   },
+   "State": "running",
+   "Status": "Up 3 months",
+   "HostConfig": {
+    "NetworkMode": "blog_default"
+   },
+   "Health": {
+    "Status": "none",
+    "FailingStreak": 0
+   },
+   "NetworkSettings": {
+    "Networks": {
+     "blog_default": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "736d4833b9ab163547b7ae87f1411871457a56fa4a6e51bcb92fd60651c5dd19",
+      "EndpointID": "100e20cf2dfe65cb5fc2a3aa2faff071e7986347b593eb431c6ff1b1fe90c7a7",
+      "Gateway": "172.18.0.1",
+      "IPAddress": "172.18.0.6",
+      "MacAddress": "2a:a2:7e:e9:5f:2b",
+      "IPPrefixLen": 16,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   }
+  },
+  {
+   "Id": "984d376e6e077a6d8950e164072c3d10fcc3e272e0a04cc07623df18b5477a59",
+   "Names": [
+    "/blog-slides-relay-1"
+   ],
+   "Image": "node:20-alpine",
+   "ImageID": "sha256:11cedc39e663e7c5d5cb9cc77a461a0d2adc25537b94e6831a6108f09cb2001b",
+   "Command": "docker-entrypoint.sh node relay.mjs",
+   "Created": 1783550487,
+   "Ports": [
+    {
+     "IP": "",
+     "PrivatePort": 8787,
+     "Type": "tcp"
+    }
+   ],
+   "Labels": {
+    "com.docker.compose.config-hash": "fd0e8308a7ebf528a9529981db684b853ed9d99959707b8f719d63632f280df0",
+    "com.docker.compose.container-number": "1",
+    "com.docker.compose.depends_on": "",
+    "com.docker.compose.image": "sha256:11cedc39e663e7c5d5cb9cc77a461a0d2adc25537b94e6831a6108f09cb2001b",
+    "com.docker.compose.oneoff": "False",
+    "com.docker.compose.project": "blog",
+    "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+    "com.docker.compose.project.working_dir": "/opt/blog",
+    "com.docker.compose.service": "slides-relay",
+    "com.docker.compose.version": "2.37.1"
+   },
+   "State": "running",
+   "Status": "Up 4 months",
+   "HostConfig": {
+    "NetworkMode": "blog_default"
+   },
+   "Health": {
+    "Status": "none",
+    "FailingStreak": 0
+   },
+   "NetworkSettings": {
+    "Networks": {
+     "blog_default": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "736d4833b9ab163547b7ae87f1411871457a56fa4a6e51bcb92fd60651c5dd19",
+      "EndpointID": "4158b55526dc3b370e68613cc678c022af3548dda5c15115a60021088021c49b",
+      "Gateway": "172.18.0.1",
+      "IPAddress": "172.18.0.9",
+      "MacAddress": "f6:60:6d:59:56:e9",
+      "IPPrefixLen": 16,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   }
+  },
+  {
+   "Id": "e128d00e5b2f316eccd78ea293afe05ac083775a0a401dff2d4cb376b9a7982f",
+   "Names": [
+    "/blog-classifier-1"
+   ],
+   "Image": "blog-classifier",
+   "ImageID": "sha256:feef74a76487d051b1505a1d24a7c1d6a78c869fb70ceb2abad03dc17b616862",
+   "Command": "/app/bin/server",
+   "Created": 1779514233,
+   "Ports": [],
+   "Labels": {
+    "com.docker.compose.config-hash": "791f7938feab44a60741aa206b254b88c0c36981934cf8c150ebbf277bd40ff1",
+    "com.docker.compose.container-number": "1",
+    "com.docker.compose.depends_on": "db:service_healthy:false",
+    "com.docker.compose.image": "sha256:feef74a76487d051b1505a1d24a7c1d6a78c869fb70ceb2abad03dc17b616862",
+    "com.docker.compose.oneoff": "False",
+    "com.docker.compose.project": "blog",
+    "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+    "com.docker.compose.project.working_dir": "/opt/blog",
+    "com.docker.compose.replace": "fb1bbd744e1cc3de072e8cb5694c550284cbeb40a6148c4109dce5265c004471",
+    "com.docker.compose.service": "classifier",
+    "com.docker.compose.version": "2.37.1"
+   },
+   "State": "running",
+   "Status": "Up 4 months",
+   "HostConfig": {
+    "NetworkMode": "blog_default"
+   },
+   "Health": {
+    "Status": "none",
+    "FailingStreak": 0
+   },
+   "NetworkSettings": {
+    "Networks": {
+     "blog_default": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "736d4833b9ab163547b7ae87f1411871457a56fa4a6e51bcb92fd60651c5dd19",
+      "EndpointID": "ebb9feb9ecde60f77b218a9750cd37f8ca1f59b0f0fc782eca700e0076330d42",
+      "Gateway": "172.18.0.1",
+      "IPAddress": "172.18.0.5",
+      "MacAddress": "16:af:94:02:c2:b4",
+      "IPPrefixLen": 16,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   }
+  },
+  {
+   "Id": "6877b883d72ef9cee4f0a7f614f201fd374c5182d509d238034ee39dfc25e913",
+   "Names": [
+    "/blog-icecast-1"
+   ],
+   "Image": "libretime/icecast:2.4.4",
+   "ImageID": "sha256:c177095139e394a56c7680b9063d1f0931f07cf597beb77e51195d14062e76d6",
+   "Command": "docker-entrypoint icecast -c /etc/icecast.xml",
+   "Created": 1779490814,
+   "Ports": [
+    {
+     "IP": "",
+     "PrivatePort": 8000,
+     "Type": "tcp"
+    }
+   ],
+   "Labels": {
+    "com.docker.compose.config-hash": "d5396d6daf2c335f451570e067b5c746f216263dc247e8793c2a226d90c8e97c",
+    "com.docker.compose.container-number": "1",
+    "com.docker.compose.depends_on": "",
+    "com.docker.compose.image": "sha256:c177095139e394a56c7680b9063d1f0931f07cf597beb77e51195d14062e76d6",
+    "com.docker.compose.oneoff": "False",
+    "com.docker.compose.project": "blog",
+    "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+    "com.docker.compose.project.working_dir": "/opt/blog",
+    "com.docker.compose.service": "icecast",
+    "com.docker.compose.version": "2.37.1",
+    "org.opencontainers.image.created": "2026-05-20T10:56:16.298Z",
+    "org.opencontainers.image.description": "Icecast images based on Debian or Alpine, including Icecast beta versions.",
+    "org.opencontainers.image.licenses": "AGPL-3.0",
+    "org.opencontainers.image.revision": "fb99309740d7594b9a7915c1af70ebea9f6be282",
+    "org.opencontainers.image.source": "https://github.com/libretime/icecast-docker",
+    "org.opencontainers.image.title": "icecast-docker",
+    "org.opencontainers.image.url": "https://github.com/libretime/icecast-docker",
+    "org.opencontainers.image.version": "2.4.4-debian"
+   },
+   "State": "running",
+   "Status": "Up 4 months",
+   "HostConfig": {
+    "NetworkMode": "blog_default"
+   },
+   "Health": {
+    "Status": "none",
+    "FailingStreak": 0
+   },
+   "NetworkSettings": {
+    "Networks": {
+     "blog_default": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "736d4833b9ab163547b7ae87f1411871457a56fa4a6e51bcb92fd60651c5dd19",
+      "EndpointID": "4798dbc0b53bd8a0887c0e3f375e5701b757a4c654635989f52ec2f276a1aa85",
+      "Gateway": "172.18.0.1",
+      "IPAddress": "172.18.0.3",
+      "MacAddress": "02:b7:35:01:04:fd",
+      "IPPrefixLen": 16,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   }
+  },
+  {
+   "Id": "cdcdbbe8b9a61a4fd38baff095890d21c1b193e100d864485ed5fc5e6c649a22",
+   "Names": [
+    "/blog-db-1"
+   ],
+   "Image": "postgres:17",
+   "ImageID": "sha256:422437b2c546ca84f76dad5b921ddedffcc26f011fbe2224ff1ee23a3d94eeb8",
+   "Command": "docker-entrypoint.sh postgres",
+   "Created": 1771821448,
+   "Ports": [
+    {
+     "IP": "",
+     "PrivatePort": 5432,
+     "Type": "tcp"
+    }
+   ],
+   "Labels": {
+    "com.docker.compose.config-hash": "be4287c93964c5f5efefd0795a8fd4274f63eb325b03e8e65ded7a8ae8b9ce32",
+    "com.docker.compose.container-number": "1",
+    "com.docker.compose.depends_on": "",
+    "com.docker.compose.image": "sha256:422437b2c546ca84f76dad5b921ddedffcc26f011fbe2224ff1ee23a3d94eeb8",
+    "com.docker.compose.oneoff": "False",
+    "com.docker.compose.project": "blog",
+    "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+    "com.docker.compose.project.working_dir": "/opt/blog",
+    "com.docker.compose.replace": "8daf832539c60c20ad8918d1b700e418e8d2510ff26bc660e724b9ce2b00d095",
+    "com.docker.compose.service": "db",
+    "com.docker.compose.version": "2.37.1"
+   },
+   "State": "running",
+   "Status": "Up 4 months (healthy)",
+   "HostConfig": {
+    "NetworkMode": "blog_default"
+   },
+   "Health": {
+    "Status": "healthy",
+    "FailingStreak": 0
+   },
+   "NetworkSettings": {
+    "Networks": {
+     "blog_default": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "736d4833b9ab163547b7ae87f1411871457a56fa4a6e51bcb92fd60651c5dd19",
+      "EndpointID": "38782cd1a385dab7313f3e4072c3a4c3ba75372244d074f7090c8ff47c8f1d44",
+      "Gateway": "172.18.0.1",
+      "IPAddress": "172.18.0.7",
+      "MacAddress": "fe:a6:c4:64:6a:63",
+      "IPPrefixLen": 16,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   }
+  }
+ ],
+ "proc_a": {
+  "stat": "cpu  68223448 43675 29566391 4483369375 661902 0 2618135 0 0 0\ncpu0 17523836 9466 7496834 1120729815 169488 0 687170 0 0 0\ncpu1 16536520 12691 7318172 1122203192 171939 0 590156 0 0 0\ncpu2 17480892 9589 7429630 1118564485 167369 0 790517 0 0 0\ncpu3 16682198 11928 7321753 1121871881 153104 0 550291 0 0 0\nintr 13391549971 151 9 0 0 845 0 0 0 1 0 0 0 15 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9 0 0 0 14930304 14512981 13540871 11895888 5 1163357582 1085506396 5706682 0 187048 36 0 0 0 0 0 10015652 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\nctxt 17605670964\nbtime 1783549776\nprocesses 70307997\nprocs_running 1\nprocs_blocked 0\nsoftirq 7809898520 7 932540779 11813 3794974390 5611180 0 533574 2013044331 45708 1063136738\n",
+  "meminfo": "MemTotal:       15985340 kB\nMemFree:          661612 kB\nMemAvailable:   11305792 kB\nBuffers:         1112140 kB\nCached:          6727136 kB\nSwapCached:            0 kB\nActive:          4455296 kB\nInactive:        6598444 kB\nActive(anon):    2987480 kB\nInactive(anon):   749672 kB\nActive(file):    1467816 kB\nInactive(file):  5848772 kB\nUnevictable:       31340 kB\nMlocked:           27340 kB\nSwapTotal:             0 kB\nSwapFree:              0 kB\nZswap:                 0 kB\nZswapped:              0 kB\nDirty:               792 kB\nWriteback:             0 kB\nAnonPages:       3245680 kB\nMapped:          1185492 kB\nShmem:            513924 kB\nKReclaimable:    3667912 kB\nSlab:            4045596 kB\nSReclaimable:    3667912 kB\nSUnreclaim:       377684 kB\nKernelStack:       14884 kB\nPageTables:        67312 kB\nSecPageTables:         0 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:     7992668 kB\nCommitted_AS:    7755784 kB\nVmallocTotal:   34359738367 kB\nVmallocUsed:       39136 kB\nVmallocChunk:          0 kB\nPercpu:            15296 kB\nHardwareCorrupted:     0 kB\nAnonHugePages:         0 kB\nShmemHugePages:        0 kB\nShmemPmdMapped:        0 kB\nFileHugePages:         0 kB\nFilePmdMapped:         0 kB\nUnaccepted:            0 kB\nHugePages_Total:       0\nHugePages_Free:        0\nHugePages_Rsvd:        0\nHugePages_Surp:        0\nHugepagesize:       2048 kB\nHugetlb:               0 kB\nDirectMap4k:      257700 kB\nDirectMap2M:    10878976 kB\nDirectMap1G:     5242880 kB\n",
+  "loadavg": "0.04 0.12 0.09 1/934 3212492\n"
+ },
+ "stats_a": {
+  "blog-blimp-blog-1": {
+   "id": "1d796af0de86bc8a422fd196b41efdcb1ae28adb0a0c464d04325ece3316ccc3",
+   "name": "/blog-blimp-blog-1",
+   "os_type": "linux",
+   "read": "2026-11-18T22:34:47.096576478Z",
+   "cpu_stats": {
+    "cpu_usage": {
+     "total_usage": 10652259493000,
+     "usage_in_kernelmode": 3550643477000,
+     "usage_in_usermode": 7101616015000
+    },
+    "system_cpu_usage": 45844829280000000,
+    "online_cpus": 4,
+    "throttling_data": {
+     "periods": 0,
+     "throttled_periods": 0,
+     "throttled_time": 0
+    }
+   },
+   "memory_stats": {
+    "usage": 365047808,
+    "stats": {
+     "active_anon": 362090496,
+     "active_file": 0,
+     "anon": 362090496,
+     "anon_thp": 0,
+     "file": 36864,
+     "file_dirty": 0,
+     "file_mapped": 0,
+     "file_writeback": 0,
+     "inactive_anon": 0,
+     "inactive_file": 36864,
+     "kernel_stack": 360448,
+     "pgactivate": 0,
+     "pgdeactivate": 0,
+     "pgfault": 674035741,
+     "pglazyfree": 0,
+     "pglazyfreed": 0,
+     "pgmajfault": 0,
+     "pgrefill": 0,
+     "pgscan": 0,
+     "pgsteal": 0,
+     "shmem": 0,
+     "slab": 1333296,
+     "slab_reclaimable": 418800,
+     "slab_unreclaimable": 914496,
+     "sock": 0,
+     "thp_collapse_alloc": 0,
+     "thp_fault_alloc": 0,
+     "unevictable": 0,
+     "workingset_activate": 0,
+     "workingset_nodereclaim": 0,
+     "workingset_refault": 0
+    },
+    "limit": 1610612736
+   },
+   "networks": {
+    "eth0": {
+     "rx_bytes": 52412165173,
+     "rx_packets": 55807707,
+     "rx_errors": 0,
+     "rx_dropped": 0,
+     "tx_bytes": 7849930318,
+     "tx_packets": 54461690,
+     "tx_errors": 0,
+     "tx_dropped": 0
+    }
+   },
+   "pids_stats": {
+    "current": 22,
+    "limit": 18687
+   },
+   "blkio_stats": {
+    "io_service_bytes_recursive": [
+     {
+      "major": 8,
+      "minor": 0,
+      "op": "read",
+      "value": 36864
+     },
+     {
+      "major": 8,
+      "minor": 0,
+      "op": "write",
+      "value": 0
+     }
+    ],
+    "io_serviced_recursive": null,
+    "io_queue_recursive": null,
+    "io_service_time_recursive": null,
+    "io_wait_time_recursive": null,
+    "io_merged_recursive": null,
+    "io_time_recursive": null,
+    "sectors_recursive": null
+   },
+   "num_procs": 0,
+   "storage_stats": {},
+   "preread": "0001-01-01T00:00:00Z",
+   "precpu_stats": {
+    "cpu_usage": {
+     "total_usage": 0,
+     "usage_in_kernelmode": 0,
+     "usage_in_usermode": 0
+    },
+    "throttling_data": {
+     "periods": 0,
+     "throttled_periods": 0,
+     "throttled_time": 0
+    }
+   }
+  },
+  "blog-db-1": {
+   "id": "cdcdbbe8b9a61a4fd38baff095890d21c1b193e100d864485ed5fc5e6c649a22",
+   "name": "/blog-db-1",
+   "os_type": "linux",
+   "read": "2026-11-18T22:34:47.10333756Z",
+   "cpu_stats": {
+    "cpu_usage": {
+     "total_usage": 126815713809000,
+     "usage_in_kernelmode": 50603970812000,
+     "usage_in_usermode": 76211742997000
+    },
+    "system_cpu_usage": 45844829320000000,
+    "online_cpus": 4,
+    "throttling_data": {
+     "periods": 0,
+     "throttled_periods": 0,
+     "throttled_time": 0
+    }
+   },
+   "memory_stats": {
+    "usage": 2188369920,
+    "stats": {
+     "active_anon": 308862976,
+     "active_file": 22151168,
+     "anon": 500064256,
+     "anon_thp": 0,
+     "file": 1601261568,
+     "file_dirty": 8192,
+     "file_mapped": 217690112,
+     "file_writeback": 0,
+     "inactive_anon": 353935360,
+     "inactive_file": 1416376320,
+     "kernel_stack": 1572864,
+     "pgactivate": 8,
+     "pgdeactivate": 0,
+     "pgfault": 6823642519,
+     "pglazyfree": 0,
+     "pglazyfreed": 0,
+     "pgmajfault": 843,
+     "pgrefill": 849301,
+     "pgscan": 1415129,
+     "pgsteal": 1415085,
+     "shmem": 162734080,
+     "slab": 48711472,
+     "slab_reclaimable": 38490672,
+     "slab_unreclaimable": 10220800,
+     "sock": 0,
+     "thp_collapse_alloc": 0,
+     "thp_fault_alloc": 0,
+     "unevictable": 0,
+     "workingset_activate": 0,
+     "workingset_nodereclaim": 0,
+     "workingset_refault": 0
+    },
+    "limit": 16368988160
+   },
+   "networks": {
+    "eth0": {
+     "rx_bytes": 58144738669,
+     "rx_packets": 764370521,
+     "rx_errors": 0,
+     "rx_dropped": 0,
+     "tx_bytes": 875585542186,
+     "tx_packets": 417334017,
+     "tx_errors": 0,
+     "tx_dropped": 0
+    }
+   },
+   "pids_stats": {
+    "current": 96,
+    "limit": 18687
+   },
+   "blkio_stats": {
+    "io_service_bytes_recursive": [
+     {
+      "major": 8,
+      "minor": 0,
+      "op": "read",
+      "value": 4818255872
+     },
+     {
+      "major": 8,
+      "minor": 0,
+      "op": "write",
+      "value": 113693134848
+     }
+    ],
+    "io_serviced_recursive": null,
+    "io_queue_recursive": null,
+    "io_service_time_recursive": null,
+    "io_wait_time_recursive": null,
+    "io_merged_recursive": null,
+    "io_time_recursive": null,
+    "sectors_recursive": null
+   },
+   "num_procs": 0,
+   "storage_stats": {},
+   "preread": "0001-01-01T00:00:00Z",
+   "precpu_stats": {
+    "cpu_usage": {
+     "total_usage": 0,
+     "usage_in_kernelmode": 0,
+     "usage_in_usermode": 0
+    },
+    "throttling_data": {
+     "periods": 0,
+     "throttled_periods": 0,
+     "throttled_time": 0
+    }
+   }
+  },
+  "blog-app-1": {
+   "id": "2c63f531fdd463e2145bcdea7d4b7c5beffb12fa9b8773500f47f0106ce8f738",
+   "name": "/blog-app-1",
+   "os_type": "linux",
+   "read": "2026-11-18T22:34:47.109991991Z",
+   "cpu_stats": {
+    "cpu_usage": {
+     "total_usage": 14585333485000,
+     "usage_in_kernelmode": 3268460136000,
+     "usage_in_usermode": 11316873349000
+    },
+    "system_cpu_usage": 45844829340000000,
+    "online_cpus": 4,
+    "throttling_data": {
+     "periods": 0,
+     "throttled_periods": 0,
+     "throttled_time": 0
+    }
+   },
+   "memory_stats": {
+    "usage": 318283776,
+    "stats": {
+     "active_anon": 310792192,
+     "active_file": 16384,
+     "anon": 258363392,
+     "anon_thp": 0,
+     "file": 52588544,
+     "file_dirty": 0,
+     "file_mapped": 52428800,
+     "file_writeback": 0,
+     "inactive_anon": 0,
+     "inactive_file": 143360,
+     "kernel_stack": 491520,
+     "pgactivate": 0,
+     "pgdeactivate": 0,
+     "pgfault": 17382066,
+     "pglazyfree": 0,
+     "pglazyfreed": 0,
+     "pgmajfault": 0,
+     "pgrefill": 5,
+     "pgscan": 2048,
+     "pgsteal": 2048,
+     "shmem": 52428800,
+     "slab": 5302776,
+     "slab_reclaimable": 4540544,
+     "slab_unreclaimable": 762232,
+     "sock": 0,
+     "thp_collapse_alloc": 0,
+     "thp_fault_alloc": 0,
+     "unevictable": 0,
+     "workingset_activate": 0,
+     "workingset_nodereclaim": 0,
+     "workingset_refault": 0
+    },
+    "limit": 16368988160
+   },
+   "networks": {
+    "eth0": {
+     "rx_bytes": 167596147913,
+     "rx_packets": 53626412,
+     "rx_errors": 0,
+     "rx_dropped": 0,
+     "tx_bytes": 3748388675,
+     "tx_packets": 47556853,
+     "tx_errors": 0,
+     "tx_dropped": 0
+    }
+   },
+   "pids_stats": {
+    "current": 31,
+    "limit": 18687
+   },
+   "blkio_stats": {
+    "io_service_bytes_recursive": [
+     {
+      "major": 8,
+      "minor": 0,
+      "op": "read",
+      "value": 794624
+     },
+     {
+      "major": 8,
+      "minor": 0,
+      "op": "write",
+      "value": 7749632
+     }
+    ],
+    "io_serviced_recursive": null,
+    "io_queue_recursive": null,
+    "io_service_time_recursive": null,
+    "io_wait_time_recursive": null,
+    "io_merged_recursive": null,
+    "io_time_recursive": null,
+    "sectors_recursive": null
+   },
+   "num_procs": 0,
+   "storage_stats": {},
+   "preread": "0001-01-01T00:00:00Z",
+   "precpu_stats": {
+    "cpu_usage": {
+     "total_usage": 0,
+     "usage_in_kernelmode": 0,
+     "usage_in_usermode": 0
+    },
+    "throttling_data": {
+     "periods": 0,
+     "throttled_periods": 0,
+     "throttled_time": 0
+    }
+   }
+  },
+  "blog-caddy-1": {
+   "id": "8764f23e6606c6e37a832a7cda1b1225739b5739049a53c9e82ffbf239bb87a6",
+   "name": "/blog-caddy-1",
+   "os_type": "linux",
+   "read": "2026-11-18T22:34:47.116456845Z",
+   "cpu_stats": {
+    "cpu_usage": {
+     "total_usage": 170293120000,
+     "usage_in_kernelmode": 83123170000,
+     "usage_in_usermode": 87169949000
+    },
+    "system_cpu_usage": 45844829360000000,
+    "online_cpus": 4,
+    "throttling_data": {
+     "periods": 0,
+     "throttled_periods": 0,
+     "throttled_time": 0
+    }
+   },
+   "memory_stats": {
+    "usage": 30609408,
+    "stats": {
+     "active_anon": 28663808,
+     "active_file": 0,
+     "anon": 28667904,
+     "anon_thp": 0,
+     "file": 204800,
+     "file_dirty": 4096,
+     "file_mapped": 0,
+     "file_writeback": 0,
+     "inactive_anon": 4096,
+     "inactive_file": 204800,
+     "kernel_stack": 229376,
+     "pgactivate": 0,
+     "pgdeactivate": 0,
+     "pgfault": 875933,
+     "pglazyfree": 0,
+     "pglazyfreed": 0,
+     "pgmajfault": 0,
+     "pgrefill": 44,
+     "pgscan": 499,
+     "pgsteal": 499,
+     "shmem": 0,
+     "slab": 1068992,
+     "slab_reclaimable": 745640,
+     "slab_unreclaimable": 323352,
+     "sock": 0,
+     "thp_collapse_alloc": 0,
+     "thp_fault_alloc": 0,
+     "unevictable": 0,
+     "workingset_activate": 0,
+     "workingset_nodereclaim": 0,
+     "workingset_refault": 0
+    },
+    "limit": 16368988160
+   },
+   "networks": {
+    "eth0": {
+     "rx_bytes": 1327707350,
+     "rx_packets": 1031165,
+     "rx_errors": 0,
+     "rx_dropped": 0,
+     "tx_bytes": 693922002,
+     "tx_packets": 1039422,
+     "tx_errors": 0,
+     "tx_dropped": 0
+    }
+   },
+   "pids_stats": {
+    "current": 14,
+    "limit": 18687
+   },
+   "blkio_stats": {
+    "io_service_bytes_recursive": [
+     {
+      "major": 8,
+      "minor": 0,
+      "op": "read",
+      "value": 2060288
+     },
+     {
+      "major": 8,
+      "minor": 0,
+      "op": "write",
+      "value": 994410496
+     }
+    ],
+    "io_serviced_recursive": null,
+    "io_queue_recursive": null,
+    "io_service_time_recursive": null,
+    "io_wait_time_recursive": null,
+    "io_merged_recursive": null,
+    "io_time_recursive": null,
+    "sectors_recursive": null
+   },
+   "num_procs": 0,
+   "storage_stats": {},
+   "preread": "0001-01-01T00:00:00Z",
+   "precpu_stats": {
+    "cpu_usage": {
+     "total_usage": 0,
+     "usage_in_kernelmode": 0,
+     "usage_in_usermode": 0
+    },
+    "throttling_data": {
+     "periods": 0,
+     "throttled_periods": 0,
+     "throttled_time": 0
+    }
+   }
+  },
+  "blog-slides-relay-1": {
+   "id": "984d376e6e077a6d8950e164072c3d10fcc3e272e0a04cc07623df18b5477a59",
+   "name": "/blog-slides-relay-1",
+   "os_type": "linux",
+   "read": "2026-11-18T22:34:47.122925293Z",
+   "cpu_stats": {
+    "cpu_usage": {
+     "total_usage": 31988703000,
+     "usage_in_kernelmode": 4396533000,
+     "usage_in_usermode": 27592169000
+    },
+    "system_cpu_usage": 45844829390000000,
+    "online_cpus": 4,
+    "throttling_data": {
+     "periods": 0,
+     "throttled_periods": 0,
+     "throttled_time": 0
+    }
+   },
+   "memory_stats": {
+    "usage": 9678848,
+    "stats": {
+     "active_anon": 401408,
+     "active_file": 131072,
+     "anon": 8368128,
+     "anon_thp": 0,
+     "file": 151552,
+     "file_dirty": 0,
+     "file_mapped": 118784,
+     "file_writeback": 0,
+     "inactive_anon": 7966720,
+     "inactive_file": 20480,
+     "kernel_stack": 180224,
+     "pgactivate": 0,
+     "pgdeactivate": 0,
+     "pgfault": 47823,
+     "pglazyfree": 0,
+     "pglazyfreed": 0,
+     "pgmajfault": 6,
+     "pgrefill": 0,
+     "pgscan": 128,
+     "pgsteal": 128,
+     "shmem": 0,
+     "slab": 380328,
+     "slab_reclaimable": 95488,
+     "slab_unreclaimable": 284840,
+     "sock": 0,
+     "thp_collapse_alloc": 0,
+     "thp_fault_alloc": 0,
+     "unevictable": 0,
+     "workingset_activate": 0,
+     "workingset_nodereclaim": 0,
+     "workingset_refault": 0
+    },
+    "limit": 16368988160
+   },
+   "networks": {
+    "eth0": {
+     "rx_bytes": 443514,
+     "rx_packets": 7774,
+     "rx_errors": 0,
+     "rx_dropped": 0,
+     "tx_bytes": 703,
+     "tx_packets": 10,
+     "tx_errors": 0,
+     "tx_dropped": 0
+    }
+   },
+   "pids_stats": {
+    "current": 11,
+    "limit": 18687
+   },
+   "blkio_stats": {
+    "io_service_bytes_recursive": [
+     {
+      "major": 8,
+      "minor": 0,
+      "op": "read",
+      "value": 675840
+     },
+     {
+      "major": 8,
+      "minor": 0,
+      "op": "write",
+      "value": 0
+     }
+    ],
+    "io_serviced_recursive": null,
+    "io_queue_recursive": null,
+    "io_service_time_recursive": null,
+    "io_wait_time_recursive": null,
+    "io_merged_recursive": null,
+    "io_time_recursive": null,
+    "sectors_recursive": null
+   },
+   "num_procs": 0,
+   "storage_stats": {},
+   "preread": "0001-01-01T00:00:00Z",
+   "precpu_stats": {
+    "cpu_usage": {
+     "total_usage": 0,
+     "usage_in_kernelmode": 0,
+     "usage_in_usermode": 0
+    },
+    "throttling_data": {
+     "periods": 0,
+     "throttled_periods": 0,
+     "throttled_time": 0
+    }
+   }
+  }
+ },
+ "proc_b": {
+  "stat": "cpu  68223473 43675 29566402 4483371347 661903 0 2618137 0 0 0\ncpu0 17523846 9466 7496837 1120730304 169488 0 687171 0 0 0\ncpu1 16536525 12691 7318174 1122203688 171939 0 590156 0 0 0\ncpu2 17480898 9589 7429633 1118564979 167369 0 790517 0 0 0\ncpu3 16682202 11928 7321756 1121872375 153104 0 550291 0 0 0\nintr 13391556337 151 9 0 0 845 0 0 0 1 0 0 0 15 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9 0 0 0 14930325 14512989 13540874 11895890 5 1163357767 1085506560 5706685 0 187048 36 0 0 0 0 0 10015652 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\nctxt 17605680633\nbtime 1783549776\nprocesses 70308040\nprocs_running 1\nprocs_blocked 0\nsoftirq 7809901768 7 932541312 11813 3794975379 5611183 0 533574 2013045341 45708 1063137451\n",
+  "meminfo": "MemTotal:       15985340 kB\nMemFree:          666592 kB\nMemAvailable:   11310792 kB\nBuffers:         1112140 kB\nCached:          6727152 kB\nSwapCached:            0 kB\nActive:          4452352 kB\nInactive:        6598464 kB\nActive(anon):    2984536 kB\nInactive(anon):   749672 kB\nActive(file):    1467816 kB\nInactive(file):  5848792 kB\nUnevictable:       31340 kB\nMlocked:           27340 kB\nSwapTotal:             0 kB\nSwapFree:              0 kB\nZswap:                 0 kB\nZswapped:              0 kB\nDirty:               232 kB\nWriteback:             0 kB\nAnonPages:       3242956 kB\nMapped:          1185516 kB\nShmem:            513924 kB\nKReclaimable:    3667912 kB\nSlab:            4045572 kB\nSReclaimable:    3667912 kB\nSUnreclaim:       377660 kB\nKernelStack:       14848 kB\nPageTables:        67316 kB\nSecPageTables:         0 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:     7992668 kB\nCommitted_AS:    7756800 kB\nVmallocTotal:   34359738367 kB\nVmallocUsed:       39152 kB\nVmallocChunk:          0 kB\nPercpu:            15296 kB\nHardwareCorrupted:     0 kB\nAnonHugePages:         0 kB\nShmemHugePages:        0 kB\nShmemPmdMapped:        0 kB\nFileHugePages:         0 kB\nFilePmdMapped:         0 kB\nUnaccepted:            0 kB\nHugePages_Total:       0\nHugePages_Free:        0\nHugePages_Rsvd:        0\nHugePages_Surp:        0\nHugepagesize:       2048 kB\nHugetlb:               0 kB\nDirectMap4k:      257700 kB\nDirectMap2M:    10878976 kB\nDirectMap1G:     5242880 kB\n",
+  "loadavg": "0.04 0.12 0.09 1/934 3212535\n"
+ },
+ "stats_b": {
+  "blog-blimp-blog-1": {
+   "id": "1d796af0de86bc8a422fd196b41efdcb1ae28adb0a0c464d04325ece3316ccc3",
+   "name": "/blog-blimp-blog-1",
+   "os_type": "linux",
+   "read": "2026-11-18T22:34:52.1313164Z",
+   "cpu_stats": {
+    "cpu_usage": {
+     "total_usage": 10652292972000,
+     "usage_in_kernelmode": 3550656043000,
+     "usage_in_usermode": 7101636928000
+    },
+    "system_cpu_usage": 45844849390000000,
+    "online_cpus": 4,
+    "throttling_data": {
+     "periods": 0,
+     "throttled_periods": 0,
+     "throttled_time": 0
+    }
+   },
+   "memory_stats": {
+    "usage": 361566208,
+    "stats": {
+     "active_anon": 358572032,
+     "active_file": 0,
+     "anon": 358617088,
+     "anon_thp": 0,
+     "file": 36864,
+     "file_dirty": 0,
+     "file_mapped": 0,
+     "file_writeback": 0,
+     "inactive_anon": 0,
+     "inactive_file": 36864,
+     "kernel_stack": 360448,
+     "pgactivate": 0,
+     "pgdeactivate": 0,
+     "pgfault": 674038396,
+     "pglazyfree": 0,
+     "pglazyfreed": 0,
+     "pgmajfault": 0,
+     "pgrefill": 0,
+     "pgscan": 0,
+     "pgsteal": 0,
+     "shmem": 0,
+     "slab": 1333616,
+     "slab_reclaimable": 418800,
+     "slab_unreclaimable": 914816,
+     "sock": 0,
+     "thp_collapse_alloc": 0,
+     "thp_fault_alloc": 0,
+     "unevictable": 0,
+     "workingset_activate": 0,
+     "workingset_nodereclaim": 0,
+     "workingset_refault": 0
+    },
+    "limit": 1610612736
+   },
+   "networks": {
+    "eth0": {
+     "rx_bytes": 52412382541,
+     "rx_packets": 55807879,
+     "rx_errors": 0,
+     "rx_dropped": 0,
+     "tx_bytes": 7849940136,
+     "tx_packets": 54461836,
+     "tx_errors": 0,
+     "tx_dropped": 0
+    }
+   },
+   "pids_stats": {
+    "current": 22,
+    "limit": 18687
+   },
+   "blkio_stats": {
+    "io_service_bytes_recursive": [
+     {
+      "major": 8,
+      "minor": 0,
+      "op": "read",
+      "value": 36864
+     },
+     {
+      "major": 8,
+      "minor": 0,
+      "op": "write",
+      "value": 0
+     }
+    ],
+    "io_serviced_recursive": null,
+    "io_queue_recursive": null,
+    "io_service_time_recursive": null,
+    "io_wait_time_recursive": null,
+    "io_merged_recursive": null,
+    "io_time_recursive": null,
+    "sectors_recursive": null
+   },
+   "num_procs": 0,
+   "storage_stats": {},
+   "preread": "0001-01-01T00:00:00Z",
+   "precpu_stats": {
+    "cpu_usage": {
+     "total_usage": 0,
+     "usage_in_kernelmode": 0,
+     "usage_in_usermode": 0
+    },
+    "throttling_data": {
+     "periods": 0,
+     "throttled_periods": 0,
+     "throttled_time": 0
+    }
+   }
+  },
+  "blog-db-1": {
+   "id": "cdcdbbe8b9a61a4fd38baff095890d21c1b193e100d864485ed5fc5e6c649a22",
+   "name": "/blog-db-1",
+   "os_type": "linux",
+   "read": "2026-11-18T22:34:52.138639825Z",
+   "cpu_stats": {
+    "cpu_usage": {
+     "total_usage": 126815769096000,
+     "usage_in_kernelmode": 50603993345000,
+     "usage_in_usermode": 76211775751000
+    },
+    "system_cpu_usage": 45844849430000000,
+    "online_cpus": 4,
+    "throttling_data": {
+     "periods": 0,
+     "throttled_periods": 0,
+     "throttled_time": 0
+    }
+   },
+   "memory_stats": {
+    "usage": 2188369920,
+    "stats": {
+     "active_anon": 308862976,
+     "active_file": 22151168,
+     "anon": 500064256,
+     "anon_thp": 0,
+     "file": 1601261568,
+     "file_dirty": 8192,
+     "file_mapped": 217690112,
+     "file_writeback": 0,
+     "inactive_anon": 353935360,
+     "inactive_file": 1416376320,
+     "kernel_stack": 1572864,
+     "pgactivate": 8,
+     "pgdeactivate": 0,
+     "pgfault": 6823645108,
+     "pglazyfree": 0,
+     "pglazyfreed": 0,
+     "pgmajfault": 843,
+     "pgrefill": 849301,
+     "pgscan": 1415129,
+     "pgsteal": 1415085,
+     "shmem": 162734080,
+     "slab": 48711472,
+     "slab_reclaimable": 38490672,
+     "slab_unreclaimable": 10220800,
+     "sock": 0,
+     "thp_collapse_alloc": 0,
+     "thp_fault_alloc": 0,
+     "unevictable": 0,
+     "workingset_activate": 0,
+     "workingset_nodereclaim": 0,
+     "workingset_refault": 0
+    },
+    "limit": 16368988160
+   },
+   "networks": {
+    "eth0": {
+     "rx_bytes": 58144772798,
+     "rx_packets": 764371003,
+     "rx_errors": 0,
+     "rx_dropped": 0,
+     "tx_bytes": 875585560754,
+     "tx_packets": 417334258,
+     "tx_errors": 0,
+     "tx_dropped": 0
+    }
+   },
+   "pids_stats": {
+    "current": 96,
+    "limit": 18687
+   },
+   "blkio_stats": {
+    "io_service_bytes_recursive": [
+     {
+      "major": 8,
+      "minor": 0,
+      "op": "read",
+      "value": 4818255872
+     },
+     {
+      "major": 8,
+      "minor": 0,
+      "op": "write",
+      "value": 113693134848
+     }
+    ],
+    "io_serviced_recursive": null,
+    "io_queue_recursive": null,
+    "io_service_time_recursive": null,
+    "io_wait_time_recursive": null,
+    "io_merged_recursive": null,
+    "io_time_recursive": null,
+    "sectors_recursive": null
+   },
+   "num_procs": 0,
+   "storage_stats": {},
+   "preread": "0001-01-01T00:00:00Z",
+   "precpu_stats": {
+    "cpu_usage": {
+     "total_usage": 0,
+     "usage_in_kernelmode": 0,
+     "usage_in_usermode": 0
+    },
+    "throttling_data": {
+     "periods": 0,
+     "throttled_periods": 0,
+     "throttled_time": 0
+    }
+   }
+  },
+  "blog-app-1": {
+   "id": "2c63f531fdd463e2145bcdea7d4b7c5beffb12fa9b8773500f47f0106ce8f738",
+   "name": "/blog-app-1",
+   "os_type": "linux",
+   "read": "2026-11-18T22:34:52.145107132Z",
+   "cpu_stats": {
+    "cpu_usage": {
+     "total_usage": 14585351899000,
+     "usage_in_kernelmode": 3268466593000,
+     "usage_in_usermode": 11316885306000
+    },
+    "system_cpu_usage": 45844849450000000,
+    "online_cpus": 4,
+    "throttling_data": {
+     "periods": 0,
+     "throttled_periods": 0,
+     "throttled_time": 0
+    }
+   },
+   "memory_stats": {
+    "usage": 318283776,
+    "stats": {
+     "active_anon": 310792192,
+     "active_file": 16384,
+     "anon": 258363392,
+     "anon_thp": 0,
+     "file": 52588544,
+     "file_dirty": 0,
+     "file_mapped": 52428800,
+     "file_writeback": 0,
+     "inactive_anon": 0,
+     "inactive_file": 143360,
+     "kernel_stack": 491520,
+     "pgactivate": 0,
+     "pgdeactivate": 0,
+     "pgfault": 17382066,
+     "pglazyfree": 0,
+     "pglazyfreed": 0,
+     "pgmajfault": 0,
+     "pgrefill": 5,
+     "pgscan": 2048,
+     "pgsteal": 2048,
+     "shmem": 52428800,
+     "slab": 5302776,
+     "slab_reclaimable": 4540544,
+     "slab_unreclaimable": 762232,
+     "sock": 0,
+     "thp_collapse_alloc": 0,
+     "thp_fault_alloc": 0,
+     "unevictable": 0,
+     "workingset_activate": 0,
+     "workingset_nodereclaim": 0,
+     "workingset_refault": 0
+    },
+    "limit": 16368988160
+   },
+   "networks": {
+    "eth0": {
+     "rx_bytes": 167596151009,
+     "rx_packets": 53626455,
+     "rx_errors": 0,
+     "rx_dropped": 0,
+     "tx_bytes": 3748394566,
+     "tx_packets": 47556939,
+     "tx_errors": 0,
+     "tx_dropped": 0
+    }
+   },
+   "pids_stats": {
+    "current": 31,
+    "limit": 18687
+   },
+   "blkio_stats": {
+    "io_service_bytes_recursive": [
+     {
+      "major": 8,
+      "minor": 0,
+      "op": "read",
+      "value": 794624
+     },
+     {
+      "major": 8,
+      "minor": 0,
+      "op": "write",
+      "value": 7749632
+     }
+    ],
+    "io_serviced_recursive": null,
+    "io_queue_recursive": null,
+    "io_service_time_recursive": null,
+    "io_wait_time_recursive": null,
+    "io_merged_recursive": null,
+    "io_time_recursive": null,
+    "sectors_recursive": null
+   },
+   "num_procs": 0,
+   "storage_stats": {},
+   "preread": "0001-01-01T00:00:00Z",
+   "precpu_stats": {
+    "cpu_usage": {
+     "total_usage": 0,
+     "usage_in_kernelmode": 0,
+     "usage_in_usermode": 0
+    },
+    "throttling_data": {
+     "periods": 0,
+     "throttled_periods": 0,
+     "throttled_time": 0
+    }
+   }
+  },
+  "blog-caddy-1": {
+   "id": "8764f23e6606c6e37a832a7cda1b1225739b5739049a53c9e82ffbf239bb87a6",
+   "name": "/blog-caddy-1",
+   "os_type": "linux",
+   "read": "2026-11-18T22:34:52.151566597Z",
+   "cpu_stats": {
+    "cpu_usage": {
+     "total_usage": 170302289000,
+     "usage_in_kernelmode": 83126029000,
+     "usage_in_usermode": 87176259000
+    },
+    "system_cpu_usage": 45844849470000000,
+    "online_cpus": 4,
+    "throttling_data": {
+     "periods": 0,
+     "throttled_periods": 0,
+     "throttled_time": 0
+    }
+   },
+   "memory_stats": {
+    "usage": 30674944,
+    "stats": {
+     "active_anon": 28721152,
+     "active_file": 0,
+     "anon": 28725248,
+     "anon_thp": 0,
+     "file": 204800,
+     "file_dirty": 4096,
+     "file_mapped": 0,
+     "file_writeback": 0,
+     "inactive_anon": 4096,
+     "inactive_file": 204800,
+     "kernel_stack": 229376,
+     "pgactivate": 0,
+     "pgdeactivate": 0,
+     "pgfault": 875947,
+     "pglazyfree": 0,
+     "pglazyfreed": 0,
+     "pgmajfault": 0,
+     "pgrefill": 44,
+     "pgscan": 499,
+     "pgsteal": 499,
+     "shmem": 0,
+     "slab": 1074712,
+     "slab_reclaimable": 747720,
+     "slab_unreclaimable": 326992,
+     "sock": 0,
+     "thp_collapse_alloc": 0,
+     "thp_fault_alloc": 0,
+     "unevictable": 0,
+     "workingset_activate": 0,
+     "workingset_nodereclaim": 0,
+     "workingset_refault": 0
+    },
+    "limit": 16368988160
+   },
+   "networks": {
+    "eth0": {
+     "rx_bytes": 1327715410,
+     "rx_packets": 1031191,
+     "rx_errors": 0,
+     "rx_dropped": 0,
+     "tx_bytes": 693933552,
+     "tx_packets": 1039449,
+     "tx_errors": 0,
+     "tx_dropped": 0
+    }
+   },
+   "pids_stats": {
+    "current": 14,
+    "limit": 18687
+   },
+   "blkio_stats": {
+    "io_service_bytes_recursive": [
+     {
+      "major": 8,
+      "minor": 0,
+      "op": "read",
+      "value": 2060288
+     },
+     {
+      "major": 8,
+      "minor": 0,
+      "op": "write",
+      "value": 994430976
+     }
+    ],
+    "io_serviced_recursive": null,
+    "io_queue_recursive": null,
+    "io_service_time_recursive": null,
+    "io_wait_time_recursive": null,
+    "io_merged_recursive": null,
+    "io_time_recursive": null,
+    "sectors_recursive": null
+   },
+   "num_procs": 0,
+   "storage_stats": {},
+   "preread": "0001-01-01T00:00:00Z",
+   "precpu_stats": {
+    "cpu_usage": {
+     "total_usage": 0,
+     "usage_in_kernelmode": 0,
+     "usage_in_usermode": 0
+    },
+    "throttling_data": {
+     "periods": 0,
+     "throttled_periods": 0,
+     "throttled_time": 0
+    }
+   }
+  },
+  "blog-slides-relay-1": {
+   "id": "984d376e6e077a6d8950e164072c3d10fcc3e272e0a04cc07623df18b5477a59",
+   "name": "/blog-slides-relay-1",
+   "os_type": "linux",
+   "read": "2026-11-18T22:34:52.157882615Z",
+   "cpu_stats": {
+    "cpu_usage": {
+     "total_usage": 31988703000,
+     "usage_in_kernelmode": 4396533000,
+     "usage_in_usermode": 27592169000
+    },
+    "system_cpu_usage": 45844849490000000,
+    "online_cpus": 4,
+    "throttling_data": {
+     "periods": 0,
+     "throttled_periods": 0,
+     "throttled_time": 0
+    }
+   },
+   "memory_stats": {
+    "usage": 9678848,
+    "stats": {
+     "active_anon": 401408,
+     "active_file": 131072,
+     "anon": 8368128,
+     "anon_thp": 0,
+     "file": 151552,
+     "file_dirty": 0,
+     "file_mapped": 118784,
+     "file_writeback": 0,
+     "inactive_anon": 7966720,
+     "inactive_file": 20480,
+     "kernel_stack": 180224,
+     "pgactivate": 0,
+     "pgdeactivate": 0,
+     "pgfault": 47823,
+     "pglazyfree": 0,
+     "pglazyfreed": 0,
+     "pgmajfault": 6,
+     "pgrefill": 0,
+     "pgscan": 128,
+     "pgsteal": 128,
+     "shmem": 0,
+     "slab": 380328,
+     "slab_reclaimable": 95488,
+     "slab_unreclaimable": 284840,
+     "sock": 0,
+     "thp_collapse_alloc": 0,
+     "thp_fault_alloc": 0,
+     "unevictable": 0,
+     "workingset_activate": 0,
+     "workingset_nodereclaim": 0,
+     "workingset_refault": 0
+    },
+    "limit": 16368988160
+   },
+   "networks": {
+    "eth0": {
+     "rx_bytes": 443514,
+     "rx_packets": 7774,
+     "rx_errors": 0,
+     "rx_dropped": 0,
+     "tx_bytes": 703,
+     "tx_packets": 10,
+     "tx_errors": 0,
+     "tx_dropped": 0
+    }
+   },
+   "pids_stats": {
+    "current": 11,
+    "limit": 18687
+   },
+   "blkio_stats": {
+    "io_service_bytes_recursive": [
+     {
+      "major": 8,
+      "minor": 0,
+      "op": "read",
+      "value": 675840
+     },
+     {
+      "major": 8,
+      "minor": 0,
+      "op": "write",
+      "value": 0
+     }
+    ],
+    "io_serviced_recursive": null,
+    "io_queue_recursive": null,
+    "io_service_time_recursive": null,
+    "io_wait_time_recursive": null,
+    "io_merged_recursive": null,
+    "io_time_recursive": null,
+    "sectors_recursive": null
+   },
+   "num_procs": 0,
+   "storage_stats": {},
+   "preread": "0001-01-01T00:00:00Z",
+   "precpu_stats": {
+    "cpu_usage": {
+     "total_usage": 0,
+     "usage_in_kernelmode": 0,
+     "usage_in_usermode": 0
+    },
+    "throttling_data": {
+     "periods": 0,
+     "throttled_periods": 0,
+     "throttled_time": 0
+    }
+   }
+  }
+ },
+ "inspect": {
+  "blog-blimp-blog-1": {
+   "Id": "1d796af0de86bc8a422fd196b41efdcb1ae28adb0a0c464d04325ece3316ccc3",
+   "Name": "/blog-blimp-blog-1",
+   "RestartCount": 0,
+   "State": {
+    "Status": "running",
+    "Running": true,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 1705492,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2026-11-05T16:37:17.191990723Z",
+    "FinishedAt": "0001-01-01T00:00:00Z"
+   },
+   "HostConfig": {
+    "Memory": 1610612736,
+    "NanoCpus": 0,
+    "RestartPolicy": {
+     "Name": "always",
+     "MaximumRetryCount": 0
+    }
+   },
+   "Config": {
+    "Env": [
+     "REDACTED=the real payload carries every secret here"
+    ],
+    "Image": "blog-blimp-blog",
+    "Labels": {
+     "com.docker.compose.config-hash": "2cf98e8deb047f81dc9605965a70bb6e252c7874af58ff39ebdb27f556527856",
+     "com.docker.compose.container-number": "1",
+     "com.docker.compose.depends_on": "",
+     "com.docker.compose.image": "sha256:e026cc24d9e7477be2c3374d6a2ac73bbdcfc462c7661985cf5d8b3e9d84e1f0",
+     "com.docker.compose.oneoff": "False",
+     "com.docker.compose.project": "blog",
+     "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+     "com.docker.compose.project.working_dir": "/opt/blog",
+     "com.docker.compose.replace": "ad4abecb2b079683add05beb87e27323b70ec136ec8500fc94fa296bb9405b06",
+     "com.docker.compose.service": "blimp-blog",
+     "com.docker.compose.version": "2.37.1"
+    }
+   }
+  },
+  "blog-db-1": {
+   "Id": "cdcdbbe8b9a61a4fd38baff095890d21c1b193e100d864485ed5fc5e6c649a22",
+   "Name": "/blog-db-1",
+   "RestartCount": 0,
+   "State": {
+    "Status": "running",
+    "Running": true,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 1697,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2026-07-08T22:29:46.326566308Z",
+    "FinishedAt": "2026-07-08T22:29:45.700258647Z",
+    "Health": {
+     "Status": "healthy",
+     "FailingStreak": 0,
+     "Log": [
+      {
+       "Start": "2026-11-18T22:34:27.16164006Z",
+       "End": "2026-11-18T22:34:27.219917062Z",
+       "ExitCode": 0,
+       "Output": "/var/run/postgresql:5432 - accepting connections\n"
+      },
+      {
+       "Start": "2026-11-18T22:34:32.221158436Z",
+       "End": "2026-11-18T22:34:32.277725288Z",
+       "ExitCode": 0,
+       "Output": "/var/run/postgresql:5432 - accepting connections\n"
+      },
+      {
+       "Start": "2026-11-18T22:34:37.278263736Z",
+       "End": "2026-11-18T22:34:37.339981211Z",
+       "ExitCode": 0,
+       "Output": "/var/run/postgresql:5432 - accepting connections\n"
+      },
+      {
+       "Start": "2026-11-18T22:34:42.340794153Z",
+       "End": "2026-11-18T22:34:42.395991159Z",
+       "ExitCode": 0,
+       "Output": "/var/run/postgresql:5432 - accepting connections\n"
+      },
+      {
+       "Start": "2026-11-18T22:34:47.396779821Z",
+       "End": "2026-11-18T22:34:47.452270503Z",
+       "ExitCode": 0,
+       "Output": "/var/run/postgresql:5432 - accepting connections\n"
+      }
+     ]
+    }
+   },
+   "HostConfig": {
+    "Memory": 0,
+    "NanoCpus": 0,
+    "RestartPolicy": {
+     "Name": "always",
+     "MaximumRetryCount": 0
+    }
+   },
+   "Config": {
+    "Env": [
+     "REDACTED=the real payload carries every secret here"
+    ],
+    "Image": "postgres:17",
+    "Labels": {
+     "com.docker.compose.config-hash": "be4287c93964c5f5efefd0795a8fd4274f63eb325b03e8e65ded7a8ae8b9ce32",
+     "com.docker.compose.container-number": "1",
+     "com.docker.compose.depends_on": "",
+     "com.docker.compose.image": "sha256:422437b2c546ca84f76dad5b921ddedffcc26f011fbe2224ff1ee23a3d94eeb8",
+     "com.docker.compose.oneoff": "False",
+     "com.docker.compose.project": "blog",
+     "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+     "com.docker.compose.project.working_dir": "/opt/blog",
+     "com.docker.compose.replace": "8daf832539c60c20ad8918d1b700e418e8d2510ff26bc660e724b9ce2b00d095",
+     "com.docker.compose.service": "db",
+     "com.docker.compose.version": "2.37.1"
+    }
+   }
+  },
+  "temper-link": {
+   "Id": "163aeff437ff538c6a562087c888f6d0c8819ebac55b41fb83b0675d5268e03e",
+   "Name": "/temper-link",
+   "RestartCount": 0,
+   "State": {
+    "Status": "exited",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2026-09-20T18:04:43.950559423Z",
+    "FinishedAt": "2026-09-20T19:04:47.451246431Z"
+   },
+   "HostConfig": {
+    "Memory": 0,
+    "NanoCpus": 0,
+    "RestartPolicy": {
+     "Name": "no",
+     "MaximumRetryCount": 0
+    }
+   },
+   "Config": {
+    "Env": [
+     "REDACTED=the real payload carries every secret here"
+    ],
+    "Image": "blog-marginalia",
+    "Labels": {
+     "com.docker.compose.config-hash": "0226e10f5a1f68b7f081723eb6c9a2e8e9ab2b92c01bd6a6d51a7df9d528c2db",
+     "com.docker.compose.depends_on": "",
+     "com.docker.compose.image": "sha256:13fe74bd9071d51ae8a92653e8179b9534be15483681e3ff8c78a08811dec1f9",
+     "com.docker.compose.oneoff": "True",
+     "com.docker.compose.project": "blog",
+     "com.docker.compose.project.config_files": "/opt/blog/docker-compose.yml",
+     "com.docker.compose.project.working_dir": "/opt/blog",
+     "com.docker.compose.service": "marginalia",
+     "com.docker.compose.slug": "53f93046d9ce6015a92960706ba92895bbe39596caa5364f164f89ba1005f182",
+     "com.docker.compose.version": "2.37.1"
+    }
+   }
+  }
+ },
+ "pg_stat_database": "postgres,7689907,1,342577,0,151577511,2399503,0,0,0,0\nblog_prod,2594723507,19,9231964,7,2443889356,76892808,2054229,2664898,960075,0\nnathan_for_us_prod,1413494451,10,2690907,127,224403232,17374551,92648,68,842,0\narchive_classifier_prod,39237299,10,382079,0,189713993,2689226,0,0,0,0\nblinks_backend_prod,8787635,10,360372,0,167906486,2423913,1315,63,63,0\nmarginalia_prod,67385011,10,16181310,36,920668204,378094587,143791,11565,14346,0\ndeciduous_mcp_prod,185169587,11,5627169,61,164172343,12054626,174909,48609,11034,0\ntyler_prod,83818163,10,273437,0,89191797,10929750,307836,1210,6740,0\ndave_prod,8836787,10,116393,1,48996886,962083,689,158,262,0\n",
+ "pg_max_connections": "100",
+ "statvfs_root": {
+  "f_frsize": 4096,
+  "f_blocks": 39299376,
+  "f_bavail": 5112029,
+  "f_bfree": 6723184
+ }
+}

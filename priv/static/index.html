@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0e17">
+  <title>obs_factor</title>
+  <link rel="stylesheet" href="/assets/app.css">
+  <script type="module" src="/assets/js/main.js"></script>
+</head>
+<body class="factory">
+  <canvas id="stars" aria-hidden="true"></canvas>
+  <canvas id="floor" aria-label="Factory floor: one building per service, belts are request and commit flows"></canvas>
+  <div id="labels" aria-hidden="true"></div>
+
+  <header id="topbar">
+    <div class="brand"><span class="mark" aria-hidden="true"></span><span class="word">obs_factor</span></div>
+    <div class="inrate" title="Requests per second into Caddy, all hosts">in <b id="inrate">-</b></div>
+    <div class="clock" id="clock" data-state="connecting">
+      <span class="dot" aria-hidden="true"></span><span id="live">connecting</span>
+      <span class="sep" aria-hidden="true">·</span><time id="utc">--:--:--</time> UTC
+      <span id="stale"></span>
+    </div>
+    <button class="iconbtn" id="menubtn" aria-label="Menu" aria-expanded="false">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <div id="menu" hidden>
+      <button type="button" id="fitbtn2">Show everything</button>
+      <form method="post" action="/logout"><button type="submit">Log out</button></form>
+    </div>
+  </header>
+
+  <div id="attention" hidden>
+    <span class="title">Needs attention:</span>
+    <div class="items" id="attention-items"></div>
+  </div>
+
+  <div id="loading">Waiting for the first snapshot…</div>
+
+  <div id="controls">
+    <button class="ctl" id="legendbtn" aria-expanded="false">Legend</button>
+    <span class="grow"></span>
+    <button class="ctl sq" id="zoomout" aria-label="Zoom out">−</button>
+    <button class="ctl sq" id="zoomin" aria-label="Zoom in">+</button>
+    <button class="ctl" id="fitbtn" aria-label="Show everything">fit</button>
+  </div>
+
+  <aside id="legend" hidden>
+    <div class="lg-grid">
+      <span class="lamp working"></span>working <span class="lamp idle"></span>idle
+      <span class="lamp blocked"></span>blocked <span class="lamp down"></span>down, alert
+      <span class="lamp unknown"></span><span class="span3">unknown: the source that would tell us is failing</span>
+    </div>
+    <div class="lg-row"><span class="belt solid"></span>belt: rate, log scale</div>
+    <div class="lg-row"><span class="belt dashed"></span>dashed: not metered</div>
+    <div class="lg-row"><span class="belt unknown"></span>grey, still: rate unknown</div>
+    <div class="lg-row"><span class="pw cpu"></span>CPU <span class="pw mem"></span>memory</div>
+    <div class="lg-row muted">power line width: what it draws</div>
+    <div class="lg-items" id="legend-items"></div>
+    <h4>Sources</h4>
+    <ul id="sources"></ul>
+  </aside>
+
+  <aside id="inspector" hidden aria-label="Inspector">
+    <div class="grab" aria-hidden="true"></div>
+    <button class="iconbtn close" id="inspector-close" aria-label="Close">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <div id="inspector-body"></div>
+  </aside>
+</body>
+</html>

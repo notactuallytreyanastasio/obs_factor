@@ -1,0 +1,5 @@
+defmodule ObsFactorWeb.HealthController do
+  use ObsFactorWeb, :controller
+
+  def show(conn, _params), do: text(conn, "ok")
+end

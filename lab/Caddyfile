@@ -1,0 +1,91 @@
+# The production Caddyfile in miniature. Same global shape as /opt/blog's
+# (a servers block with protocols h1 h2, plus the metrics option this project
+# adds), same kinds of routes: host-routed apps, a path route on another app's
+# host, a static site served from /srv/<name>, a WebSocket-ish relay.
+#
+# Differences from production, on purpose:
+# - every site is http:// so the lab needs no certificates and no ACME;
+#   the hostnames are reached with a Host header on 127.0.0.1:18080.
+# - no Cloudflare trusted_proxies.
+
+{
+	servers {
+		protocols h1 h2
+	}
+	# Per-host request series (caddy_http_requests_total{host="..."} and
+	# friends). Without per_host every site's requests land in one series.
+	metrics {
+		per_host
+	}
+}
+
+# Internal only: on the compose network, not published in production.
+# The lab publishes it on 127.0.0.1:19180 so `mix phx.server` on the laptop
+# can read it.
+http://:9180 {
+	metrics
+}
+
+http://blog.lab.test, http://www.blog.lab.test {
+	encode gzip zstd
+
+	header {
+		X-Forwarded-Proto {scheme}
+		alt-svc "clear"
+	}
+
+	# The path route on another app's host, like bobbby.online/arena/*.
+	handle_path /arena/* {
+		reverse_proxy arena:80
+	}
+
+	handle {
+		reverse_proxy blog:80 {
+			lb_try_duration 2s
+			lb_try_interval 250ms
+		}
+	}
+}
+
+http://links.lab.test {
+	encode gzip zstd
+	header {
+		X-Forwarded-Proto {scheme}
+		alt-svc "clear"
+	}
+	reverse_proxy links:80
+}
+
+# The memory-limited Node relay, like skee-relay / lumines / slides-relay.
+http://relay.lab.test {
+	reverse_proxy relay:8788
+}
+
+# The observer behind Caddy, the same block as deploy/Caddyfile.factory
+# (minus TLS). Answers 502 unless the observer profile is up.
+http://factory.lab.test {
+	encode gzip zstd
+
+	header {
+		X-Forwarded-Proto {scheme}
+		alt-svc "clear"
+	}
+
+	reverse_proxy observer:4000 {
+		header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+		header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+		# Lab only: the lab has no TLS, and the release's force_ssl
+		# (rewrite_on x_forwarded_proto) would 307 every request to https.
+		header_up X-Forwarded-Proto https
+		# /api/stream is SSE: write each event as it comes.
+		flush_interval -1
+	}
+}
+
+# A static site Caddy serves from a directory, like deciduous.dev.
+http://docs.lab.test {
+	root * /srv/docs
+	file_server
+	encode gzip zstd
+	header Cache-Control "public, max-age=300"
+}

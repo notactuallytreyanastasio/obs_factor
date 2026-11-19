@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0e17">
+  <title>obs_factor · sign in</title>
+  <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body class="login">
+  <form class="login-card" method="post" action="/login">
+    <div class="brand"><span class="mark" aria-hidden="true"></span>obs_factor</div>
+    <p>The factory floor of bobbby.online</p>
+    <div class="error" id="error" role="alert" hidden>Wrong password.</div>
+    <input type="text" name="username" value="obs_factor" autocomplete="username" hidden aria-hidden="true">
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+    <button type="submit">Enter</button>
+  </form>
+  <script type="module" src="/assets/js/login.js"></script>
+</body>
+</html>

@@ -1,0 +1,415 @@
+{
+  "edges": {
+    "10d573f50eb8ed242e6f": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-18T17:31:49.884476-05:00",
+      "edge_id": "10d573f50eb8ed242e6f",
+      "edge_type": "leads_to",
+      "from_change_id": "83ff9921-6146-4837-be4b-0f44e1d1b897",
+      "rationale": "found on the box",
+      "to_change_id": "a0b3e89d-a862-4c46-851c-1443f4a3ac3e",
+      "weight": 1.0
+    },
+    "275dfc9502ec055663c6": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-19T00:22:41.175239-05:00",
+      "edge_id": "275dfc9502ec055663c6",
+      "edge_type": "leads_to",
+      "from_change_id": "581e03e3-8d6f-4bdb-8a64-90b996fa2eb5",
+      "rationale": "deploy",
+      "to_change_id": "8f727b32-cbec-4e48-b138-d96f05be1599",
+      "weight": 1.0
+    },
+    "277a7e57fb8a648701a7": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-18T18:12:54.153879-05:00",
+      "edge_id": "277a7e57fb8a648701a7",
+      "edge_type": "leads_to",
+      "from_change_id": "07e01e0b-b303-4ec3-b04d-d817037f3799",
+      "rationale": "result",
+      "to_change_id": "53d3622a-0085-40a1-ab81-a236f95a4677",
+      "weight": 1.0
+    },
+    "30af992c1152ee1e1447": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-18T17:36:30.637699-05:00",
+      "edge_id": "30af992c1152ee1e1447",
+      "edge_type": "leads_to",
+      "from_change_id": "8e3d7085-0e1d-434a-aa9b-853adc4485fc",
+      "rationale": "workstream",
+      "to_change_id": "07e01e0b-b303-4ec3-b04d-d817037f3799",
+      "weight": 1.0
+    },
+    "3d39d0be79c619b9ca0c": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-18T17:33:58.201952-05:00",
+      "edge_id": "3d39d0be79c619b9ca0c",
+      "edge_type": "leads_to",
+      "from_change_id": "1094b22e-21ab-4ab6-a887-f1b8d723f366",
+      "rationale": "rejected: five more containers on a 4-core box with 20G free",
+      "to_change_id": "8e3d7085-0e1d-434a-aa9b-853adc4485fc",
+      "weight": 1.0
+    },
+    "430c144282e06ddca37e": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-18T17:31:50.097014-05:00",
+      "edge_id": "430c144282e06ddca37e",
+      "edge_type": "leads_to",
+      "from_change_id": "83ff9921-6146-4837-be4b-0f44e1d1b897",
+      "rationale": "where the data comes from",
+      "to_change_id": "1094b22e-21ab-4ab6-a887-f1b8d723f366",
+      "weight": 1.0
+    },
+    "53d3e4118cded4958b0a": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-18T17:31:50.049838-05:00",
+      "edge_id": "53d3e4118cded4958b0a",
+      "edge_type": "leads_to",
+      "from_change_id": "83ff9921-6146-4837-be4b-0f44e1d1b897",
+      "rationale": "found on the box",
+      "to_change_id": "4012b0cb-2f11-4e92-9059-3f81a39c4b33",
+      "weight": 1.0
+    },
+    "5ffe3b342bcb86271b29": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-18T17:31:49.931089-05:00",
+      "edge_id": "5ffe3b342bcb86271b29",
+      "edge_type": "leads_to",
+      "from_change_id": "83ff9921-6146-4837-be4b-0f44e1d1b897",
+      "rationale": "found on the box",
+      "to_change_id": "ac44ccc9-8489-452c-816b-b65695f73975",
+      "weight": 1.0
+    },
+    "647e9c000cad0e28de4f": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-18T17:31:50.151407-05:00",
+      "edge_id": "647e9c000cad0e28de4f",
+      "edge_type": "leads_to",
+      "from_change_id": "83ff9921-6146-4837-be4b-0f44e1d1b897",
+      "rationale": "where the data comes from",
+      "to_change_id": "477d1080-b674-47e8-8b1d-c1b691ae3acc",
+      "weight": 1.0
+    },
+    "6af86d064e657227a433": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-18T17:31:49.993919-05:00",
+      "edge_id": "6af86d064e657227a433",
+      "edge_type": "leads_to",
+      "from_change_id": "83ff9921-6146-4837-be4b-0f44e1d1b897",
+      "rationale": "found on the box",
+      "to_change_id": "ba1720ab-a2d8-4f83-9159-50c1432e174f",
+      "weight": 1.0
+    },
+    "6ea2bc6827166e09cadd": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-18T18:12:54.057994-05:00",
+      "edge_id": "6ea2bc6827166e09cadd",
+      "edge_type": "leads_to",
+      "from_change_id": "ae50c84e-402c-455b-9262-d82a4ae1c654",
+      "rationale": "result",
+      "to_change_id": "ab825f29-c907-4ca2-88ff-a56bb86b2135",
+      "weight": 1.0
+    },
+    "821f31026f2c0abba1a4": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-18T17:33:58.154340-05:00",
+      "edge_id": "821f31026f2c0abba1a4",
+      "edge_type": "chosen",
+      "from_change_id": "477d1080-b674-47e8-8b1d-c1b691ae3acc",
+      "rationale": "chosen",
+      "to_change_id": "8e3d7085-0e1d-434a-aa9b-853adc4485fc",
+      "weight": 1.0
+    },
+    "ae425820c7876a827c3b": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-18T17:36:30.506390-05:00",
+      "edge_id": "ae425820c7876a827c3b",
+      "edge_type": "leads_to",
+      "from_change_id": "8e3d7085-0e1d-434a-aa9b-853adc4485fc",
+      "rationale": "workstream",
+      "to_change_id": "ae50c84e-402c-455b-9262-d82a4ae1c654",
+      "weight": 1.0
+    },
+    "c4eb1bf3e2c85573fe9e": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-18T17:31:50.200729-05:00",
+      "edge_id": "c4eb1bf3e2c85573fe9e",
+      "edge_type": "leads_to",
+      "from_change_id": "83ff9921-6146-4837-be4b-0f44e1d1b897",
+      "rationale": "where the data comes from",
+      "to_change_id": "a8aff016-9314-430c-a931-8fc4b8efca78",
+      "weight": 1.0
+    },
+    "e56ed32cc3201e086fde": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-19T00:22:41.100618-05:00",
+      "edge_id": "e56ed32cc3201e086fde",
+      "edge_type": "leads_to",
+      "from_change_id": "581e03e3-8d6f-4bdb-8a64-90b996fa2eb5",
+      "rationale": "found while preparing deploy",
+      "to_change_id": "6a138335-1ca4-4e33-b77f-bd27cc1208a5",
+      "weight": 1.0
+    },
+    "e63d2dfaf0501683df89": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-18T18:12:54.254823-05:00",
+      "edge_id": "e63d2dfaf0501683df89",
+      "edge_type": "leads_to",
+      "from_change_id": "33c8b078-45bd-4560-b610-20eb2282632c",
+      "rationale": "result",
+      "to_change_id": "9542228e-e654-4455-8ed3-833af7985dbb",
+      "weight": 1.0
+    },
+    "f233c3e4c7f9c0500f57": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-18T17:33:58.245796-05:00",
+      "edge_id": "f233c3e4c7f9c0500f57",
+      "edge_type": "leads_to",
+      "from_change_id": "a8aff016-9314-430c-a931-8fc4b8efca78",
+      "rationale": "rejected: Docker socket in the most exposed container",
+      "to_change_id": "8e3d7085-0e1d-434a-aa9b-853adc4485fc",
+      "weight": 1.0
+    },
+    "fadb9ed27930e147e783": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-18T17:36:30.788404-05:00",
+      "edge_id": "fadb9ed27930e147e783",
+      "edge_type": "leads_to",
+      "from_change_id": "8e3d7085-0e1d-434a-aa9b-853adc4485fc",
+      "rationale": "workstream",
+      "to_change_id": "33c8b078-45bd-4560-b610-20eb2282632c",
+      "weight": 1.0
+    }
+  },
+  "nodes": {
+    "07e01e0b-b303-4ec3-b04d-d817037f3799": {
+      "author": "Bobby Grayson",
+      "change_id": "07e01e0b-b303-4ec3-b04d-d817037f3799",
+      "created_at": "2026-11-18T17:36:30.571529-05:00",
+      "metadata": {
+        "confidence": 85
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Build the factory floor: isometric canvas, belts, power lines, fire, inspector",
+      "updated_at": "2026-11-18T17:36:30.571529-05:00"
+    },
+    "1094b22e-21ab-4ab6-a887-f1b8d723f366": {
+      "author": "Bobby Grayson",
+      "change_id": "1094b22e-21ab-4ab6-a887-f1b8d723f366",
+      "created_at": "2026-11-18T17:31:49.717525-05:00",
+      "description": "What the inspiration runs. Five more containers and their own Postgres connections on a 4-core box with 20G free disk.",
+      "metadata": {
+        "confidence": 40
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "Prometheus + Grafana + cAdvisor + exporters, factory reads Grafana",
+      "updated_at": "2026-11-18T17:31:49.717525-05:00"
+    },
+    "33c8b078-45bd-4560-b610-20eb2282632c": {
+      "author": "Bobby Grayson",
+      "change_id": "33c8b078-45bd-4560-b610-20eb2282632c",
+      "created_at": "2026-11-18T17:36:30.709851-05:00",
+      "metadata": {
+        "confidence": 85
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Build the lab stack and production wiring: Dockerfile, deploy.sh, topology, compose and Caddy snippets",
+      "updated_at": "2026-11-18T17:36:30.709851-05:00"
+    },
+    "4012b0cb-2f11-4e92-9059-3f81a39c4b33": {
+      "author": "Bobby Grayson",
+      "change_id": "4012b0cb-2f11-4e92-9059-3f81a39c4b33",
+      "created_at": "2026-11-18T17:31:49.656053-05:00",
+      "description": "150G disk, 20G free. 4 cores, 15.6G RAM, load 0.03.",
+      "metadata": {
+        "confidence": 95
+      },
+      "node_type": "observation",
+      "status": "pending",
+      "title": "Disk is 87% full, 115G of it /var/lib/docker",
+      "updated_at": "2026-11-18T17:31:49.656053-05:00"
+    },
+    "477d1080-b674-47e8-8b1d-c1b691ae3acc": {
+      "author": "Bobby Grayson",
+      "change_id": "477d1080-b674-47e8-8b1d-c1b691ae3acc",
+      "created_at": "2026-11-18T17:31:49.776841-05:00",
+      "description": "Same shape as every other subdomain app: own source tree in /opt, a service in /opt/blog's compose, a Caddy site block. History in memory.",
+      "metadata": {
+        "confidence": 85
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "One observer service in the stack: polls Docker, Caddy, Postgres, /proc itself",
+      "updated_at": "2026-11-18T17:31:49.776841-05:00"
+    },
+    "53d3622a-0085-40a1-ab81-a236f95a4677": {
+      "author": "Bobby Grayson",
+      "change_id": "53d3622a-0085-40a1-ab81-a236f95a4677",
+      "created_at": "2026-11-18T18:12:54.108646-05:00",
+      "metadata": {
+        "confidence": 90
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "Workstream 11 done; real backend under real frontend verified on the lab stack (fire on a stopped app, 5xx alert, memory warning); 90 tests pass",
+      "updated_at": "2026-11-18T18:12:54.108646-05:00"
+    },
+    "581e03e3-8d6f-4bdb-8a64-90b996fa2eb5": {
+      "author": "Bobby Grayson",
+      "change_id": "581e03e3-8d6f-4bdb-8a64-90b996fa2eb5",
+      "created_at": "2026-11-19T00:21:05.769152-05:00",
+      "metadata": {
+        "confidence": 90,
+        "prompt": "ok thats fine with the ogin I guess. do that\n\nthe pin is fine\n\ndelete those both yes\n\ndeploy it! make the users and set up the env and stuff you have permission to push \n\nrun the compose thing for me now il visit"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "Deploy obs_factor to production",
+      "updated_at": "2026-11-19T00:21:05.769152-05:00"
+    },
+    "6a138335-1ca4-4e33-b77f-bd27cc1208a5": {
+      "author": "Bobby Grayson",
+      "change_id": "6a138335-1ca4-4e33-b77f-bd27cc1208a5",
+      "created_at": "2026-11-19T00:22:41.063871-05:00",
+      "metadata": {
+        "confidence": 90
+      },
+      "node_type": "observation",
+      "status": "pending",
+      "title": "Removing the orphan classifier container frees its 10 Postgres connections (96 -> 86 of 100), so no app pool needs lowering for the obs_factor role",
+      "updated_at": "2026-11-19T00:22:41.063871-05:00"
+    },
+    "83ff9921-6146-4837-be4b-0f44e1d1b897": {
+      "author": "Bobby Grayson",
+      "change_id": "83ff9921-6146-4837-be4b-0f44e1d1b897",
+      "created_at": "2026-11-18T17:30:12.069987-05:00",
+      "metadata": {
+        "confidence": 85,
+        "prompt": "We are making an app.\n\nIt is to give us continuous visibility into the running system on my website.\n\nIt will be built using the sites own backend and whatever else we need to provide to do it\n\nuse these posts as inspiration for a base level beginning point\n\nhttps://bsky.app/profile/why.bsky.world/post/3n2jyy2xmos22 https://bsky.app/profile/why.bsky.world/post/3n2e3d24uzs27 https://bsky.app/profile/why.bsky.world/post/3n2e4imzfrk2v https://bsky.app/profile/why.bsky.world/post/3n2dphxinhc2l https://bsky.app/profile/why.bsky.world/post/3n2cqipcoqs2h https://bsky.app/profile/why.bsky.world/post/3n2dujmgihk27\n\n[follow-ups in the same turn]\nwe will be doing this for @../blog\nas well as each app that runs on a subdomain on that site\nwe can just work locally"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "Factory-style live observability app for bobbby.online and every subdomain app",
+      "updated_at": "2026-11-18T17:30:12.069987-05:00"
+    },
+    "8e3d7085-0e1d-434a-aa9b-853adc4485fc": {
+      "author": "Bobby Grayson",
+      "change_id": "8e3d7085-0e1d-434a-aa9b-853adc4485fc",
+      "created_at": "2026-11-18T17:33:58.103840-05:00",
+      "description": "User confirmed the plan and asked for it behind a password. Phoenix without Ecto/LiveView/asset build; polls Docker (via read-only socket proxy), Caddy metrics, Postgres on one connection, /proc, HTTP probes; history in memory; SSE to an isometric canvas.",
+      "metadata": {
+        "confidence": 88
+      },
+      "node_type": "decision",
+      "status": "pending",
+      "title": "One observer service in the stack, password-gated, over Prometheus/Grafana and over living inside the blog app",
+      "updated_at": "2026-11-18T17:33:58.103840-05:00"
+    },
+    "8f727b32-cbec-4e48-b138-d96f05be1599": {
+      "author": "Bobby Grayson",
+      "change_id": "8f727b32-cbec-4e48-b138-d96f05be1599",
+      "created_at": "2026-11-19T00:22:41.140587-05:00",
+      "metadata": {
+        "confidence": 85
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Wire obs-factor and docker-proxy into the blog stack (compose, Caddyfile, pin caddy 2.10.2), create role and env on the box, remove classifier and icecast, deploy",
+      "updated_at": "2026-11-19T00:22:41.140587-05:00"
+    },
+    "9542228e-e654-4455-8ed3-833af7985dbb": {
+      "author": "Bobby Grayson",
+      "change_id": "9542228e-e654-4455-8ed3-833af7985dbb",
+      "created_at": "2026-11-18T18:12:54.205967-05:00",
+      "metadata": {
+        "confidence": 90
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "Workstream 12 done; real backend under real frontend verified on the lab stack (fire on a stopped app, 5xx alert, memory warning); 90 tests pass",
+      "updated_at": "2026-11-18T18:12:54.205967-05:00"
+    },
+    "a0b3e89d-a862-4c46-851c-1443f4a3ac3e": {
+      "author": "Bobby Grayson",
+      "change_id": "a0b3e89d-a862-4c46-851c-1443f4a3ac3e",
+      "created_at": "2026-11-18T17:31:49.448131-05:00",
+      "description": "max_connections=100, 96 in pg_stat_activity (2026-11-18). Every app holds a pool of 10-20. The observer cannot take a pool or its own database; one connection at most.",
+      "metadata": {
+        "confidence": 95
+      },
+      "node_type": "observation",
+      "status": "pending",
+      "title": "Postgres is at 96 of 100 connections on the box",
+      "updated_at": "2026-11-18T17:31:49.448131-05:00"
+    },
+    "a8aff016-9314-430c-a931-8fc4b8efca78": {
+      "author": "Bobby Grayson",
+      "change_id": "a8aff016-9314-430c-a931-8fc4b8efca78",
+      "created_at": "2026-11-18T17:31:49.836351-05:00",
+      "description": "Would put the Docker socket inside the most exposed container, and the observer would go down with the thing it observes.",
+      "metadata": {
+        "confidence": 30
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "Build it into the blog's Phoenix app",
+      "updated_at": "2026-11-18T17:31:49.836351-05:00"
+    },
+    "ab825f29-c907-4ca2-88ff-a56bb86b2135": {
+      "author": "Bobby Grayson",
+      "change_id": "ab825f29-c907-4ca2-88ff-a56bb86b2135",
+      "created_at": "2026-11-18T18:12:54.010955-05:00",
+      "metadata": {
+        "confidence": 90
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "Workstream 10 done; real backend under real frontend verified on the lab stack (fire on a stopped app, 5xx alert, memory warning); 90 tests pass",
+      "updated_at": "2026-11-18T18:12:54.010955-05:00"
+    },
+    "ac44ccc9-8489-452c-816b-b65695f73975": {
+      "author": "Bobby Grayson",
+      "change_id": "ac44ccc9-8489-452c-816b-b65695f73975",
+      "created_at": "2026-11-18T17:31:49.527026-05:00",
+      "description": "blog-classifier-1 and blog-icecast-1 are running, temper-link is exited, archive_classifier_prod exists; none are in docker-compose.yml. The map must be discovered from Docker, not read from the file.",
+      "metadata": {
+        "confidence": 95
+      },
+      "node_type": "observation",
+      "status": "pending",
+      "title": "Box runs services the compose file no longer lists",
+      "updated_at": "2026-11-18T17:31:49.527026-05:00"
+    },
+    "ae50c84e-402c-455b-9262-d82a4ae1c654": {
+      "author": "Bobby Grayson",
+      "change_id": "ae50c84e-402c-455b-9262-d82a4ae1c654",
+      "created_at": "2026-11-18T17:36:30.449490-05:00",
+      "metadata": {
+        "confidence": 85
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Build the observer backend: collectors, history, snapshot, attention rules, password gate",
+      "updated_at": "2026-11-18T17:36:30.449490-05:00"
+    },
+    "ba1720ab-a2d8-4f83-9159-50c1432e174f": {
+      "author": "Bobby Grayson",
+      "change_id": "ba1720ab-a2d8-4f83-9159-50c1432e174f",
+      "created_at": "2026-11-18T17:31:49.594659-05:00",
+      "description": "db and deciduous-mcp are the only ones reporting health. Up/down has to come from the observer probing. Caddy needs the metrics option and an internal listener before any request rate exists.",
+      "metadata": {
+        "confidence": 95
+      },
+      "node_type": "observation",
+      "status": "pending",
+      "title": "Only 2 of 18 containers have a Docker healthcheck; Caddy 2.10.2 exposes no HTTP metrics yet",
+      "updated_at": "2026-11-18T17:31:49.594659-05:00"
+    }
+  },
+  "tags": {},
+  "themes": {},
+  "version": 1
+}

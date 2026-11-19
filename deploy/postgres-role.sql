@@ -1,0 +1,27 @@
+-- The observer's Postgres role. Run once, by a human, on the box:
+--
+--   cd /opt/blog && set -a && . ./.env && set +a && \
+--   docker compose exec -T db psql -U blog -d postgres -v ON_ERROR_STOP=1 \
+--     -v pw="$OBS_FACTOR_DB_PASSWORD" < /opt/obs_factor/deploy/postgres-role.sql
+--
+-- What it grants, and why (each verified in the lab, README "Postgres"):
+-- - LOGIN, no database of its own; it connects to `postgres`.
+-- - pg_monitor (which includes pg_read_all_stats): every row of
+--   pg_stat_database and pg_database_size() for databases it has no CONNECT
+--   grant on. It can still CONNECT to every database (PUBLIC has CONNECT by
+--   default) but reads no app table: in the lab, SELECT on a table owned by
+--   `blog` answered "permission denied for table pgbench_accounts".
+-- - CONNECTION LIMIT 1: "the observer holds exactly one connection" is then
+--   enforced by the server. A second session is refused with
+--   FATAL: too many connections for role "obs_factor".
+--
+-- The cost, to decide with eyes open: the box ran 96 of max_connections 100
+-- on 2026-11-18, and 3 are reserved for superusers. This role is not a
+-- superuser, so it takes slot 97, the last ordinary one, and when ordinary
+-- slots are gone it is refused at connect with "remaining connection slots
+-- are reserved for roles with the SUPERUSER attribute" (the observer then
+-- reports the postgres source as failed, with that text). Connecting as
+-- `blog` instead would work at 97+, by eating a slot kept for an admin
+-- fixing exactly that situation.
+
+CREATE ROLE obs_factor LOGIN CONNECTION LIMIT 1 IN ROLE pg_monitor PASSWORD :'pw';

@@ -1,0 +1,1974 @@
+{
+ "at": "2026-11-18T22:34:47Z",
+ "tick_ms": 5000,
+ "sources": {
+  "docker": {
+   "ok": true,
+   "at": "2026-11-18T22:34:47Z",
+   "error": null
+  },
+  "caddy": {
+   "ok": false,
+   "at": null,
+   "error": "GET http://caddy:9180/metrics: connection refused (econnrefused)"
+  },
+  "postgres": {
+   "ok": true,
+   "at": "2026-11-18T22:34:47Z",
+   "error": null
+  },
+  "host": {
+   "ok": true,
+   "at": "2026-11-18T22:34:47Z",
+   "error": null
+  },
+  "probes": {
+   "ok": true,
+   "at": "2026-11-18T22:34:47Z",
+   "error": null
+  },
+  "sites": {
+   "ok": true,
+   "at": "2026-11-18T22:34:47Z",
+   "error": null
+  }
+ },
+ "host": {
+  "cores": 4,
+  "cpu_used_cores": 1.31,
+  "load1": 2.4,
+  "mem_used_bytes": 10093173145.6,
+  "mem_total_bytes": 16368988160,
+  "disk_used_bytes": 140031373312,
+  "disk_total_bytes": 160970244096
+ },
+ "platforms": [
+  {
+   "id": "outside",
+   "label": "outside"
+  },
+  {
+   "id": "main",
+   "label": "bobbby.online"
+  },
+  {
+   "id": "host",
+   "label": "the box"
+  },
+  {
+   "id": "static",
+   "label": "static sites"
+  }
+ ],
+ "nodes": [
+  {
+   "id": "caddy",
+   "label": "Caddy",
+   "kind": "proxy",
+   "platform": "main",
+   "pos": [
+    0,
+    2
+   ],
+   "status": "unknown",
+   "reason": "metrics endpoint not answering",
+   "headline": {
+    "value": null,
+    "unit": "req/s"
+   },
+   "container": {
+    "name": "blog-caddy-1",
+    "state": "running",
+    "status_text": "Up 2 days",
+    "uptime_s": 172800,
+    "restarts": 0,
+    "oom_killed": false,
+    "cpu_cores": 0.0018,
+    "mem_bytes": 30470144,
+    "mem_limit_bytes": null,
+    "net_rx_bps": 7800,
+    "net_tx_bps": 17100
+   },
+   "probe": null,
+   "hosts": [],
+   "via": [],
+   "holds": [],
+   "facts": [
+    {
+     "label": "memory",
+     "value": "29 MB, no limit"
+    },
+    {
+     "label": "sites",
+     "value": "21 site blocks, 2.10.2"
+    }
+   ]
+  },
+  {
+   "id": "blimp-blog",
+   "label": "Blimp blog",
+   "kind": "app",
+   "platform": "main",
+   "pos": [
+    1,
+    1
+   ],
+   "status": "blocked",
+   "reason": "memory at 97% of its 1.5 GB limit",
+   "headline": {
+    "value": null,
+    "unit": "req/s"
+   },
+   "container": {
+    "name": "blog-blimp-blog-1",
+    "state": "running",
+    "status_text": "Up 13 days",
+    "uptime_s": 1123200,
+    "restarts": 0,
+    "oom_killed": false,
+    "cpu_cores": 0.41,
+    "mem_bytes": 1637875712,
+    "mem_limit_bytes": 1610612736,
+    "net_rx_bps": 43473.6,
+    "net_tx_bps": 1963.6
+   },
+   "probe": {
+    "ok": true,
+    "code": 200,
+    "ms": 1840
+   },
+   "hosts": [
+    {
+     "host": "bobbby.online",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    },
+    {
+     "host": "www.bobbby.online",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    }
+   ],
+   "via": [],
+   "holds": [],
+   "facts": [
+    {
+     "label": "memory",
+     "value": "1.5 GB of 1.5 GB"
+    }
+   ]
+  },
+  {
+   "id": "app",
+   "label": "Phoenix blog",
+   "kind": "app",
+   "platform": "main",
+   "pos": [
+    1,
+    2
+   ],
+   "status": "working",
+   "reason": null,
+   "headline": {
+    "value": null,
+    "unit": "req/s"
+   },
+   "container": {
+    "name": "blog-app-1",
+    "state": "running",
+    "status_text": "Up 9 days",
+    "uptime_s": 777600,
+    "restarts": 0,
+    "oom_killed": false,
+    "cpu_cores": 0.0037,
+    "mem_bytes": 318140416,
+    "mem_limit_bytes": null,
+    "net_rx_bps": 15400,
+    "net_tx_bps": 34200
+   },
+   "probe": {
+    "ok": true,
+    "code": 200,
+    "ms": 7
+   },
+   "hosts": [
+    {
+     "host": "old.bobbby.online",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    }
+   ],
+   "via": [
+    "bobbby.online/hotel-carbon*",
+    "bobbby.online/tennis-potatoes*"
+   ],
+   "holds": [],
+   "facts": [
+    {
+     "label": "memory",
+     "value": "303 MB, no limit"
+    },
+    {
+     "label": "routes",
+     "value": "bobbby.online/hotel-carbon*, bobbby.online/tennis-potatoes*"
+    }
+   ]
+  },
+  {
+   "id": "blinks",
+   "label": "Blinks",
+   "kind": "app",
+   "platform": "main",
+   "pos": [
+    1,
+    3
+   ],
+   "status": "working",
+   "reason": null,
+   "headline": {
+    "value": null,
+    "unit": "req/s"
+   },
+   "container": {
+    "name": "blog-blinks-1",
+    "state": "running",
+    "status_text": "Up 90 days",
+    "uptime_s": 7776000,
+    "restarts": 0,
+    "oom_killed": false,
+    "cpu_cores": 0.004,
+    "mem_bytes": 222298112,
+    "mem_limit_bytes": null,
+    "net_rx_bps": 16600,
+    "net_tx_bps": 36900
+   },
+   "probe": {
+    "ok": true,
+    "code": 200,
+    "ms": 8
+   },
+   "hosts": [
+    {
+     "host": "links.bobbby.online",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    },
+    {
+     "host": "bobbbys.link",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    },
+    {
+     "host": "www.bobbbys.link",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    }
+   ],
+   "via": [],
+   "holds": [],
+   "facts": [
+    {
+     "label": "memory",
+     "value": "212 MB, no limit"
+    }
+   ]
+  },
+  {
+   "id": "marginalia",
+   "label": "Marginalia",
+   "kind": "app",
+   "platform": "main",
+   "pos": [
+    2,
+    0
+   ],
+   "status": "working",
+   "reason": null,
+   "headline": {
+    "value": null,
+    "unit": "req/s"
+   },
+   "container": {
+    "name": "blog-marginalia-1",
+    "state": "running",
+    "status_text": "Up 56 days",
+    "uptime_s": 4838400,
+    "restarts": 0,
+    "oom_killed": false,
+    "cpu_cores": 0.009,
+    "mem_bytes": 263192576,
+    "mem_limit_bytes": null,
+    "net_rx_bps": 36600,
+    "net_tx_bps": 81900
+   },
+   "probe": {
+    "ok": true,
+    "code": 200,
+    "ms": 12
+   },
+   "hosts": [
+    {
+     "host": "marginalia.bobbby.online",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    }
+   ],
+   "via": [],
+   "holds": [],
+   "facts": [
+    {
+     "label": "memory",
+     "value": "251 MB, no limit"
+    }
+   ]
+  },
+  {
+   "id": "tyler",
+   "label": "Tyler",
+   "kind": "app",
+   "platform": "main",
+   "pos": [
+    2,
+    1
+   ],
+   "status": "idle",
+   "reason": null,
+   "headline": {
+    "value": null,
+    "unit": "req/s"
+   },
+   "container": {
+    "name": "blog-tyler-1",
+    "state": "running",
+    "status_text": "Up 42 days",
+    "uptime_s": 3628800,
+    "restarts": 0,
+    "oom_killed": false,
+    "cpu_cores": 0.002,
+    "mem_bytes": 155189248,
+    "mem_limit_bytes": null,
+    "net_rx_bps": 8600,
+    "net_tx_bps": 18900
+   },
+   "probe": {
+    "ok": true,
+    "code": 200,
+    "ms": 6
+   },
+   "hosts": [
+    {
+     "host": "tyler.bobbby.online",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    }
+   ],
+   "via": [],
+   "holds": [],
+   "facts": [
+    {
+     "label": "memory",
+     "value": "148 MB, no limit"
+    }
+   ]
+  },
+  {
+   "id": "dave",
+   "label": "Dave",
+   "kind": "app",
+   "platform": "main",
+   "pos": [
+    2,
+    3
+   ],
+   "status": "idle",
+   "reason": null,
+   "headline": {
+    "value": null,
+    "unit": "req/s"
+   },
+   "container": {
+    "name": "blog-dave-1",
+    "state": "running",
+    "status_text": "Up 28 days",
+    "uptime_s": 2419200,
+    "restarts": 0,
+    "oom_killed": false,
+    "cpu_cores": 0.0015,
+    "mem_bytes": 145752064,
+    "mem_limit_bytes": null,
+    "net_rx_bps": 6600,
+    "net_tx_bps": 14400
+   },
+   "probe": {
+    "ok": true,
+    "code": 200,
+    "ms": 5
+   },
+   "hosts": [
+    {
+     "host": "dave.bobbby.online",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    }
+   ],
+   "via": [],
+   "holds": [],
+   "facts": [
+    {
+     "label": "memory",
+     "value": "139 MB, no limit"
+    }
+   ]
+  },
+  {
+   "id": "nathan",
+   "label": "Gifmaker",
+   "kind": "app",
+   "platform": "main",
+   "pos": [
+    2,
+    4
+   ],
+   "status": "working",
+   "reason": null,
+   "headline": {
+    "value": null,
+    "unit": "req/s"
+   },
+   "container": {
+    "name": "blog-nathan-1",
+    "state": "running",
+    "status_text": "Up 92 days",
+    "uptime_s": 7948800,
+    "restarts": 0,
+    "oom_killed": false,
+    "cpu_cores": 0.012,
+    "mem_bytes": 316669952,
+    "mem_limit_bytes": null,
+    "net_rx_bps": 48600,
+    "net_tx_bps": 108900
+   },
+   "probe": {
+    "ok": true,
+    "code": 200,
+    "ms": 15
+   },
+   "hosts": [
+    {
+     "host": "gifmaker.bobbby.online",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    }
+   ],
+   "via": [],
+   "holds": [],
+   "facts": [
+    {
+     "label": "memory",
+     "value": "302 MB, no limit"
+    }
+   ]
+  },
+  {
+   "id": "deciduous-mcp",
+   "label": "deciduous MCP",
+   "kind": "app",
+   "platform": "main",
+   "pos": [
+    1,
+    0
+   ],
+   "status": "working",
+   "reason": null,
+   "headline": {
+    "value": 0.006,
+    "unit": "cores"
+   },
+   "container": {
+    "name": "blog-deciduous-mcp-1",
+    "state": "running",
+    "status_text": "Up 49 days",
+    "uptime_s": 4233600,
+    "restarts": 0,
+    "oom_killed": false,
+    "cpu_cores": 0.006,
+    "mem_bytes": 197132288,
+    "mem_limit_bytes": null,
+    "net_rx_bps": 24600,
+    "net_tx_bps": 54900
+   },
+   "probe": {
+    "ok": true,
+    "code": 200,
+    "ms": 9
+   },
+   "hosts": [],
+   "via": [
+    "bobbby.online/deciduous-mcp/*"
+   ],
+   "holds": [],
+   "facts": [
+    {
+     "label": "memory",
+     "value": "188 MB, no limit"
+    },
+    {
+     "label": "routes",
+     "value": "bobbby.online/deciduous-mcp/*"
+    }
+   ]
+  },
+  {
+   "id": "skyfeed",
+   "label": "Sky feeds",
+   "kind": "app",
+   "platform": "main",
+   "pos": [
+    1,
+    4
+   ],
+   "status": "down",
+   "reason": "restart loop: 14 restarts, last exit 137 (OOM)",
+   "headline": {
+    "value": null,
+    "unit": "req/s"
+   },
+   "container": {
+    "name": "blog-skyfeed-1",
+    "state": "restarting",
+    "status_text": "Restarting (137) 8 seconds ago",
+    "uptime_s": null,
+    "restarts": 14,
+    "oom_killed": true,
+    "cpu_cores": null,
+    "mem_bytes": null,
+    "mem_limit_bytes": null,
+    "net_rx_bps": null,
+    "net_tx_bps": null
+   },
+   "probe": {
+    "ok": false,
+    "code": null,
+    "ms": null,
+    "error": "connect ECONNREFUSED skyfeed:4000"
+   },
+   "hosts": [
+    {
+     "host": "bskymapfeeds.bobbby.online",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    }
+   ],
+   "via": [],
+   "holds": [],
+   "facts": [
+    {
+     "label": "memory",
+     "value": "not running"
+    }
+   ]
+  },
+  {
+   "id": "dtree-ai",
+   "label": "dtree AI",
+   "kind": "app",
+   "platform": "main",
+   "pos": [
+    3,
+    0
+   ],
+   "status": "idle",
+   "reason": null,
+   "headline": {
+    "value": 0,
+    "unit": "cores"
+   },
+   "container": {
+    "name": "blog-dtree-ai-1",
+    "state": "running",
+    "status_text": "Up 14 days",
+    "uptime_s": 1209600,
+    "restarts": 0,
+    "oom_killed": false,
+    "cpu_cores": 0.0004,
+    "mem_bytes": 63963136,
+    "mem_limit_bytes": null,
+    "net_rx_bps": 2200,
+    "net_tx_bps": 4500
+   },
+   "probe": {
+    "ok": true,
+    "code": 200,
+    "ms": 4
+   },
+   "hosts": [],
+   "via": [
+    "bobbby.online/dtree-ai/*"
+   ],
+   "holds": [],
+   "facts": [
+    {
+     "label": "memory",
+     "value": "61 MB, no limit"
+    },
+    {
+     "label": "routes",
+     "value": "bobbby.online/dtree-ai/*"
+    }
+   ]
+  },
+  {
+   "id": "soldat",
+   "label": "Arena",
+   "kind": "app",
+   "platform": "main",
+   "pos": [
+    3,
+    1
+   ],
+   "status": "working",
+   "reason": null,
+   "headline": {
+    "value": 0.031,
+    "unit": "cores"
+   },
+   "container": {
+    "name": "blog-soldat-1",
+    "state": "running",
+    "status_text": "Up 61 days",
+    "uptime_s": 5270400,
+    "restarts": 0,
+    "oom_killed": false,
+    "cpu_cores": 0.031,
+    "mem_bytes": 123731968,
+    "mem_limit_bytes": null,
+    "net_rx_bps": 124600,
+    "net_tx_bps": 279900
+   },
+   "probe": {
+    "ok": true,
+    "code": 200,
+    "ms": 32
+   },
+   "hosts": [],
+   "via": [
+    "bobbby.online/arena/*"
+   ],
+   "holds": [],
+   "facts": [
+    {
+     "label": "memory",
+     "value": "118 MB, no limit"
+    },
+    {
+     "label": "routes",
+     "value": "bobbby.online/arena/*"
+    }
+   ]
+  },
+  {
+   "id": "slides-relay",
+   "label": "Slides relay",
+   "kind": "relay",
+   "platform": "main",
+   "pos": [
+    3,
+    3
+   ],
+   "status": "idle",
+   "reason": null,
+   "headline": {
+    "value": 0,
+    "unit": "cores"
+   },
+   "container": {
+    "name": "blog-slides-relay-1",
+    "state": "running",
+    "status_text": "Up 120 days",
+    "uptime_s": 10368000,
+    "restarts": 0,
+    "oom_killed": false,
+    "cpu_cores": 0,
+    "mem_bytes": 9658368,
+    "mem_limit_bytes": null,
+    "net_rx_bps": 600,
+    "net_tx_bps": 900
+   },
+   "probe": null,
+   "hosts": [],
+   "via": [
+    "slides.bobbby.online/relay"
+   ],
+   "holds": [],
+   "facts": [
+    {
+     "label": "memory",
+     "value": "9.2 MB, no limit"
+    },
+    {
+     "label": "routes",
+     "value": "slides.bobbby.online/relay"
+    }
+   ]
+  },
+  {
+   "id": "skee-relay",
+   "label": "Skee relay",
+   "kind": "relay",
+   "platform": "main",
+   "pos": [
+    3,
+    4
+   ],
+   "status": "idle",
+   "reason": null,
+   "headline": {
+    "value": 0,
+    "unit": "cores"
+   },
+   "container": {
+    "name": "blog-skee-relay-1",
+    "state": "running",
+    "status_text": "Up 15 days",
+    "uptime_s": 1296000,
+    "restarts": 0,
+    "oom_killed": false,
+    "cpu_cores": 0.0002,
+    "mem_bytes": 42991616,
+    "mem_limit_bytes": null,
+    "net_rx_bps": 1400,
+    "net_tx_bps": 2700
+   },
+   "probe": null,
+   "hosts": [],
+   "via": [
+    "bobbby.online/skee-host/*"
+   ],
+   "holds": [],
+   "facts": [
+    {
+     "label": "memory",
+     "value": "41 MB, no limit"
+    },
+    {
+     "label": "routes",
+     "value": "bobbby.online/skee-host/*"
+    }
+   ]
+  },
+  {
+   "id": "lumines",
+   "label": "Lumines relay",
+   "kind": "relay",
+   "platform": "main",
+   "pos": [
+    2,
+    5
+   ],
+   "status": "idle",
+   "reason": null,
+   "headline": {
+    "value": 0,
+    "unit": "cores"
+   },
+   "container": {
+    "name": "blog-lumines-1",
+    "state": "running",
+    "status_text": "Up 61 days",
+    "uptime_s": 5270400,
+    "restarts": 0,
+    "oom_killed": false,
+    "cpu_cores": 0.0003,
+    "mem_bytes": 46137344,
+    "mem_limit_bytes": null,
+    "net_rx_bps": 1800,
+    "net_tx_bps": 3600
+   },
+   "probe": null,
+   "hosts": [],
+   "via": [
+    "lumines.bobbby.online/ws"
+   ],
+   "holds": [],
+   "facts": [
+    {
+     "label": "memory",
+     "value": "44 MB, no limit"
+    },
+    {
+     "label": "routes",
+     "value": "lumines.bobbby.online/ws"
+    }
+   ]
+  },
+  {
+   "id": "db",
+   "label": "Postgres",
+   "kind": "db",
+   "platform": "main",
+   "pos": [
+    3,
+    2
+   ],
+   "status": "blocked",
+   "reason": "96 of 100 connections in use",
+   "headline": {
+    "value": 96,
+    "unit": "of 100 conns"
+   },
+   "container": {
+    "name": "blog-db-1",
+    "state": "running",
+    "status_text": "Up 4 months (healthy)",
+    "uptime_s": 11491200,
+    "restarts": 0,
+    "oom_killed": false,
+    "cpu_cores": 0.011,
+    "mem_bytes": 771993600,
+    "mem_limit_bytes": null,
+    "net_rx_bps": 6825.8,
+    "net_tx_bps": 3713.6
+   },
+   "probe": null,
+   "hosts": [],
+   "via": [],
+   "holds": [
+    {
+     "label": "blog_prod",
+     "bytes": 2594723507
+    },
+    {
+     "label": "nathan_for_us_prod",
+     "bytes": 1413494451
+    },
+    {
+     "label": "archive_classifier_prod",
+     "bytes": 39237299
+    },
+    {
+     "label": "blinks_backend_prod",
+     "bytes": 8787635
+    },
+    {
+     "label": "marginalia_prod",
+     "bytes": 67385011
+    },
+    {
+     "label": "deciduous_mcp_prod",
+     "bytes": 185169587
+    },
+    {
+     "label": "tyler_prod",
+     "bytes": 83818163
+    },
+    {
+     "label": "dave_prod",
+     "bytes": 8836787
+    },
+    {
+     "label": "postgres",
+     "bytes": 7689907
+    }
+   ],
+   "facts": [
+    {
+     "label": "memory",
+     "value": "736 MB, no limit"
+    },
+    {
+     "label": "connections",
+     "value": "96 of 100"
+    },
+    {
+     "label": "databases",
+     "value": "9"
+    },
+    {
+     "label": "version",
+     "value": "PostgreSQL 17"
+    }
+   ]
+  },
+  {
+   "id": "site-deciduous",
+   "label": "deciduous.dev",
+   "kind": "static",
+   "platform": "static",
+   "pos": [
+    0,
+    0
+   ],
+   "status": "unknown",
+   "reason": "request counts unknown: caddy metrics failing",
+   "headline": {
+    "value": null,
+    "unit": "req/s"
+   },
+   "container": null,
+   "probe": null,
+   "hosts": [
+    {
+     "host": "deciduous.dev",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    },
+    {
+     "host": "www.deciduous.dev",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    }
+   ],
+   "via": [],
+   "holds": [
+    {
+     "label": "deciduous",
+     "bytes": 50331648
+    }
+   ],
+   "facts": [
+    {
+     "label": "directory",
+     "value": "/sites/deciduous"
+    },
+    {
+     "label": "size",
+     "value": "48 MB"
+    }
+   ]
+  },
+  {
+   "id": "site-soldat",
+   "label": "Soldat landing",
+   "kind": "static",
+   "platform": "static",
+   "pos": [
+    1,
+    0
+   ],
+   "status": "unknown",
+   "reason": "request counts unknown: caddy metrics failing",
+   "headline": {
+    "value": null,
+    "unit": "req/s"
+   },
+   "container": null,
+   "probe": null,
+   "hosts": [
+    {
+     "host": "soldat.bobbby.online",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    }
+   ],
+   "via": [],
+   "holds": [
+    {
+     "label": "soldat-landing",
+     "bytes": 6291456
+    }
+   ],
+   "facts": [
+    {
+     "label": "directory",
+     "value": "/sites/soldat-landing"
+    },
+    {
+     "label": "size",
+     "value": "6.0 MB"
+    }
+   ]
+  },
+  {
+   "id": "site-downloader",
+   "label": "Downloader",
+   "kind": "static",
+   "platform": "static",
+   "pos": [
+    2,
+    0
+   ],
+   "status": "unknown",
+   "reason": "request counts unknown: caddy metrics failing",
+   "headline": {
+    "value": null,
+    "unit": "req/s"
+   },
+   "container": null,
+   "probe": null,
+   "hosts": [
+    {
+     "host": "downloader.bobbby.online",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    }
+   ],
+   "via": [],
+   "holds": [
+    {
+     "label": "downloader",
+     "bytes": 2097152
+    }
+   ],
+   "facts": [
+    {
+     "label": "directory",
+     "value": "/sites/downloader"
+    },
+    {
+     "label": "size",
+     "value": "2.0 MB"
+    }
+   ]
+  },
+  {
+   "id": "site-donny",
+   "label": "Donny",
+   "kind": "static",
+   "platform": "static",
+   "pos": [
+    0,
+    1
+   ],
+   "status": "unknown",
+   "reason": "request counts unknown: caddy metrics failing",
+   "headline": {
+    "value": null,
+    "unit": "req/s"
+   },
+   "container": null,
+   "probe": null,
+   "hosts": [
+    {
+     "host": "donny.bobbby.online",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    }
+   ],
+   "via": [],
+   "holds": [
+    {
+     "label": "donny",
+     "bytes": 32505856
+    }
+   ],
+   "facts": [
+    {
+     "label": "directory",
+     "value": "/sites/donny"
+    },
+    {
+     "label": "size",
+     "value": "31 MB"
+    }
+   ]
+  },
+  {
+   "id": "site-blimp",
+   "label": "Blimp docs",
+   "kind": "static",
+   "platform": "static",
+   "pos": [
+    1,
+    1
+   ],
+   "status": "unknown",
+   "reason": "request counts unknown: caddy metrics failing",
+   "headline": {
+    "value": null,
+    "unit": "req/s"
+   },
+   "container": null,
+   "probe": null,
+   "hosts": [
+    {
+     "host": "blimp.bobbby.online",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    }
+   ],
+   "via": [],
+   "holds": [
+    {
+     "label": "blimp",
+     "bytes": 12582912
+    }
+   ],
+   "facts": [
+    {
+     "label": "directory",
+     "value": "/sites/blimp"
+    },
+    {
+     "label": "size",
+     "value": "12 MB"
+    }
+   ]
+  },
+  {
+   "id": "site-gaming",
+   "label": "Gaming",
+   "kind": "static",
+   "platform": "static",
+   "pos": [
+    2,
+    1
+   ],
+   "status": "unknown",
+   "reason": "request counts unknown: caddy metrics failing",
+   "headline": {
+    "value": null,
+    "unit": "req/s"
+   },
+   "container": null,
+   "probe": null,
+   "hosts": [
+    {
+     "host": "gaming.bobbby.online",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    }
+   ],
+   "via": [],
+   "holds": [
+    {
+     "label": "gaming",
+     "bytes": 429916160
+    }
+   ],
+   "facts": [
+    {
+     "label": "directory",
+     "value": "/sites/gaming"
+    },
+    {
+     "label": "size",
+     "value": "410 MB"
+    }
+   ]
+  },
+  {
+   "id": "site-slides",
+   "label": "Slides",
+   "kind": "static",
+   "platform": "static",
+   "pos": [
+    0,
+    2
+   ],
+   "status": "unknown",
+   "reason": "request counts unknown: caddy metrics failing",
+   "headline": {
+    "value": null,
+    "unit": "req/s"
+   },
+   "container": null,
+   "probe": null,
+   "hosts": [
+    {
+     "host": "slides.bobbby.online",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    }
+   ],
+   "via": [],
+   "holds": [
+    {
+     "label": "slides",
+     "bytes": 92274688
+    }
+   ],
+   "facts": [
+    {
+     "label": "directory",
+     "value": "/sites/slides"
+    },
+    {
+     "label": "size",
+     "value": "88 MB"
+    }
+   ]
+  },
+  {
+   "id": "site-lumines",
+   "label": "Lumines",
+   "kind": "static",
+   "platform": "static",
+   "pos": [
+    1,
+    2
+   ],
+   "status": "unknown",
+   "reason": "request counts unknown: caddy metrics failing",
+   "headline": {
+    "value": null,
+    "unit": "req/s"
+   },
+   "container": null,
+   "probe": null,
+   "hosts": [
+    {
+     "host": "lumines.bobbby.online",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    }
+   ],
+   "via": [],
+   "holds": [
+    {
+     "label": "lumines",
+     "bytes": 24117248
+    }
+   ],
+   "facts": [
+    {
+     "label": "directory",
+     "value": "/sites/lumines"
+    },
+    {
+     "label": "size",
+     "value": "23 MB"
+    }
+   ]
+  },
+  {
+   "id": "site-phstats",
+   "label": "Phish jam explorer",
+   "kind": "static",
+   "platform": "static",
+   "pos": [
+    2,
+    2
+   ],
+   "status": "unknown",
+   "reason": "request counts unknown: caddy metrics failing",
+   "headline": {
+    "value": null,
+    "unit": "req/s"
+   },
+   "container": null,
+   "probe": null,
+   "hosts": [
+    {
+     "host": "phishjamexplorer.com",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    },
+    {
+     "host": "www.phishjamexplorer.com",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    }
+   ],
+   "via": [],
+   "holds": [
+    {
+     "label": "phstats",
+     "bytes": 1503238553.6
+    }
+   ],
+   "facts": [
+    {
+     "label": "directory",
+     "value": "/sites/phstats"
+    },
+    {
+     "label": "size",
+     "value": "1.4 GB"
+    }
+   ]
+  },
+  {
+   "id": "site-padmac",
+   "label": "padmac",
+   "kind": "static",
+   "platform": "static",
+   "pos": [
+    0,
+    3
+   ],
+   "status": "unknown",
+   "reason": "request counts unknown: caddy metrics failing",
+   "headline": {
+    "value": null,
+    "unit": "req/s"
+   },
+   "container": null,
+   "probe": null,
+   "hosts": [
+    {
+     "host": "padmac.bobbby.online",
+     "rps": null,
+     "err_rps": null,
+     "avg_ms": null
+    }
+   ],
+   "via": [],
+   "holds": [
+    {
+     "label": "padmac",
+     "bytes": 3145728
+    }
+   ],
+   "facts": [
+    {
+     "label": "directory",
+     "value": "/sites/padmac"
+    },
+    {
+     "label": "size",
+     "value": "3.0 MB"
+    }
+   ]
+  },
+  {
+   "id": "host-cpu",
+   "label": "CPU",
+   "kind": "resource",
+   "platform": "host",
+   "pos": [
+    0,
+    0
+   ],
+   "status": "working",
+   "reason": null,
+   "headline": {
+    "value": 1.31,
+    "unit": "of 4 cores"
+   },
+   "container": null,
+   "probe": null,
+   "hosts": [],
+   "via": [],
+   "holds": [],
+   "facts": [
+    {
+     "label": "cores",
+     "value": "4"
+    },
+    {
+     "label": "load 1m",
+     "value": "2.4"
+    }
+   ]
+  },
+  {
+   "id": "host-mem",
+   "label": "Memory",
+   "kind": "resource",
+   "platform": "host",
+   "pos": [
+    1,
+    0
+   ],
+   "status": "working",
+   "reason": null,
+   "headline": {
+    "value": 9.4,
+    "unit": "of 15 GB"
+   },
+   "container": null,
+   "probe": null,
+   "hosts": [],
+   "via": [],
+   "holds": [],
+   "facts": [
+    {
+     "label": "used",
+     "value": "9.4 GB"
+    },
+    {
+     "label": "total",
+     "value": "15 GB"
+    }
+   ]
+  },
+  {
+   "id": "host-disk",
+   "label": "Disk",
+   "kind": "resource",
+   "platform": "host",
+   "pos": [
+    2,
+    0
+   ],
+   "status": "blocked",
+   "reason": "87% full, 21 GB free",
+   "headline": {
+    "value": 87,
+    "unit": "% full"
+   },
+   "container": null,
+   "probe": null,
+   "hosts": [],
+   "via": [],
+   "holds": [
+    {
+     "label": "used",
+     "bytes": 140031373312
+    },
+    {
+     "label": "free",
+     "bytes": 20938870784
+    }
+   ],
+   "facts": [
+    {
+     "label": "filesystem",
+     "value": "/ (ext4)"
+    },
+    {
+     "label": "size",
+     "value": "150 GB"
+    }
+   ]
+  },
+  {
+   "id": "internet",
+   "label": "Internet",
+   "kind": "source",
+   "platform": "outside",
+   "pos": [
+    0,
+    0
+   ],
+   "status": "unknown",
+   "reason": "request counts unknown: caddy metrics failing",
+   "headline": {
+    "value": null,
+    "unit": "req/s"
+   },
+   "container": null,
+   "probe": null,
+   "hosts": [],
+   "via": [],
+   "holds": [],
+   "facts": []
+  },
+  {
+   "id": "deepseek",
+   "label": "DeepSeek",
+   "kind": "external",
+   "platform": "outside",
+   "pos": [
+    0,
+    2
+   ],
+   "status": "unknown",
+   "reason": "not observed: nothing meters outbound calls",
+   "headline": {
+    "value": null,
+    "unit": null
+   },
+   "container": null,
+   "probe": null,
+   "hosts": [],
+   "via": [],
+   "holds": [],
+   "facts": [
+    {
+     "label": "api",
+     "value": "api.deepseek.com"
+    }
+   ]
+  },
+  {
+   "id": "classifier",
+   "label": "classifier",
+   "kind": "unplaced",
+   "platform": null,
+   "pos": null,
+   "status": "working",
+   "reason": null,
+   "headline": {
+    "value": 418,
+    "unit": "MB"
+   },
+   "container": {
+    "name": "blog-classifier-1",
+    "state": "running",
+    "status_text": "Up 4 months",
+    "uptime_s": 10368000,
+    "restarts": 0,
+    "oom_killed": false,
+    "cpu_cores": 0.004,
+    "mem_bytes": 438304768,
+    "mem_limit_bytes": null,
+    "net_rx_bps": 210,
+    "net_tx_bps": 90
+   },
+   "probe": null,
+   "hosts": [],
+   "via": [],
+   "holds": [],
+   "facts": [
+    {
+     "label": "topology",
+     "value": "not in the topology file"
+    }
+   ]
+  },
+  {
+   "id": "icecast",
+   "label": "icecast",
+   "kind": "unplaced",
+   "platform": null,
+   "pos": null,
+   "status": "idle",
+   "reason": null,
+   "headline": {
+    "value": 12,
+    "unit": "MB"
+   },
+   "container": {
+    "name": "blog-icecast-1",
+    "state": "running",
+    "status_text": "Up 4 months",
+    "uptime_s": 10368000,
+    "restarts": 0,
+    "oom_killed": false,
+    "cpu_cores": 0.0009,
+    "mem_bytes": 12582912,
+    "mem_limit_bytes": null,
+    "net_rx_bps": 210,
+    "net_tx_bps": 90
+   },
+   "probe": null,
+   "hosts": [],
+   "via": [],
+   "holds": [],
+   "facts": [
+    {
+     "label": "topology",
+     "value": "not in the topology file"
+    }
+   ]
+  },
+  {
+   "id": "temper-link",
+   "label": "temper-link",
+   "kind": "unplaced",
+   "platform": null,
+   "pos": null,
+   "status": "idle",
+   "reason": null,
+   "headline": {
+    "value": null,
+    "unit": "MB"
+   },
+   "container": {
+    "name": "temper-link",
+    "state": "exited",
+    "status_text": "Exited (0) 8 weeks ago",
+    "uptime_s": null,
+    "restarts": 0,
+    "oom_killed": false,
+    "cpu_cores": null,
+    "mem_bytes": null,
+    "mem_limit_bytes": null,
+    "net_rx_bps": null,
+    "net_tx_bps": null
+   },
+   "probe": null,
+   "hosts": [],
+   "via": [],
+   "holds": [],
+   "facts": [
+    {
+     "label": "topology",
+     "value": "not in the topology file"
+    }
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "id": "internet>caddy",
+   "from": "internet",
+   "to": "caddy",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": true,
+   "label": "all hosts"
+  },
+  {
+   "id": "caddy>blimp-blog",
+   "from": "caddy",
+   "to": "blimp-blog",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": true,
+   "label": "bobbby.online"
+  },
+  {
+   "id": "blimp-blog>db",
+   "from": "blimp-blog",
+   "to": "db",
+   "item": "commits",
+   "rate": 1.05,
+   "unit": "commit/s",
+   "metered": true,
+   "label": "blog_prod"
+  },
+  {
+   "id": "caddy>app",
+   "from": "caddy",
+   "to": "app",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": true,
+   "label": "old.bobbby.online"
+  },
+  {
+   "id": "app>db",
+   "from": "app",
+   "to": "db",
+   "item": "commits",
+   "rate": 1.05,
+   "unit": "commit/s",
+   "metered": true,
+   "label": "blog_prod"
+  },
+  {
+   "id": "caddy>blinks",
+   "from": "caddy",
+   "to": "blinks",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": true,
+   "label": "links.bobbby.online"
+  },
+  {
+   "id": "blinks>db",
+   "from": "blinks",
+   "to": "db",
+   "item": "commits",
+   "rate": 0.1,
+   "unit": "commit/s",
+   "metered": true,
+   "label": "blinks_backend_prod"
+  },
+  {
+   "id": "caddy>marginalia",
+   "from": "caddy",
+   "to": "marginalia",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": true,
+   "label": "marginalia.bobbby.online"
+  },
+  {
+   "id": "marginalia>db",
+   "from": "marginalia",
+   "to": "db",
+   "item": "commits",
+   "rate": 5.4,
+   "unit": "commit/s",
+   "metered": true,
+   "label": "marginalia_prod"
+  },
+  {
+   "id": "caddy>tyler",
+   "from": "caddy",
+   "to": "tyler",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": true,
+   "label": "tyler.bobbby.online"
+  },
+  {
+   "id": "tyler>db",
+   "from": "tyler",
+   "to": "db",
+   "item": "commits",
+   "rate": 0.08,
+   "unit": "commit/s",
+   "metered": true,
+   "label": "tyler_prod"
+  },
+  {
+   "id": "caddy>dave",
+   "from": "caddy",
+   "to": "dave",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": true,
+   "label": "dave.bobbby.online"
+  },
+  {
+   "id": "dave>db",
+   "from": "dave",
+   "to": "db",
+   "item": "commits",
+   "rate": 0.03,
+   "unit": "commit/s",
+   "metered": true,
+   "label": "dave_prod"
+  },
+  {
+   "id": "caddy>nathan",
+   "from": "caddy",
+   "to": "nathan",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": true,
+   "label": "gifmaker.bobbby.online"
+  },
+  {
+   "id": "nathan>db",
+   "from": "nathan",
+   "to": "db",
+   "item": "commits",
+   "rate": 0.4,
+   "unit": "commit/s",
+   "metered": true,
+   "label": "nathan_for_us_prod"
+  },
+  {
+   "id": "caddy>deciduous-mcp",
+   "from": "caddy",
+   "to": "deciduous-mcp",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": false,
+   "label": "bobbby.online/deciduous-mcp/*"
+  },
+  {
+   "id": "deciduous-mcp>db",
+   "from": "deciduous-mcp",
+   "to": "db",
+   "item": "commits",
+   "rate": 1.2,
+   "unit": "commit/s",
+   "metered": true,
+   "label": "deciduous_mcp_prod"
+  },
+  {
+   "id": "caddy>skyfeed",
+   "from": "caddy",
+   "to": "skyfeed",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": true,
+   "label": "bskymapfeeds.bobbby.online"
+  },
+  {
+   "id": "caddy>dtree-ai",
+   "from": "caddy",
+   "to": "dtree-ai",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": false,
+   "label": "bobbby.online/dtree-ai/*"
+  },
+  {
+   "id": "caddy>soldat",
+   "from": "caddy",
+   "to": "soldat",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": false,
+   "label": "bobbby.online/arena/*"
+  },
+  {
+   "id": "caddy>slides-relay",
+   "from": "caddy",
+   "to": "slides-relay",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": false,
+   "label": "slides.bobbby.online/relay"
+  },
+  {
+   "id": "caddy>skee-relay",
+   "from": "caddy",
+   "to": "skee-relay",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": false,
+   "label": "bobbby.online/skee-host/*"
+  },
+  {
+   "id": "caddy>lumines",
+   "from": "caddy",
+   "to": "lumines",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": false,
+   "label": "lumines.bobbby.online/ws"
+  },
+  {
+   "id": "blimp-blog>deepseek",
+   "from": "blimp-blog",
+   "to": "deepseek",
+   "item": "prompts",
+   "rate": null,
+   "unit": null,
+   "metered": false,
+   "label": "prompts"
+  },
+  {
+   "id": "caddy>site-deciduous",
+   "from": "caddy",
+   "to": "site-deciduous",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": true,
+   "label": "deciduous.dev"
+  },
+  {
+   "id": "caddy>site-soldat",
+   "from": "caddy",
+   "to": "site-soldat",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": true,
+   "label": "soldat.bobbby.online"
+  },
+  {
+   "id": "caddy>site-downloader",
+   "from": "caddy",
+   "to": "site-downloader",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": true,
+   "label": "downloader.bobbby.online"
+  },
+  {
+   "id": "caddy>site-donny",
+   "from": "caddy",
+   "to": "site-donny",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": true,
+   "label": "donny.bobbby.online"
+  },
+  {
+   "id": "caddy>site-blimp",
+   "from": "caddy",
+   "to": "site-blimp",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": true,
+   "label": "blimp.bobbby.online"
+  },
+  {
+   "id": "caddy>site-gaming",
+   "from": "caddy",
+   "to": "site-gaming",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": true,
+   "label": "gaming.bobbby.online"
+  },
+  {
+   "id": "caddy>site-slides",
+   "from": "caddy",
+   "to": "site-slides",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": true,
+   "label": "slides.bobbby.online"
+  },
+  {
+   "id": "caddy>site-lumines",
+   "from": "caddy",
+   "to": "site-lumines",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": true,
+   "label": "lumines.bobbby.online"
+  },
+  {
+   "id": "caddy>site-phstats",
+   "from": "caddy",
+   "to": "site-phstats",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": true,
+   "label": "phishjamexplorer.com"
+  },
+  {
+   "id": "caddy>site-padmac",
+   "from": "caddy",
+   "to": "site-padmac",
+   "item": "requests",
+   "rate": null,
+   "unit": "req/s",
+   "metered": true,
+   "label": "padmac.bobbby.online"
+  }
+ ],
+ "attention": [
+  {
+   "node": "skyfeed",
+   "severity": "alert",
+   "text": "Sky feeds down: restart loop, OOM killed"
+  },
+  {
+   "node": "blimp-blog",
+   "severity": "alert",
+   "text": "Blimp blog at 97% of its memory limit"
+  },
+  {
+   "node": "db",
+   "severity": "alert",
+   "text": "Postgres at 96 of 100 connections"
+  },
+  {
+   "node": "host-disk",
+   "severity": "alert",
+   "text": "Disk 87% full"
+  },
+  {
+   "node": "caddy",
+   "severity": "warn",
+   "text": "Caddy metrics unreachable: request rates unknown"
+  }
+ ]
+}

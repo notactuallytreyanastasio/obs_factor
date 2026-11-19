@@ -1,0 +1,46 @@
+--- Caddyfile
++++ Caddyfile
+@@ -6,8 +6,20 @@
+ 		# client, so the leftmost entry is whatever the client typed.
+ 		trusted_proxies_strict
+ 	}
++	# obs_factor: one request series per host (caddy_http_requests_total{host=...}).
++	# Without per_host every site's requests land in one series.
++	metrics {
++		per_host
++	}
+ }
+ 
++# obs_factor: Prometheus metrics for the observer, plain HTTP on :9180.
++# Reachable only on the compose network: docker-compose.yml publishes
++# 80 and 443 for caddy, not 9180.
++http://:9180 {
++	metrics
++}
++
+ bobbby.online, www.bobbby.online {
+ 	encode gzip zstd
+ 
+@@ -627,3 +639,22 @@
+ 		Cache-Control "public, max-age=300"
+ 	}
+ }
++
++# obs_factor, the live factory view of this stack (the obs-factor service in
++# docker-compose.yml, source at /opt/obs_factor). Password-protected by the
++# app itself. /api/stream is server-sent events.
++factory.bobbby.online {
++	encode gzip zstd
++
++	header {
++		X-Forwarded-Proto {scheme}
++		alt-svc "clear"
++	}
++
++	reverse_proxy obs-factor:4000 {
++		header_up X-Real-IP {http.request.header.CF-Connecting-IP}
++		header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
++		# SSE: write each event as the app writes it.
++		flush_interval -1
++	}
++}
