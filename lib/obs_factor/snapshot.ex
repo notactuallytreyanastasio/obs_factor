@@ -193,14 +193,19 @@ defmodule ObsFactor.Snapshot do
       })
 
     facts =
-      if site do
-        [
-          fact("size", Format.bytes(site.bytes)),
-          fact("files", Integer.to_string(site.files)),
-          fact("newest file", iso(site.newest_mtime) || "none")
-        ]
-      else
-        []
+      cond do
+        site == nil ->
+          []
+
+        site[:error] ->
+          [fact("size", "unknown"), fact("read error", site.error)]
+
+        true ->
+          [
+            fact("size", Format.bytes(site.bytes)),
+            fact("files", Integer.to_string(site.files)),
+            fact("newest file", iso(site.newest_mtime) || "none")
+          ]
       end
 
     %{

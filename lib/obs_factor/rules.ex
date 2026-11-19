@@ -193,6 +193,9 @@ defmodule ObsFactor.Rules do
         reason = "no directory #{ctx.site_name} in SITES_DIR"
         {"down", reason, [{"alert", "#{ctx.label}: #{reason}"}]}
 
+      ctx.site[:error] ->
+        {"unknown", "site directory unreadable", [{"warn", "#{ctx.label}: #{ctx.site.error}"}]}
+
       true ->
         case errors(ctx.hosts, ctx.label) do
           [{_, reason, _} | _] = errs ->
