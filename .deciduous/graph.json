@@ -180,6 +180,16 @@
       "to_change_id": "8e3d7085-0e1d-434a-aa9b-853adc4485fc",
       "weight": 1.0
     },
+    "402b27595e2f6c3f0f2c": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-19T03:14:13.735210-05:00",
+      "edge_id": "402b27595e2f6c3f0f2c",
+      "edge_type": "leads_to",
+      "from_change_id": "bd17096e-0fba-4399-98ab-2cf13a3d4e5e",
+      "rationale": "deploy",
+      "to_change_id": "f51564d1-156e-4b57-9be4-1b805ebf0047",
+      "weight": 1.0
+    },
     "410f4628b0f5acf1c268": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T02:06:02.912840-05:00",
@@ -288,6 +298,16 @@
       "from_change_id": "83ff9921-6146-4837-be4b-0f44e1d1b897",
       "rationale": "found on the box",
       "to_change_id": "ba1720ab-a2d8-4f83-9159-50c1432e174f",
+      "weight": 1.0
+    },
+    "6ce4fc6345e717df1c87": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-19T03:14:13.781659-05:00",
+      "edge_id": "6ce4fc6345e717df1c87",
+      "edge_type": "leads_to",
+      "from_change_id": "f51564d1-156e-4b57-9be4-1b805ebf0047",
+      "rationale": "result",
+      "to_change_id": "1cc44800-b9ad-4926-8d32-56f73b5142fa",
       "weight": 1.0
     },
     "6d17b3b3c9737a43908c": {
@@ -569,6 +589,19 @@
       "status": "pending",
       "title": "Access log end to end in the lab: Caddy 2.10.2 writes it, the observer (as nobody) tails it; arena path route metered at 1.2 req/s with routes, percentiles and client classes; 163 tests pass; patch for the blog Caddyfile validates on a copy of production (20 sites)",
       "updated_at": "2026-11-19T02:14:07.226152-05:00"
+    },
+    "1cc44800-b9ad-4926-8d32-56f73b5142fa": {
+      "author": "Bobby Grayson",
+      "change_id": "1cc44800-b9ad-4926-8d32-56f73b5142fa",
+      "created_at": "2026-11-19T03:14:13.691604-05:00",
+      "metadata": {
+        "branch": "04-factory-per-subdomain",
+        "confidence": 95
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "Production live: 8 sources ok, 14 sites answer 200 after an 11 s Caddy recreate; a 75 s, 3 req/s traffic run (238 requests, 0 errors) showed routes, percentiles, client classes and metered path belts on the real factory",
+      "updated_at": "2026-11-19T03:14:13.691604-05:00"
     },
     "29758875-68e8-4a1b-bd85-21ae49a4cf64": {
       "author": "Bobby Grayson",
@@ -980,6 +1013,20 @@
       "title": "Only 2 of 18 containers have a Docker healthcheck; Caddy 2.10.2 exposes no HTTP metrics yet",
       "updated_at": "2026-11-18T17:31:49.594659-05:00"
     },
+    "bd17096e-0fba-4399-98ab-2cf13a3d4e5e": {
+      "author": "Bobby Grayson",
+      "change_id": "bd17096e-0fba-4399-98ab-2cf13a3d4e5e",
+      "created_at": "2026-11-19T03:14:13.576502-05:00",
+      "metadata": {
+        "branch": "04-factory-per-subdomain",
+        "confidence": 90,
+        "prompt": "and deploy this all up to prod its good enough atm"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "Deploy the per-subdomain floor, access log and reports to production",
+      "updated_at": "2026-11-19T03:14:13.576502-05:00"
+    },
     "c19be70a-eabf-4266-ae27-f5bd48f6c1c0": {
       "author": "Bobby Grayson",
       "change_id": "c19be70a-eabf-4266-ae27-f5bd48f6c1c0",
@@ -1060,6 +1107,20 @@
       "title": "Caddy streams log lines to the observer over TCP (output net), nothing on disk",
       "updated_at": "2026-11-19T02:06:02.737035-05:00"
     },
+    "d4ea69f4-6d0d-4dd7-a48a-a11233344ce9": {
+      "author": "Bobby Grayson",
+      "change_id": "d4ea69f4-6d0d-4dd7-a48a-a11233344ce9",
+      "created_at": "2026-11-19T03:10:45.499917-05:00",
+      "metadata": {
+        "branch": "04-factory-per-subdomain",
+        "commit": "64bc08b9b34d4fb3b0009fd4f18a3db1fc8f31c1",
+        "confidence": 90
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Committed: per-subdomain floor, access log, reports, traffic tool",
+      "updated_at": "2026-11-19T03:10:45.499917-05:00"
+    },
     "db243864-fc0a-4514-bce7-612f6b32a67f": {
       "author": "Bobby Grayson",
       "change_id": "db243864-fc0a-4514-bce7-612f6b32a67f",
@@ -1098,6 +1159,19 @@
       "status": "pending",
       "title": "Distinct building per subdomain plus bus belts, containers and gauges on the existing 2D canvas, over numbers-only and over a 3D rewrite",
       "updated_at": "2026-11-19T01:35:44.478374-05:00"
+    },
+    "f51564d1-156e-4b57-9be4-1b805ebf0047": {
+      "author": "Bobby Grayson",
+      "change_id": "f51564d1-156e-4b57-9be4-1b805ebf0047",
+      "created_at": "2026-11-19T03:14:13.637281-05:00",
+      "metadata": {
+        "branch": "04-factory-per-subdomain",
+        "confidence": 90
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Ship Caddyfile access log and caddy_logs volume to /opt/blog (Caddy recreated), deploy obs_factor 64bc08b",
+      "updated_at": "2026-11-19T03:14:13.637281-05:00"
     },
     "f6088f08-d7df-485b-b46c-ca7a747f5ce9": {
       "author": "Bobby Grayson",
