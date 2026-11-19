@@ -2,7 +2,7 @@
 
 import { num, bytes, bps, withUnit, duration, esc, isNum, UNKNOWN, utc } from "./fmt.js";
 import { headlineText } from "./overlay.js";
-import { itemColor, HOLD_COLORS, CPU_COLOR, MEM_COLOR, STATUS_COLOR } from "./render.js";
+import { itemColor, HOLD_COLORS, CPU_COLOR, MEM_COLOR, STATUS_COLOR, CLASS_COLOR, containerPlan } from "./render.js";
 import { fetchHistory } from "./live.js";
 
 const $ = (id) => document.getElementById(id);
@@ -46,9 +46,11 @@ export class Inspector {
 
   get open() { return this.id != null; }
 
-  show(id, snap) {
-    const changed = id !== this.id;
+  // history: false for nodes the observer keeps no series for (the inside of a building)
+  show(id, snap, { history = true } = {}) {
+    const changed = id !== this.id || history !== this.history;
     this.id = id;
+    this.history = history;
     this.el.hidden = false;
     document.body.classList.add("inspecting");
     if (changed) {
@@ -78,13 +80,14 @@ export class Inspector {
       this.live.innerHTML = `<div class="ins-head"><h2>${esc(this.id)}</h2></div><p class="note err">This node is no longer in the snapshot.</p>`;
       return;
     }
-    this.live.innerHTML = [head(n), facts(n), holds(n), power(n, snap), drawnBy(n, snap), flows(n, snap), hostsTable(n), via(n), probe(n), container(n)].join("");
+    this.live.innerHTML = [head(n), facts(n), holds(n), power(n, snap), drawnBy(n, snap), inside(n), flows(n, snap), latency(n), clients(n), hostsTable(n), routes(n, snap), via(n), probe(n), container(n)].join("");
   }
 
   async loadHistory() {
     clearTimeout(this.histTimer);
     const id = this.id, res = this.res;
     if (!id) return;
+    if (!this.history) { this.hist = { series: [] }; this.histErr = null; this.renderHistory(); return; }
     try {
       const h = await fetchHistory(id, res);
       if (id !== this.id || res !== this.res) return;
@@ -103,7 +106,7 @@ export class Inspector {
     let inner;
     if (this.histErr) inner = `<p class="note err">${esc(this.histErr)}</p>`;
     else if (!this.hist) inner = '<p class="note">Loading…</p>';
-    else if (!this.hist.series.length) inner = '<p class="note">No series for this node.</p>';
+    else if (!this.hist.series.length) inner = `<p class="note">${this.history ? "No series for this node." : "No history is kept for things inside a building yet."}</p>`;
     else inner = this.hist.series.map((s, i) => `<div class="chart" data-i="${i}">
         <div class="ch-head"><span class="l">${esc(s.label)}</span><span class="v"></span></div>
         <canvas height="64"></canvas></div>`).join("");
@@ -117,7 +120,7 @@ export class Inspector {
 // ---- sections -------------------------------------------------------------
 
 function head(n) {
-  const sub = [n.kind, n.container?.name ?? null, n.platform ? `on ${n.platform}` : "not in the topology"].filter(Boolean).join(" · ");
+  const sub = [n.kind, n.container?.name ?? null, n.platform ? `on ${n.platform}` : n.kind === "source" ? null : "not in the topology"].filter(Boolean).join(" · ");
   return `<div class="ins-head">
     <h2>${esc(n.label)}</h2>
     <div class="sub">${esc(sub)}</div>
@@ -140,7 +143,9 @@ function holds(n) {
   // keep the colour a hold has in the db silo bands (snapshot order)
   const idx = new Map(n.holds.map((h, i) => [h.label, i]));
   const bar = total > 0 ? `<div class="stack">${known.map((h) => `<span style="flex:${h.bytes / total};background:${color(idx.get(h.label))}" title="${esc(h.label)}"></span>`).join("")}</div>` : "";
-  return `<div class="sec"><h3>Holds</h3>${bar}<ul class="keyed">${list.map((h) => `<li style="--c:${color(idx.get(h.label))}"><span class="sw"></span>${esc(h.label)}<span class="v">${u(h.bytes, bytes)}</span></li>`).join("")}</ul></div>`;
+  const plan = n.kind === "db" ? containerPlan(n.holds) : null;
+  const yard = plan?.unit ? `<p class="note">In the yard, one container is ${esc(bytes(plan.unit))}.</p>` : "";
+  return `<div class="sec"><h3>Holds</h3>${bar}${yard}<ul class="keyed">${list.map((h) => `<li style="--c:${color(idx.get(h.label))}"><span class="sw"></span>${esc(h.label)}<span class="v">${u(h.bytes, bytes)}</span></li>`).join("")}</ul></div>`;
 }
 
 function power(n, snap) {
@@ -185,17 +190,138 @@ function flows(n, snap) {
   return out;
 }
 
+// One block per hostname: rate and latency, then what came back by status
+// class (the colours of the items on the belt), bytes and what is in flight.
 function hostsTable(n) {
   if (!n.hosts?.length) return "";
   const ms = (v) => (isNum(v) ? `${num(v)} ms` : null);
-  return `<div class="sec"><h3>Hosts</h3><table class="hosts"><thead><tr><th>host</th><th>req/s</th><th>err/s</th><th>avg</th></tr></thead><tbody>
-    ${n.hosts.map((h) => `<tr><td>${esc(h.host)}</td><td>${u(h.rps, num)}</td><td>${u(h.err_rps, num)}</td><td>${u(ms(h.avg_ms))}</td></tr>`).join("")}
-  </tbody></table></div>`;
+  const classes = Object.keys(CLASS_COLOR);
+  const block = (h) => {
+    const known = h.codes && classes.some((k) => isNum(h.codes[k]));
+    const total = known ? classes.reduce((a, k) => a + (isNum(h.codes[k]) ? h.codes[k] : 0), 0) : 0;
+    const bar = total > 0
+      ? `<div class="stack codes">${classes.filter((k) => h.codes[k] > 0).map((k) => `<span style="flex:${h.codes[k] / total};background:${CLASS_COLOR[k]}" title="${k}"></span>`).join("")}</div>`
+      : "";
+    const mix = known
+      ? classes.filter((k) => k !== "other" || h.codes[k] > 0).map((k) => `<span class="cls" style="--c:${CLASS_COLOR[k]}"><i></i>${k} ${u(h.codes[k], num)}</span>`).join("")
+      : `<span class="unk">status classes unknown</span>`;
+    return `<div class="host">
+      <div class="hrow"><span class="hname">${esc(h.host)}</span><span class="v">${u(h.rps, num)} <span class="unk">req/s</span></span></div>
+      ${bar}<div class="hmix">${mix}</div>
+      <div class="hmeta"><span>avg ${u(ms(h.avg_ms))}</span><span>out ${u(h.out_bps, bps)}</span><span>in ${u(h.in_bps, bps)}</span><span>${u(h.in_flight)} in flight</span></div>
+    </div>`;
+  };
+  return `<div class="sec"><h3>Hosts</h3>${n.hosts.map(block).join("")}</div>`;
+}
+
+// From the sub-app's own report (docs/contract.md, Reports): its runtime, the
+// things alive inside it, and what happens there. Generic: the keys and kinds
+// are whatever the app reports; nothing here knows what Phoenix is.
+const KIND_LABEL = { liveview: "LiveView pages", channel: "Channels" };
+const STREAM_COLOR = { "http.route": "#ffd166", "liveview.event": "#4cc9f0", "liveview.mount": "#6ab7ff", "liveview.params": "#6ab7ff",
+  "db.query": "#43aa8b", "outbound.http": "#f472b6", "channel.join": "#b388ff", "channel.event": "#b388ff", custom: "#f9844a" };
+const gaugeText = (k, v) => (!isNum(v) ? UNKNOWN : /^memory\b|memory$|_bytes$/.test(k) ? bytes(v) : k.endsWith("utilization") ? `${(v * 100).toFixed(1)}%` : num(v));
+const ago = (iso) => { const s = (Date.now() - Date.parse(iso)) / 1000; return Number.isFinite(s) ? duration(Math.max(0, s)) : UNKNOWN; };
+
+function inside(n) {
+  const r = n.inside;
+  if (!r) return "";
+  if (!r.ok) {
+    return `<div class="sec"><h3>Inside</h3><p class="note err">report failing: ${esc(r.error ?? "no error given")}${r.at ? ` (last read ${esc(utc(new Date(r.at)))})` : ""}</p></div>`;
+  }
+  const hasRuntime = r.runtime != null;
+  const rt = r.runtime ?? {};
+  const g = rt.gauges ?? {};
+  const versions = Object.entries(rt.versions ?? {}).map(([k, v]) => `${esc(k)} ${esc(v)}`).join(" · ");
+  const mem = Object.entries(g).filter(([k]) => k.startsWith("memory.") && k !== "memory.total").sort((a, b) => b[1] - a[1]);
+  const memTotal = g["memory.total"];
+  const memBar = isNum(memTotal) && mem.length
+    ? `<div class="stack">${mem.map(([k, v], i) => `<span style="flex:${v / memTotal};background:${HOLD_COLORS[i % HOLD_COLORS.length]}" title="${esc(k)}"></span>`).join("")}</div>
+       <ul class="keyed tight">${mem.map(([k, v], i) => `<li style="--c:${HOLD_COLORS[i % HOLD_COLORS.length]}"><span class="sw"></span>${esc(k.slice(7))}<span class="v">${esc(bytes(v))}</span></li>`).join("")}</ul>`
+    : "";
+  const other = Object.entries(g).filter(([k]) => !k.startsWith("memory."));
+  const rates = Object.entries(rt.rates ?? {});
+  let out = !hasRuntime ? "" : `<div class="sec"><h3>Inside: ${esc(rt.kind ?? "runtime")} <span class="h3note">up ${isNum(rt.uptime_s) ? esc(duration(rt.uptime_s)) : UNKNOWN}</span></h3>
+    ${versions ? `<p class="note">${versions}</p>` : ""}
+    <div class="pcts">
+      <div class="pct"><span class="k">memory</span><span class="v">${esc(gaugeText("memory.total", memTotal))}</span></div>
+      <div class="pct"><span class="k">processes</span><span class="v">${esc(gaugeText("process.count", g["process.count"]))}</span></div>
+      <div class="pct"><span class="k">run queue</span><span class="v">${esc(gaugeText("run_queue", g.run_queue))}</span></div>
+    </div>${memBar ? `<div style="margin-top:12px">${memBar}</div>` : ""}
+    <dl class="kv small">${other.filter(([k]) => !["process.count", "run_queue"].includes(k)).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(gaugeText(k, v))}</dd>`).join("")}
+      ${rates.map(([k, v]) => `<dt>${esc(k)} /s</dt><dd>${v == null ? `<span class="unk">${UNKNOWN}</span>` : esc(/bytes$/.test(k) ? bytes(v) : num(v))}</dd>`).join("")}</dl></div>`;
+
+  const byKind = new Map();
+  for (const unit of r.units ?? []) { if (!byKind.has(unit.kind)) byKind.set(unit.kind, []); byKind.get(unit.kind).push(unit); }
+  for (const [kind, units] of byKind) {
+    const total = units.reduce((a, x) => a + (x.count ?? 0), 0);
+    units.sort((a, b) => (b.count ?? 0) - (a.count ?? 0));
+    out += `<div class="sec"><h3>${esc(KIND_LABEL[kind] ?? kind)} <span class="h3note">${esc(num(total))} alive now</span></h3><ul class="units">${units.map((x) => {
+      const ug = Object.entries(x.gauges ?? {}).map(([k, v]) => `${esc(k.replace("_", " "))} ${esc(gaugeText(k, v))}`).join(" · ");
+      return `<li><div class="urow"><span class="uname" title="${esc(x.name)}">${esc(x.name)}</span><span class="ucount">${esc(num(x.count))}</span></div>
+        <div class="umeta">${x.route ? `<span>${esc(x.route)}</span>` : ""}<span>${ug}</span></div>
+        ${(x.members ?? []).length ? `<ul class="members">${x.members.map((m) => `<li><span class="pip"></span><span class="mlabel" title="${esc(m.label ?? m.id)}">${esc(m.label ?? m.id)}</span>
+          <span class="mmeta">${m.since ? `${esc(ago(m.since))}` : ""}${isNum(m.counters?.events) ? ` · ${esc(num(m.counters.events))} ev` : ""}${isNum(m.gauges?.memory) ? ` · ${esc(bytes(m.gauges.memory))}` : ""}</span></li>`).join("")}
+          ${x.count > x.members.length ? `<li class="more">and ${esc(num(x.count - x.members.length))} more</li>` : ""}</ul>` : ""}</li>`;
+    }).join("")}</ul></div>`;
+  }
+  if (hasRuntime && r.units && !r.units.length) out += `<div class="sec"><h3>Units</h3><p class="note">nothing alive inside right now</p></div>`;
+
+  const streams = r.streams ?? [];
+  if (streams.length) {
+    const top = Math.max(...streams.map((x) => x.rate ?? 0), 1e-9);
+    out += `<div class="sec"><h3>What happens inside <span class="h3note">per second</span></h3><ul class="paths streams">${streams.map((x) => `<li style="--c:${STREAM_COLOR[x.kind] ?? "#9aa5b8"}">
+        <div class="prow"><span class="path" title="${esc(x.name)}"><i class="skind">${esc(x.kind)}</i> ${esc(x.name)}</span><span class="v">${x.rate == null ? `<span class="unk">${UNKNOWN}</span>` : esc(num(x.rate))}</span></div>
+        <div class="pbar"><span style="width:${x.rate ? Math.max(2, (x.rate / top) * 100) : 0}%;background:var(--c)"></span></div>
+        <div class="pmeta"><span>${isNum(x.avg_ms) ? `avg ${esc(num(x.avg_ms))} ms` : "avg -"}</span><span>${esc(num(x.count))} since start</span>${x.err_rate > 0 ? `<span class="bad">${esc(num(x.err_rate))} err/s</span>` : ""}</div>
+      </li>`).join("")}</ul></div>`;
+  }
+  const t = r.truncated ?? {};
+  if ((t.units ?? 0) + (t.members ?? 0) + (t.streams ?? 0) > 0) out += `<p class="note">The report was cut: ${esc(num(t.units ?? 0))} units, ${esc(num(t.members ?? 0))} members, ${esc(num(t.streams ?? 0))} streams not shown.</p>`;
+  return out;
+}
+
+// From the access log: how long requests took over the last five minutes.
+function latency(n) {
+  const l = n.latency;
+  if (!l) return "";
+  const cell = (k, v) => `<div class="pct"><span class="k">${k}</span><span class="v">${isNum(v) ? `${esc(num(v))} ms` : `<span class="unk">${UNKNOWN}</span>`}</span></div>`;
+  return `<div class="sec"><h3>Latency <span class="h3note">${esc(num(l.count))} requests, 5 min</span></h3>
+    <div class="pcts">${cell("p50", l.p50_ms)}${cell("p95", l.p95_ms)}${cell("p99", l.p99_ms)}</div></div>`;
+}
+
+// From the access log: the busiest paths of this node over the last five minutes.
+function routes(n, snap) {
+  const access = snap.sources?.access;
+  if (n.routes == null) {
+    if (!access || !(n.hosts?.length || n.via?.length)) return "";
+    return `<div class="sec"><h3>Busiest paths</h3><p class="note">${access.ok ? "not read yet" : `unknown: access log source failing (${esc(access.error ?? "no error given")})`}</p></div>`;
+  }
+  if (!n.routes.length) return n.hosts?.length || n.via?.length ? `<div class="sec"><h3>Busiest paths</h3><p class="note">no requests in the last 5 minutes</p></div>` : "";
+  const top = Math.max(...n.routes.map((r) => r.count));
+  return `<div class="sec"><h3>Busiest paths <span class="h3note">5 min</span></h3><ul class="paths">${n.routes.map((r) => `<li>
+      <div class="prow"><span class="path" title="${esc(r.path)}">${esc(r.path)}</span><span class="v">${esc(num(r.count))}</span></div>
+      <div class="pbar"><span style="width:${Math.max(2, (r.count / top) * 100)}%"></span></div>
+      <div class="pmeta"><span>${u(r.rps, num)} req/s</span><span>p95 ${isNum(r.p95_ms) ? `${esc(num(r.p95_ms))} ms` : UNKNOWN}</span>${r.errors > 0 ? `<span class="bad">${esc(num(r.errors))} 5xx</span>` : ""}</div>
+    </li>`).join("")}</ul></div>`;
+}
+
+// On the Internet node: who is asking, by User-Agent class and country.
+function clients(n) {
+  const c = n.clients;
+  if (!c) return "";
+  const col = { browser: "#4cc9f0", bot: "#c77dff", tool: "#ffd166", other: "#9aa5b8" };
+  const total = Object.values(c.classes).reduce((a, v) => a + v, 0);
+  const bar = total > 0 ? `<div class="stack">${Object.entries(c.classes).filter(([, v]) => v > 0).map(([k, v]) => `<span style="flex:${v / total};background:${col[k] ?? "#9aa5b8"}" title="${esc(k)}"></span>`).join("")}</div>` : "";
+  return `<div class="sec"><h3>Who is asking <span class="h3note">${esc(num(total))} requests, 5 min</span></h3>${bar}
+    <ul class="keyed">${Object.entries(c.classes).map(([k, v]) => `<li style="--c:${col[k] ?? "#9aa5b8"}"><span class="sw"></span>${esc(k)}<span class="v">${esc(num(v))}</span></li>`).join("")}</ul>
+    <h3 style="margin-top:14px">From</h3><ul class="keyed">${c.countries.map((x) => `<li>${esc(x.code === "??" ? "unknown" : x.code)}<span class="v">${esc(num(x.count))}</span></li>`).join("")}</ul></div>`;
 }
 
 function via(n) {
   if (!n.via?.length) return "";
-  return `<div class="sec"><h3>Routes on other hosts</h3><ul class="keyed">${n.via.map((v) => `<li>${esc(v)}<span class="v unk">not metered</span></li>`).join("")}</ul></div>`;
+  return `<div class="sec"><h3>Routes on other hosts</h3><ul class="keyed">${n.via.map((v) => `<li>${esc(v)}</li>`).join("")}</ul>
+    <p class="note">${isNum(n.via_rps) ? `${esc(num(n.via_rps))} req/s over these routes, from the access log` : "not metered: no access log"}</p></div>`;
 }
 
 function probe(n) {

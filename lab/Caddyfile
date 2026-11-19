@@ -19,6 +19,33 @@
 	}
 }
 
+# The access log the observer tails: production's snippet, unchanged
+# (deploy/Caddyfile.access), imported by every site below.
+(access) {
+	log_append ua {header.User-Agent}
+	log_append country {header.Cf-Ipcountry}
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 50MiB
+			roll_keep 2
+			mode 0644
+		}
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp "\?.*" ""
+				request>headers delete
+				request>remote_ip delete
+				request>remote_port delete
+				request>client_ip delete
+				request>tls delete
+				resp_headers delete
+				user_id delete
+			}
+		}
+	}
+}
+
 # Internal only: on the compose network, not published in production.
 # The lab publishes it on 127.0.0.1:19180 so `mix phx.server` on the laptop
 # can read it.
@@ -27,6 +54,7 @@ http://:9180 {
 }
 
 http://blog.lab.test, http://www.blog.lab.test {
+	import access
 	encode gzip zstd
 
 	header {
@@ -48,6 +76,7 @@ http://blog.lab.test, http://www.blog.lab.test {
 }
 
 http://links.lab.test {
+	import access
 	encode gzip zstd
 	header {
 		X-Forwarded-Proto {scheme}
@@ -58,12 +87,14 @@ http://links.lab.test {
 
 # The memory-limited Node relay, like skee-relay / lumines / slides-relay.
 http://relay.lab.test {
+	import access
 	reverse_proxy relay:8788
 }
 
 # The observer behind Caddy, the same block as deploy/Caddyfile.factory
 # (minus TLS). Answers 502 unless the observer profile is up.
 http://factory.lab.test {
+	import access
 	encode gzip zstd
 
 	header {
@@ -84,6 +115,7 @@ http://factory.lab.test {
 
 # A static site Caddy serves from a directory, like deciduous.dev.
 http://docs.lab.test {
+	import access
 	root * /srv/docs
 	file_server
 	encode gzip zstd

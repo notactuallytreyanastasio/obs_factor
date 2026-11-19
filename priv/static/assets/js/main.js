@@ -5,6 +5,7 @@ import { P } from "./iso.js";
 import { Chips, TopBar, renderAttention, renderLegend, renderSites } from "./overlay.js";
 import { Inspector } from "./inspector.js";
 import { connect } from "./live.js";
+import { canEnter, interiorSnapshot } from "./inside.js";
 
 const $ = (id) => document.getElementById(id);
 const canvas = $("floor");
@@ -15,21 +16,26 @@ const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
 scene.motion = !reduced.matches;
 reduced.addEventListener?.("change", () => { scene.motion = !reduced.matches; dirty = true; });
 
-let snap = null;
+let snap = null; // what is on screen: the floor, or the inside of one building
+let outerSnap = null; // always the floor as the observer sent it
+let insideOf = null; // id of the building we are inside, or null
+let inspectOuter = false; // the inspector is showing the building itself while we are inside it
 let dirty = true;
 let fitted = false;
 let fly = null;
 
 const inspector = new Inspector({
   onClose: () => { scene.selected = null; dirty = true; },
-  onNavigate: (id) => select(id, true),
+  onNavigate: (id) => {
+    if (insideOf && (inspectOuter || !snap.nodes.some((n) => n.id === id))) { leave(); select(id, true); } else select(id, true);
+  },
 });
 
 // ---- viewport -------------------------------------------------------------
 
 function freeArea() {
   const w = window.innerWidth, h = window.innerHeight;
-  const top = $("topbar").offsetHeight + ($("attention").hidden ? 0 : $("attention").offsetHeight);
+  const top = $("topbar").offsetHeight + ($("attention").hidden ? 0 : $("attention").offsetHeight) + ($("insidebar").hidden ? 0 : $("insidebar").offsetHeight);
   let x = 0, y = top, fw = w, fh = h - top;
   if (inspector.open) {
     const r = inspector.el.getBoundingClientRect();
@@ -58,6 +64,20 @@ function drawStars() {
   c.width = w * dpr; c.height = h * dpr; c.style.width = `${w}px`; c.style.height = `${h}px`;
   const ctx = c.getContext("2d");
   ctx.scale(dpr, dpr);
+  // A ringed planet low on the horizon, behind everything.
+  {
+    const R = Math.max(w, h) * 0.34, px = w * 0.86, py = h + R * 0.52;
+    const g = ctx.createRadialGradient(px - R * 0.35, py - R * 0.55, R * 0.1, px, py, R);
+    g.addColorStop(0, "#5b4f86"); g.addColorStop(0.55, "#2b2a55"); g.addColorStop(1, "#11132a");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, R, 0, Math.PI * 2); ctx.fill();
+    ctx.save(); ctx.translate(px, py); ctx.rotate(-0.32);
+    for (let i = 0; i < 9; i++) {
+      ctx.beginPath(); ctx.ellipse(0, 0, R * (1.25 + i * 0.055), R * (0.2 + i * 0.012), 0, Math.PI * 1.02, Math.PI * 1.98);
+      ctx.strokeStyle = `rgba(${200 - i * 6},${190 - i * 4},${230},${0.05 + (i % 3) * 0.035})`;
+      ctx.lineWidth = R * 0.03; ctx.stroke();
+    }
+    ctx.restore();
+  }
   let seed = 1234567;
   const r = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   const n = Math.round((w * h) / 2600);
@@ -106,8 +126,8 @@ function centreOn(id, zoom) {
   if (scene.motion) startFly(to); else { Object.assign(scene.cam, to); dirty = true; }
 }
 
-function startFly(to) {
-  fly = { from: { ...scene.cam }, to, t0: performance.now(), dur: 650 };
+function startFly(to, dur = 650, then = null) {
+  fly = { from: { ...scene.cam }, to, t0: performance.now(), dur, then };
 }
 
 function stepFly(now) {
@@ -119,7 +139,7 @@ function stepFly(now) {
   scene.cam.x = fly.from.x + (fly.to.x - fly.from.x) * e;
   scene.cam.y = fly.from.y + (fly.to.y - fly.from.y) * e;
   dirty = true;
-  if (k >= 1) fly = null;
+  if (k >= 1) { const then = fly.then; fly = null; if (then) then(); }
 }
 
 function zoomAt(sx, sy, factor) {
@@ -132,10 +152,95 @@ function zoomAt(sx, sy, factor) {
   dirty = true;
 }
 
+// ---- inside a building ------------------------------------------------------
+// A building that reports its own inside opens into a floor of its own: the
+// camera dives into it, the floor is swapped for the inside, and the view
+// pulls back out to show all of it. Leaving does the reverse.
+
+function showView() {
+  const node = insideOf && outerSnap.nodes.find((n) => n.id === insideOf);
+  if (insideOf && !canEnter(node)) {
+    // the building is gone or stopped reporting: back to the floor, and say why
+    const why = !node ? "it is no longer in the snapshot" : `its report is failing: ${node.inside?.error ?? "no report"}`;
+    insideOf = null; inspectOuter = false;
+    $("insidebar").hidden = true; document.body.classList.remove("inside");
+    scene.theme = null;
+    console.error(`obs_factor: left the inside view, ${why}`);
+  }
+  snap = insideOf ? interiorSnapshot(outerSnap, node) : outerSnap;
+  const changed = scene.setSnapshot(snap);
+  chips.update(snap);
+  topbar.snapshot(outerSnap);
+  renderAttention(outerSnap, scene.problems, (id) => { if (insideOf) leave(); select(id, true); }, () => toggleLegend(true));
+  renderLegend(snap);
+  renderSites(outerSnap, (id) => { if (window.innerWidth < 700) toggleSites(false); if (insideOf) leave(); select(id, true); });
+  if (insideOf) {
+    const i = snap.interior;
+    $("inside-name").textContent = i.label;
+    $("inside-kind").textContent = [i.kind, ...Object.entries(i.versions).map(([k, v]) => `${k} ${v}`)].join(" · ");
+  }
+  if (inspector.open) inspector.update(inspectOuter ? outerSnap : snap);
+  dirty = true;
+  return changed;
+}
+
+function enter(id) {
+  if (insideOf || !outerSnap) return;
+  const c = scene.nodeCenter(id);
+  if (!c) return;
+  inspector.close();
+  const swap = () => {
+    insideOf = id; inspectOuter = false;
+    scene.selected = null; scene.hover = null;
+    scene.theme = "inside";
+    document.body.classList.add("inside");
+    $("insidebar").hidden = false;
+    showView();
+    scene.fit(freeArea());
+    if (scene.motion) { const to = { ...scene.cam }; scene.cam.z = clampZoom(to.z * 0.3); startFly(to, 520); }
+    dirty = true;
+  };
+  if (!scene.motion) return swap();
+  const f = freeArea();
+  const z = 2.6;
+  startFly({ z, x: c[0] - (f.x + f.w / 2 - scene.view.w / 2) / z, y: c[1] - (f.y + f.h / 2 - scene.view.h / 2) / z }, 420, swap);
+}
+
+function leave() {
+  if (!insideOf) return;
+  const id = insideOf;
+  insideOf = null; inspectOuter = false;
+  inspector.close();
+  scene.selected = null; scene.hover = null;
+  scene.theme = null;
+  document.body.classList.remove("inside");
+  $("insidebar").hidden = true;
+  showView();
+  scene.fit(freeArea());
+  const c = scene.nodeCenter(id);
+  if (scene.motion && c) {
+    const to = { ...scene.cam };
+    const f = freeArea();
+    const z = 2.2;
+    Object.assign(scene.cam, { z, x: c[0] - (f.x + f.w / 2 - scene.view.w / 2) / z, y: c[1] - (f.y + f.h / 2 - scene.view.h / 2) / z });
+    startFly(to, 600);
+    scene.flash = { id, until: performance.now() + 1600 };
+  }
+  dirty = true;
+}
+
+// A click on the floor: a building with an inside opens; anything else is inspected.
+function activate(id) {
+  const node = snap.nodes.find((n) => n.id === id);
+  if (!insideOf && canEnter(node)) enter(id);
+  else select(id);
+}
+
 function select(id, flyTo = false) {
   if (!snap) return;
   scene.selected = id;
-  inspector.show(id, snap);
+  inspectOuter = false;
+  inspector.show(id, snap, { history: !insideOf });
   if (flyTo) { centreOn(id); scene.flash = { id, until: performance.now() + 1600 }; }
   else {
     // keep the picked building in view beside the panel / above the sheet
@@ -198,7 +303,7 @@ function endPointer(e) {
   canvas.classList.remove("dragging");
   if (gesture?.kind === "pan" && pointers.size === 0 && gesture.moved < 6 && e.type === "pointerup") {
     const id = scene.hit(e.clientX, e.clientY);
-    if (id) select(id);
+    if (id) activate(id);
     else if (inspector.open) inspector.close();
   }
   if (pointers.size === 1) {
@@ -246,18 +351,20 @@ document.addEventListener("pointerdown", (e) => {
 // ---- data -----------------------------------------------------------------
 
 function onSnapshot(s) {
-  snap = s;
+  outerSnap = s;
   $("loading").hidden = true;
-  const changed = scene.setSnapshot(s);
-  chips.update(s);
-  topbar.snapshot(s);
-  renderAttention(s, scene.problems, (id) => select(id, true), () => toggleLegend(true));
-  renderLegend(s);
-  renderSites(s, (id) => { if (window.innerWidth < 700) toggleSites(false); select(id, true); });
-  if (inspector.open) inspector.update(s);
+  showView();
   if (!fitted) { fitAll(false, true); fitted = true; }
-  dirty = true;
 }
+
+$("backbtn").addEventListener("click", () => leave());
+$("inspect-outer").addEventListener("click", () => {
+  if (!insideOf) return;
+  inspectOuter = true;
+  scene.selected = null;
+  inspector.show(insideOf, outerSnap, { history: true });
+});
+window.addEventListener("keydown", (e) => { if (e.key === "Escape" && insideOf && !inspector.open) leave(); });
 
 connect({
   onSnapshot,

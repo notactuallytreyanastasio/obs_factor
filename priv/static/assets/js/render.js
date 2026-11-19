@@ -2,7 +2,7 @@
 // smoke and fire. Draws one frame from the current snapshot and camera.
 
 import { P, TW, TH, ZH, box, poly, line, glow, alpha, shade, tone, hull, inPoly } from "./iso.js";
-import { drawBuilding, drawPad, drawPadRing, drawLamp, chimneys, HEIGHT, STATUS_COLOR } from "./buildings.js";
+import { drawBuilding, drawFittings, drawPad, drawPadRing, drawLamp, chimneys, heightOf, STATUS_COLOR } from "./buildings.js";
 import { layout, routeBelts, topoKey, FOOT } from "./layout.js";
 import { isNum } from "./fmt.js";
 
@@ -12,6 +12,22 @@ export const CPU_COLOR = "#ff7a45";
 export const MEM_COLOR = "#7c8cff";
 export const HOLD_COLORS = ["#f2c94c", "#4c9aff", "#6cc04a", "#ec6a8c", "#b28dff", "#4fd1c5", "#f2994a", "#9aa5b8"];
 const ACCENTS = ["#e9b949", "#4cc9f0", "#f77f00", "#90be6d", "#f15bb5", "#9b5de5", "#00bbf9", "#43aa8b"];
+
+// Belt items by status class: what came back, not what went in.
+export const CLASS_COLOR = { "2xx": "#ffd166", "3xx": "#6ab7ff", "4xx": "#c77dff", "5xx": "#ff4d4d", other: "#dfe6f2" };
+const CLASS_ORDER = ["2xx", "3xx", "4xx", "5xx", "other"];
+const CONTAINER_STEPS = [1e6, 2.5e6, 5e6, 1e7, 2.5e7, 5e7, 1e8, 2.5e8, 5e8, 1e9, 2.5e9, 5e9, 1e10, 2.5e10, 5e10, 1e11];
+const MAX_CONTAINERS = 30;
+
+// How many containers each hold gets, and what one container stands for.
+export function containerPlan(holds) {
+  const known = (holds ?? []).filter((h) => isNum(h.bytes) && h.bytes > 0);
+  if (!known.length) return { unit: null, counts: [] };
+  const total = known.reduce((a, h) => a + h.bytes, 0);
+  const unit = CONTAINER_STEPS.find((u) => known.reduce((a, h) => a + Math.max(1, Math.round(h.bytes / u)), 0) <= MAX_CONTAINERS)
+    ?? Math.ceil(total / MAX_CONTAINERS);
+  return { unit, counts: (holds ?? []).map((h) => (isNum(h.bytes) && h.bytes > 0 ? Math.max(1, Math.round(h.bytes / unit)) : 0)) };
+}
 
 export const hashStr = (s) => [...s].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) | 0, 7) >>> 0;
 export const itemColor = (item) => ITEM_COLOR[item] ?? EXTRA[hashStr(item ?? "") % EXTRA.length];
@@ -72,7 +88,7 @@ export class Scene {
       this.problems = [...this.world.problems, ...r.problems];
       for (const msg of this.problems) console.error(`obs_factor layout: ${msg}`);
       for (const b of this.world.nodes.values()) {
-        const h = HEIGHT[b.node.kind] ?? 1.5;
+        const h = heightOf(b.node);
         b.h = h;
         b.hull = hull([
           P(b.x - 0.2, b.y - 0.2, 0), P(b.x + 3.2, b.y - 0.2, 0), P(b.x + 3.2, b.y + 3.2, 0), P(b.x - 0.2, b.y + 3.2, 0),
@@ -162,6 +178,7 @@ export class Scene {
     this.visible = visible;
 
     for (const p of this.platOrder) this.drawPlatform(p, t);
+    for (const b of this.order) if (visible(b.hull)) this.drawShadow(b);
 
     const styled = [];
     for (const b of this.order) {
@@ -175,6 +192,7 @@ export class Scene {
       if (b.node.status === "down") drawPadRing(ctx, b, "#ff4d4d", 0.5 + 0.4 * Math.sin(t * 4), 2.5);
       else if (b.node.status === "blocked") drawPadRing(ctx, b, "#ff9f1c", 0.75, 2);
       drawBuilding(ctx, b, s);
+      if (b.node.container || b.node.inside) drawFittings(ctx, b, s);
       drawLamp(ctx, b, s);
     }
     this.drawPower(t, z);
@@ -203,7 +221,23 @@ export class Scene {
     else if (n.id === "host-mem") load = isNum(host.mem_used_bytes) && host.mem_total_bytes ? host.mem_used_bytes / host.mem_total_bytes : 0;
     else if (n.id === "host-disk") load = isNum(host.disk_used_bytes) && host.disk_total_bytes ? host.disk_used_bytes / host.disk_total_bytes : 0;
     else if (n.container && isNum(n.container.cpu_cores)) load = Math.min(1, n.container.cpu_cores);
+    const c = n.container;
+    let memFrac = null, memLimited = false;
+    if (c && isNum(c.mem_bytes)) {
+      if (isNum(c.mem_limit_bytes) && c.mem_limit_bytes > 0) { memFrac = c.mem_bytes / c.mem_limit_bytes; memLimited = true; }
+      else if (isNum(host.mem_total_bytes) && host.mem_total_bytes > 0) memFrac = c.mem_bytes / host.mem_total_bytes;
+    }
+    const flights = (n.hosts ?? []).map((h) => h.in_flight).filter(isNum);
+    let containers = null;
+    if (n.kind === "db") {
+      const plan = containerPlan(n.holds);
+      containers = [];
+      plan.counts.forEach((k, i) => { for (let j = 0; j < k; j++) containers.push(HOLD_COLORS[i % HOLD_COLORS.length]); });
+    }
+    const unitsInside = n.inside?.ok ? (n.inside.units ?? []).reduce((a, x) => a + (isNum(x.count) ? x.count : 0), 0) : null;
     return {
+      unitsInside,
+      memFrac, memLimited, inFlight: flights.reduce((a, v) => a + v, 0), containers,
       col: tn, t: t + (b.seed % 1000) / 137, status: st, on: st === "working" || (st === "blocked" && n.kind !== "resource"),
       load, accent: b.accent, seed: b.seed,
       holdColors: n.holds?.length ? n.holds.map((_, i) => HOLD_COLORS[i % HOLD_COLORS.length]) : [],
@@ -215,7 +249,8 @@ export class Scene {
     const { ctx } = this;
     const corners = [P(p.x, p.y), P(p.x + p.w, p.y), P(p.x + p.w, p.y + p.d), P(p.x, p.y + p.d)];
     const deep = 0.9;
-    const base = p.unplaced ? "#3f4656" : "#4b5366";
+    // inside a building the plating is a different metal, so it never reads as the main floor
+    const base = p.unplaced ? "#3f4656" : this.theme === "inside" ? "#3d5560" : "#4b5366";
     if (!this.visible([...corners, P(p.x + p.w, p.y + p.d, -deep)])) return;
     // underside thrusters
     if (!p.unplaced) {
@@ -243,6 +278,20 @@ export class Scene {
     }
     // floor
     poly(ctx, corners, base);
+    // worn plating: fixed blotches, lighter and darker, so the floor is not flat
+    if (!p.blots) {
+      let seed = hashStr(p.id) || 1;
+      const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+      p.blots = [];
+      const n = Math.min(260, Math.round((p.w * p.d) / 7));
+      for (let i = 0; i < n; i++) p.blots.push([p.x + 1 + rnd() * (p.w - 2), p.y + 1 + rnd() * (p.d - 2), 14 + rnd() * 34, rnd()]);
+    }
+    for (const [bx, by, r, k] of p.blots) {
+      const [sx, sy] = P(bx, by);
+      ctx.beginPath(); ctx.ellipse(sx, sy, r, r * 0.5, 0, 0, Math.PI * 2);
+      ctx.fillStyle = k > 0.5 ? "rgba(255,255,255,0.025)" : "rgba(10,12,20,0.07)";
+      ctx.fill();
+    }
     // tiles
     ctx.beginPath();
     for (let i = 1; i < p.w; i++) { ctx.moveTo(...P(p.x + i, p.y)); ctx.lineTo(...P(p.x + i, p.y + p.d)); }
@@ -253,7 +302,7 @@ export class Scene {
     ctx.beginPath(); corners.forEach((c, i) => (i ? ctx.lineTo(...c) : ctx.moveTo(...c))); ctx.closePath();
     ctx.strokeStyle = "#1a1d24"; ctx.lineWidth = 3.4; ctx.stroke();
     if (p.unplaced) { ctx.setLineDash([8, 6]); ctx.strokeStyle = "#8b93a7"; ctx.lineWidth = 1.6; }
-    else { ctx.setLineDash([6, 6]); ctx.strokeStyle = "#e0ad2a"; ctx.lineWidth = 3.4; }
+    else { ctx.setLineDash([6, 6]); ctx.strokeStyle = this.theme === "inside" ? "#4cc9f0" : "#e0ad2a"; ctx.lineWidth = 3.4; }
     ctx.stroke();
     ctx.restore();
     // painted label along the front-left edge
@@ -294,8 +343,12 @@ export class Scene {
         }
         poly(ctx, qp, dashed ? "rgba(30,34,44,0.55)" : "#262b36");
       }
-      // rails (centre line in screen space is good enough at this width)
+      // rails: a glowing line down each side of the belt, in the colour of
+      // whoever the belt feeds (requests) or of the item it carries
+      const target = this.world.nodes.get(e.to);
+      const rail = e.item === "requests" && e.from !== "internet" && target ? target.accent : col;
       ctx.save();
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
       ctx.beginPath();
       proj.forEach((p, i) => (i ? ctx.lineTo(...p) : ctx.moveTo(...p)));
       if (dashed) {
@@ -305,8 +358,9 @@ export class Scene {
         ctx.strokeStyle = "rgba(160,168,186,0.55)"; ctx.lineWidth = 1.4; ctx.stroke();
       } else {
         const lit = e.rate > 0;
-        ctx.strokeStyle = alpha(col, lit ? 0.35 : 0.14); ctx.lineWidth = 8; ctx.stroke();
-        ctx.strokeStyle = alpha(col, lit ? 0.9 : 0.35); ctx.lineWidth = 1.2; ctx.stroke();
+        if (lit) { ctx.strokeStyle = alpha(rail, 0.16); ctx.lineWidth = 19; ctx.stroke(); }
+        ctx.strokeStyle = alpha(rail, lit ? 0.95 : 0.3); ctx.lineWidth = 12.5; ctx.stroke();
+        ctx.strokeStyle = "#1b1f29"; ctx.lineWidth = 9.5; ctx.stroke();
       }
       ctx.restore();
       if (dashed) continue;
@@ -318,8 +372,15 @@ export class Scene {
       }
       if (!(e.rate > 0)) continue;
       const m = beltMotion(e.rate);
-      const phase = ((t * m.speed) % m.spacing + m.spacing) % m.spacing;
-      for (let s = phase; s < r.len; s += m.spacing) items.push([r, s, col]);
+      const travelled = t * m.speed;
+      const phase = ((travelled % m.spacing) + m.spacing) % m.spacing;
+      // Each item keeps its number as it rides, so its colour does not flicker.
+      const first = Math.floor(travelled / m.spacing);
+      const mix = classMix(e.codes);
+      let j = 0;
+      for (let s = phase; s < r.len; s += m.spacing, j++) {
+        items.push([r, s, mix ? classOf(mix, hashStr(`${e.id}#${first - j}`)) : col]);
+      }
     }
     // draw items after all bodies so crossings do not hide them
     const small = z < 0.35;
@@ -332,6 +393,7 @@ export class Scene {
         continue;
       }
       if (small) { ctx.fillStyle = col; ctx.fillRect(px - 2.5, py - 3, 5, 3); continue; }
+      glow(ctx, px, py - 5, 11, col, 0.3);
       const k = 0.13;
       poly(ctx, [P(x - k, y - k, 0.32), P(x + k, y - k, 0.32), P(x + k, y + k, 0.32), P(x - k, y + k, 0.32)], shade(col, 1.15));
       poly(ctx, [P(x - k, y + k, 0.16), P(x + k, y + k, 0.16), P(x + k, y + k, 0.32), P(x - k, y + k, 0.32)], shade(col, 0.85));
@@ -391,6 +453,18 @@ export class Scene {
     }
   }
 
+  drawShadow(b) {
+    const { ctx } = this;
+    const [sx, sy] = P(b.x + 1.9, b.y + 1.9, 0.1);
+    ctx.save();
+    ctx.translate(sx + 14, sy + 4); ctx.scale(1, 0.5);
+    const g = ctx.createRadialGradient(0, 0, 8, 0, 0, 84);
+    g.addColorStop(0, "rgba(8,10,18,0.36)"); g.addColorStop(1, "rgba(8,10,18,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, 0, 84, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
   drawEffects(b, s, t) {
     const { ctx } = this;
     const st = b.node.status;
@@ -447,6 +521,21 @@ export class Scene {
     });
     ctx.restore();
   }
+}
+
+// Cumulative shares of a belt's status classes, or null when there is nothing
+// to colour by (codes unknown, or nothing counted yet).
+function classMix(codes) {
+  if (!codes) return null;
+  const total = CLASS_ORDER.reduce((a, k) => a + (isNum(codes[k]) ? codes[k] : 0), 0);
+  if (!(total > 0)) return null;
+  let acc = 0;
+  return CLASS_ORDER.map((k) => [(acc += (isNum(codes[k]) ? codes[k] : 0) / total), CLASS_COLOR[k]]);
+}
+function classOf(mix, h) {
+  const u = (h % 10007) / 10007;
+  for (const [edge, col] of mix) if (u < edge) return col;
+  return mix[mix.length - 1][1];
 }
 
 export function clampZoom(z) { return Math.max(0.12, Math.min(3, z)); }

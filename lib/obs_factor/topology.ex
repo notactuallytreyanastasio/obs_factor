@@ -27,8 +27,14 @@ defmodule ObsFactor.Topology do
     :hosts,
     :via,
     :probe,
-    :databases
+    :report,
+    :databases,
+    :style
   ]
+
+  # The name of the building the browser draws; the observer passes it through.
+  # \z, not $: a trailing newline is not part of a name.
+  @style ~r/\A[a-z][a-z0-9-]*\z/
 
   @type t :: %{platforms: [map], nodes: [map], edges: [map]}
 
@@ -200,28 +206,34 @@ defmodule ObsFactor.Topology do
     (kind == :proxy and hosts != []) &&
       fail("#{where}: the proxy lists hosts from Caddy itself; drop :hosts")
 
-    probe =
-      case Map.get(n, :probe) do
+    probe = url!(n, :probe, where)
+    report = url!(n, :report, where)
+
+    (report != nil and not needs_container) &&
+      fail("#{where}: kind #{inspect(kind)} has no process to report; drop :report")
+
+    style =
+      case Map.get(n, :style) do
         nil ->
           nil
 
-        url when is_binary(url) ->
-          case URI.parse(url) do
-            %URI{scheme: s, host: h} when s in ["http", "https"] and is_binary(h) and h != "" ->
-              url
+        s when is_binary(s) ->
+          Regex.match?(@style, s) ||
+            fail("#{where}: style must match #{inspect(@style)}, got #{inspect(s)}")
 
-            _ ->
-              fail("#{where}: probe must be an http(s) URL, got #{inspect(url)}")
-          end
+          s
 
         other ->
-          fail("#{where}: probe must be a URL string or nil, got #{inspect(other)}")
+          fail(
+            "#{where}: style must be a string matching #{inspect(@style)}, got #{inspect(other)}"
+          )
       end
 
     %{
       id: id,
       label: label,
       kind: kind,
+      style: style,
       platform: platform,
       pos: pos,
       service: service,
@@ -230,6 +242,7 @@ defmodule ObsFactor.Topology do
       hosts: hosts,
       via: via,
       probe: probe,
+      report: report,
       databases: databases
     }
   end
@@ -262,6 +275,27 @@ defmodule ObsFactor.Topology do
     case Map.get(map, key) do
       nil -> nil
       _ -> string!(map, key, where)
+    end
+  end
+
+  defp url!(map, key, where) do
+    name = Atom.to_string(key)
+
+    case Map.get(map, key) do
+      nil ->
+        nil
+
+      url when is_binary(url) ->
+        case URI.parse(url) do
+          %URI{scheme: s, host: h} when s in ["http", "https"] and is_binary(h) and h != "" ->
+            url
+
+          _ ->
+            fail("#{where}: #{name} must be an http(s) URL, got #{inspect(url)}")
+        end
+
+      other ->
+        fail("#{where}: #{name} must be a URL string or nil, got #{inspect(other)}")
     end
   end
 

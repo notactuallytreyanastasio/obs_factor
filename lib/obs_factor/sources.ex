@@ -10,7 +10,7 @@ defmodule ObsFactor.Sources do
   """
 
   @table __MODULE__
-  @names [:docker, :caddy, :postgres, :host, :probes, :sites]
+  @names [:docker, :caddy, :postgres, :host, :probes, :sites, :access, :reports]
 
   def names, do: @names
 

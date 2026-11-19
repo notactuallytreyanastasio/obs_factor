@@ -18,7 +18,7 @@ defmodule ObsFactor.Rules do
     8. activity in the last minute       -> working, else idle
 
   Warnings that do not change the status: a recent restart, a past OOM kill,
-  a failed stats call.
+  a failed stats call, a failing report.
   """
 
   alias ObsFactor.Format
@@ -249,6 +249,17 @@ defmodule ObsFactor.Rules do
   def disk_fraction(host) do
     host.disk_used_bytes / (host.disk_used_bytes + host.disk_avail_bytes)
   end
+
+  @doc """
+  A node whose report (what `ObsFactor.Reports` read for it, nil when it has
+  none or nothing was read) is failing: a warning, never a status. The app
+  may be fine and merely not reporting.
+  """
+  def report(_label, nil), do: []
+  def report(_label, %{ok: true}), do: []
+
+  def report(label, %{ok: false, error: error}),
+    do: [{"warn", "#{label} report failing: #{error}"}]
 
   @doc "One alert per failing source."
   def sources(sources) do

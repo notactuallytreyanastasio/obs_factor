@@ -69,14 +69,25 @@ function wobble(snap, seq) {
   s.at = new Date().toISOString().replace(/\.\d+Z$/, "Z");
   const f = (x, k) => (typeof x === "number" ? Math.max(0, x * (1 + 0.08 * Math.sin(seq * 1.7 + k))) : x);
   let k = 0;
-  for (const e of s.edges) if (e.rate != null && e.rate > 0) e.rate = round(f(e.rate, k++));
+  for (const e of s.edges) {
+    if (!(e.rate != null && e.rate > 0)) continue;
+    const w = f(1, k++);
+    e.rate = round(e.rate * w);
+    if (e.codes) for (const c of Object.keys(e.codes)) e.codes[c] = round(e.codes[c] * w);
+  }
   for (const n of s.nodes) {
     if (n.container) {
       n.container.cpu_cores = n.container.cpu_cores == null ? null : round(f(n.container.cpu_cores, k++), 5);
       if (n.container.uptime_s != null) n.container.uptime_s += Math.round((Date.now() - Date.parse(snap.at)) / 1000);
     }
     if (n.headline?.unit === "req/s" && n.headline.value) n.headline.value = round(f(n.headline.value, k++));
-    for (const h of n.hosts) if (h.rps) h.rps = round(f(h.rps, k++));
+    for (const h of n.hosts) {
+      if (!h.rps) continue;
+      const w = f(1, k++);
+      h.rps = round(h.rps * w);
+      if (h.codes) for (const c of Object.keys(h.codes)) h.codes[c] = round(h.codes[c] * w);
+      if (h.out_bps != null) h.out_bps = round(h.out_bps * w, 1);
+    }
   }
   if (s.host.cpu_used_cores != null) s.host.cpu_used_cores = round(f(s.host.cpu_used_cores, 99), 3);
   for (const n of s.nodes) if (n.id === "host-cpu") n.headline.value = s.host.cpu_used_cores;

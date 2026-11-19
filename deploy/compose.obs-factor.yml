@@ -49,6 +49,9 @@ services:
       HOST_DISK_PATH: /hostfs
       SITES_DIR: /sites
       TOPOLOGY: /app/topology/prod.exs
+      # Caddy's access log (deploy/Caddyfile.access). Needs the caddy_logs
+      # volume below on both this service and `caddy`.
+      ACCESS_LOG: /caddy-logs/access.log
     volumes:
       # statfs() needs a path on the host's root filesystem and nothing else.
       # An empty directory, created by Docker (as root) on first `up`. NOT
@@ -56,6 +59,7 @@ services:
       # "/" is overlayfs and statfs reports the Docker data filesystem,
       # which is only the root filesystem if /var/lib/docker is on it.
       - /var/lib/obs_factor/statfs:/hostfs:ro
+      - caddy_logs:/caddy-logs:ro
       # The static sites, read-only, one directory each, named as Caddy
       # mounts them under /srv. Every byte here is already public (Caddy's
       # file_server serves it), except that /opt/arena is mounted only at
@@ -101,3 +105,16 @@ networks:
   # internal: no route out of the box; only obs-factor and docker-proxy.
   obs:
     internal: true
+
+# The access log. Two more lines in the blog's compose file:
+#
+#   services:
+#     caddy:
+#       volumes:
+#         - caddy_logs:/var/log/caddy       # add next to caddy_data, caddy_config
+#   volumes:
+#     caddy_logs:                           # add next to caddy_data
+#
+# and the snippet and imports of deploy/Caddyfile.access in its Caddyfile.
+# Adding a volume recreates the caddy container (a few seconds of 502s on
+# every site), unlike a Caddyfile-only change, which reloads in place.

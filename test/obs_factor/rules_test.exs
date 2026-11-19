@@ -154,7 +154,17 @@ defmodule ObsFactor.RulesTest do
 
   test "a host's 5xx rate", %{topology: t} do
     caddy = %{
-      hosts: %{"a.test" => %{rps: 3.0, err_rps: 0.4, avg_ms: 8.0}},
+      hosts: %{
+        "a.test" => %{
+          rps: 3.0,
+          err_rps: 0.4,
+          avg_ms: 8.0,
+          codes: %{"2xx" => 2.6, "3xx" => 0.0, "4xx" => 0.0, "5xx" => 0.4, "other" => 0.0},
+          in_bps: 0.0,
+          out_bps: 0.0,
+          in_flight: 0
+        }
+      },
       total_rps: 3.0,
       reset: false
     }
@@ -184,10 +194,34 @@ defmodule ObsFactor.RulesTest do
     assert node!(s, "internet").status == "unknown"
 
     assert node!(s, "blimp-blog").hosts == [
-             %{host: "a.test", rps: nil, err_rps: nil, avg_ms: nil}
+             %{
+               host: "a.test",
+               rps: nil,
+               err_rps: nil,
+               avg_ms: nil,
+               codes: nil,
+               in_bps: nil,
+               out_bps: nil,
+               in_flight: nil
+             }
            ]
 
     assert Enum.find(s.edges, &(&1.id == "internet>caddy")).rate == nil
+  end
+
+  test "a failing access source is an alert and no node says unknown for it", %{topology: t} do
+    reason = "cannot open /caddy-logs/access.log: no such file or directory"
+    ok = build(t, %{})
+    s = build(t, %{access: Fixtures.failed(reason)})
+
+    assert %{node: nil, severity: "alert", text: "access source failing: #{reason}"} in s.attention
+
+    for n <- s.nodes, n.id != "soldat" do
+      assert {n.id, n.status, n.reason} == {n.id, node!(ok, n.id).status, node!(ok, n.id).reason}
+    end
+
+    assert node!(s, "soldat").status in ["idle", "working"]
+    assert attention(s, "soldat") == attention(ok, "soldat")
   end
 
   test "a static site whose directory is missing is down", %{topology: t} do
@@ -232,5 +266,50 @@ defmodule ObsFactor.RulesTest do
 
     assert %{status: "down", reason: "OOM killed"} =
              node!(build(t, %{docker: Fixtures.ok(d)}), "app")
+  end
+
+  test "a failing report is a warning and never a status", %{topology: t} do
+    ok = build(t, %{})
+
+    s =
+      build(t, %{
+        reports: Fixtures.ok(%{"app" => %{ok: false, error: "answered 401", at: nil}})
+      })
+
+    assert attention(s, "app") -- attention(ok, "app") == [
+             %{node: "app", severity: "warn", text: "Phoenix app report failing: answered 401"}
+           ]
+
+    for n <- s.nodes do
+      assert {n.id, n.status, n.reason} == {n.id, node!(ok, n.id).status, node!(ok, n.id).reason}
+    end
+
+    assert ObsFactor.Rules.report("Blog", nil) == []
+    assert ObsFactor.Rules.report("Blog", %{ok: true}) == []
+
+    assert ObsFactor.Rules.report("Phoenix blog", %{ok: false, error: "connection refused"}) ==
+             [{"warn", "Phoenix blog report failing: connection refused"}]
+  end
+
+  test "a down node whose report also fails says both", %{topology: t, docker: d} do
+    d =
+      with_container(
+        d,
+        "blog-app-1",
+        &inspect_set(%{&1 | state: "exited"}, %{running: false, status: "exited", exit_code: 1})
+      )
+
+    s =
+      build(t, %{
+        docker: Fixtures.ok(d),
+        reports: Fixtures.ok(%{"app" => %{ok: false, error: "host not found", at: nil}})
+      })
+
+    assert node!(s, "app").status == "down"
+
+    assert Enum.map(attention(s, "app"), &{&1.severity, &1.text}) == [
+             {"alert", "Phoenix app: exited (code 1)"},
+             {"warn", "Phoenix app report failing: host not found"}
+           ]
   end
 end

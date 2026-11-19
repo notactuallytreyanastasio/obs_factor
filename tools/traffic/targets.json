@@ -1,0 +1,1542 @@
+{
+  "generated": "2026-11-19",
+  "sites": [
+    {
+      "id": "blimp-blog",
+      "label": "Blimp blog",
+      "host": "bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/",
+          "weight": 5,
+          "kind": "page",
+          "note": "blimp_site main.blimp:398 prebuilt home_entry (bare / only, no query); observed 200 58674B 0.24s"
+        },
+        {
+          "path": "/robots.txt",
+          "weight": 8,
+          "kind": "asset",
+          "note": "main.blimp:59-60 fixed route; observed 200 2879B"
+        },
+        {
+          "path": "/favicon.ico",
+          "weight": 8,
+          "kind": "asset",
+          "note": "main.blimp:59-60 fixed route; observed 200 152B"
+        },
+        {
+          "path": "/privacy",
+          "weight": 6,
+          "kind": "page",
+          "note": "main.blimp:70 STATIC_PAGES, prebuilt at boot; observed 200 27121B"
+        },
+        {
+          "path": "/blog",
+          "weight": 5,
+          "kind": "page",
+          "note": "main.blimp:49-53 fixed route; observed 200 9510B"
+        },
+        {
+          "path": "/post/this-site-is-blimp-now",
+          "weight": 4,
+          "kind": "page",
+          "note": "main.blimp:49-53, slug from data/posts.txt, prebuilt; observed 200 39393B"
+        },
+        {
+          "path": "/blog/tag/blimp",
+          "weight": 4,
+          "kind": "page",
+          "note": "src/96_static.blimp:76 blog_tag_routes; observed 200 3488B"
+        },
+        {
+          "path": "/assets/base.css",
+          "weight": 7,
+          "kind": "asset",
+          "note": "main.blimp:54-160 fixed CSS route; observed 200 18297B"
+        },
+        {
+          "path": "/be-elixir",
+          "weight": 3,
+          "kind": "page",
+          "note": "src/97_journal.blimp:206 journal index; observed 200 8131B"
+        },
+        {
+          "path": "/tetris",
+          "weight": 2,
+          "kind": "page",
+          "note": "main.blimp:89-161 app shell, fixed route; NOT requested (verification budget), unverified"
+        },
+        {
+          "path": "/__obs-traffic-404",
+          "weight": 1,
+          "kind": "redirect",
+          "note": "Blimp 404 -> Caddy handle_response 308 to old.bobbby.online (Caddyfile @blimp/@missing and final handle); observed 308. Do not follow: the follow-up 404 lands on node app"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/stumble/go*",
+          "why": "GET runs UPDATE pa_links SET stumble_count = stumble_count + 1 (temper/src/db/stumble.temper.md) then 302s to a third-party site: mutates on GET"
+        },
+        {
+          "pattern": "/blinks/stumble*",
+          "why": "random DB row then 302 to a third-party URL; following it sends traffic off-site"
+        },
+        {
+          "pattern": "/stumble/*",
+          "why": "random-sample DB queries per request; unverified cost, and /stumble/go mutates"
+        },
+        {
+          "pattern": "/live/*",
+          "why": "LiveView/Blimp websocket endpoints (src/90_live.blimp); chat sockets (ziggy/who/aim) call LLMs per message"
+        },
+        {
+          "pattern": "/admin/*",
+          "why": "admin login and admin JSON (src/99_admin.blimp), auth"
+        },
+        {
+          "pattern": "/curate*",
+          "why": "curation login/admin (src/99_curate.blimp), auth"
+        },
+        {
+          "pattern": "/blinks/admin*",
+          "why": "token-gated admin page"
+        },
+        {
+          "pattern": "/blinks/review*",
+          "why": "auth (?key); Caddy sends it to old.bobbby.online where upvotes call save_blink (APNs + Web Push)"
+        },
+        {
+          "pattern": "/api/blinks*",
+          "why": "DB reads up to limit=500, token-gated lookup/export, and the write paths that trigger APNs/Web Push notifications"
+        },
+        {
+          "pattern": "/blinks.rss",
+          "why": "DB query per request; unverified cost"
+        },
+        {
+          "pattern": "/api/push/*",
+          "why": "Web Push subscriptions (writes; push notifications)"
+        },
+        {
+          "pattern": "/blinks-next*",
+          "why": "legacy alias of /blinks; unverified"
+        },
+        {
+          "pattern": "/api/receipt_messages/*",
+          "why": "printer-token auth (src/99_receipts.blimp)"
+        },
+        {
+          "pattern": "/very_direct_message*",
+          "why": "sends messages to a physical receipt printer (POST); page sets CSRF cookie; /queue is a DB read. Unverified, keep away"
+        },
+        {
+          "pattern": "/post/*/comments",
+          "why": "guest-post comment write (POST only); never touch"
+        },
+        {
+          "pattern": "/collage-maker/*",
+          "why": "collage upload (S3, rate limited) and status DB reads"
+        },
+        {
+          "pattern": "/collage/*",
+          "why": "DB read per token; links to S3 media"
+        },
+        {
+          "pattern": "/api/collage-maker/*",
+          "why": "download hands back S3 media; unverified whether it proxies bytes"
+        },
+        {
+          "pattern": "/gallery*",
+          "why": "iCloud shared album; /gallery/img/* 302s to Apple's CDN (third party)"
+        },
+        {
+          "pattern": "/sky/points.json.gz",
+          "why": "large download, ~4.8 MB (Caddyfile @sky_points)"
+        },
+        {
+          "pattern": "/sky/deck.gl-*",
+          "why": "large download, 1.57 MB"
+        },
+        {
+          "pattern": "/sky/profile.json*",
+          "why": "DB query per request"
+        },
+        {
+          "pattern": "/phish_lab/*.json",
+          "why": "large downloads, 1.05 MB and 2.5 MB (Caddyfile @phish_lab_data)"
+        },
+        {
+          "pattern": "/piet/data.json.gz",
+          "why": "large download, ~590-910 KB (Caddyfile @piet_data)"
+        },
+        {
+          "pattern": "/nyc_census_and_pluto/*.json*",
+          "why": "lots.json is a heavy bounded-time DB query; tracts.json unverified"
+        },
+        {
+          "pattern": "/phish/*.json",
+          "why": "DB query on every request (src/97_phish_api.blimp:40)"
+        },
+        {
+          "pattern": "/role-call/*.json",
+          "why": "DB query per request"
+        },
+        {
+          "pattern": "/cameras/*.json*",
+          "why": "DB query per request"
+        },
+        {
+          "pattern": "/blimp/blimp.wasm",
+          "why": "large download, ~616 KB"
+        },
+        {
+          "pattern": "/static/blimp/blimp.wasm",
+          "why": "large download"
+        },
+        {
+          "pattern": "/static/temper-snake/blimp.wasm",
+          "why": "large download"
+        },
+        {
+          "pattern": "/images/og-home.png",
+          "why": "large image, 477 KB, read from disk per request"
+        }
+      ]
+    },
+    {
+      "id": "blimp-blog",
+      "label": "Blimp blog (www)",
+      "host": "www.bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/",
+          "weight": 2,
+          "kind": "page",
+          "note": "Caddyfile: same site block as bobbby.online; observed 200 58674B"
+        },
+        {
+          "path": "/robots.txt",
+          "weight": 2,
+          "kind": "asset",
+          "note": "main.blimp:59-60; NOT requested (verification budget), unverified"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/live/*",
+          "why": "same Caddy block as bobbby.online: websocket endpoints"
+        },
+        {
+          "pattern": "/stumble/go*",
+          "why": "same Caddy block as bobbby.online: increments stumble_count on GET then 302s off-site"
+        },
+        {
+          "pattern": "/blimp/blimp.wasm",
+          "why": "same Caddy block as bobbby.online: large download ~616 KB"
+        },
+        {
+          "pattern": "/static/blimp/blimp.wasm",
+          "why": "same Caddy block as bobbby.online: large download"
+        },
+        {
+          "pattern": "/admin/*",
+          "why": "same Caddy block as bobbby.online: auth"
+        },
+        {
+          "pattern": "/curate*",
+          "why": "same Caddy block as bobbby.online: auth"
+        },
+        {
+          "pattern": "/api/*",
+          "why": "same Caddy block as bobbby.online: auth / DB / push / receipt printer"
+        },
+        {
+          "pattern": "/dtree-ai/edit*",
+          "why": "same Caddy block as bobbby.online: proxies DeepSeek"
+        },
+        {
+          "pattern": "/dtree-ai/explain*",
+          "why": "same Caddy block as bobbby.online: proxies DeepSeek"
+        },
+        {
+          "pattern": "/dtree-ai/ideas*",
+          "why": "same Caddy block as bobbby.online: proxies DeepSeek"
+        },
+        {
+          "pattern": "/skee-host/chat*",
+          "why": "same Caddy block as bobbby.online: proxies DeepSeek"
+        },
+        {
+          "pattern": "/arena/ws",
+          "why": "same Caddy block as bobbby.online: websocket"
+        },
+        {
+          "pattern": "/sky/points.json.gz",
+          "why": "same Caddy block as bobbby.online: 4.8 MB"
+        },
+        {
+          "pattern": "/very_direct_message*",
+          "why": "receipt printer messages"
+        }
+      ]
+    },
+    {
+      "id": "app",
+      "label": "Phoenix blog (old.bobbby.online)",
+      "host": "old.bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/robots.txt",
+          "weight": 8,
+          "kind": "asset",
+          "note": "endpoint.ex Plug.Static (static_paths has robots.txt); observed 200 2879B"
+        },
+        {
+          "path": "/favicon.ico",
+          "weight": 6,
+          "kind": "asset",
+          "note": "endpoint.ex Plug.Static; priv/static/favicon.ico 152B; NOT requested (verification budget), unverified"
+        },
+        {
+          "path": "/privacy",
+          "weight": 5,
+          "kind": "page",
+          "note": "router.ex: live \"/privacy\", PrivacyLive; observed 200 28286B"
+        },
+        {
+          "path": "/chess",
+          "weight": 4,
+          "kind": "page",
+          "note": "router.ex: get \"/chess\", ChessController (send_file chess9.html); observed 200 52382B"
+        },
+        {
+          "path": "/frontier",
+          "weight": 3,
+          "kind": "page",
+          "note": "router.ex: get \"/frontier\", FrontierController (frontier.html 62KB); NOT requested (verification budget), unverified"
+        },
+        {
+          "path": "/",
+          "weight": 1,
+          "kind": "page",
+          "note": "router.ex: live \"/\", TerminalLive (chat lookup by IP hash); HEAVY: observed 200 303041B 0.31s"
+        },
+        {
+          "path": "/__obs-traffic-404",
+          "weight": 1,
+          "kind": "notfound",
+          "note": "no route -> Phoenix 404; observed 404 9B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/live/*",
+          "why": "LiveView websocket (endpoint.ex socket \"/live\")"
+        },
+        {
+          "pattern": "/socket/*",
+          "why": "Phoenix channel websocket (endpoint.ex socket \"/socket\"; iOS comment view)"
+        },
+        {
+          "pattern": "/dev/*",
+          "why": "LiveDashboard / mailbox (dev_routes only; 404 in prod)"
+        },
+        {
+          "pattern": "/admin/*",
+          "why": "Finder/Museum admin LiveViews, auth"
+        },
+        {
+          "pattern": "/api/*",
+          "why": "receipt printer (token), blinks create/save/suggest (APNs + Web Push via Notifier), push registration, gif/collage downloads (S3 media), pinball score writes"
+        },
+        {
+          "pattern": "/blinks/review*",
+          "why": "upvote calls save_blink: writes and sends push notifications"
+        },
+        {
+          "pattern": "/blinks*",
+          "why": "blinks LiveViews and comment channels; Blimp now owns these on bobbby.online; unverified on Phoenix"
+        },
+        {
+          "pattern": "/stumble*",
+          "why": "random links and stumble counters; unverified side effects"
+        },
+        {
+          "pattern": "/cameras*",
+          "why": "camera browser analyst uses OpenAI (CAMERA_ANALYST_MODEL); unverified whether a GET triggers it"
+        },
+        {
+          "pattern": "/ziggy*",
+          "why": "LLM chat page (DeepSeek/OpenAI, password-gated chat)"
+        },
+        {
+          "pattern": "/lolly*",
+          "why": "LLM chat page (LOLLY_CHAT_PASSWORD)"
+        },
+        {
+          "pattern": "/rooted_in_good*",
+          "why": "LLM chat page (ROOTED_CHAT_PASSWORD)"
+        },
+        {
+          "pattern": "/who*",
+          "why": "LLM chat page (WHO_CHAT_PASSWORD)"
+        },
+        {
+          "pattern": "/allowed-chats*",
+          "why": "chat admin; unverified"
+        },
+        {
+          "pattern": "/smart-steps*",
+          "why": "sessions/dashboard; unverified side effects"
+        },
+        {
+          "pattern": "/very_direct_message*",
+          "why": "receipt printer messages"
+        },
+        {
+          "pattern": "/collage*",
+          "why": "collage maker: S3 uploads"
+        },
+        {
+          "pattern": "/gif-maker*",
+          "why": "gif maker: frames/gifs, S3 media"
+        },
+        {
+          "pattern": "/gallery*",
+          "why": "iCloud album; /gallery/img/* proxies or redirects images"
+        },
+        {
+          "pattern": "/typewriter*",
+          "why": "KeyloggerLive: records keystrokes; unverified"
+        },
+        {
+          "pattern": "/cursor-tracker*",
+          "why": "tracks cursors over the socket; unverified"
+        },
+        {
+          "pattern": "/mta-bus-map*",
+          "why": "MTA API (MTA_API_KEY) polling; unverified whether a render starts it"
+        },
+        {
+          "pattern": "/mta-train*",
+          "why": "MTA data; unverified"
+        },
+        {
+          "pattern": "/sky*",
+          "why": "large data (points); Blimp owns it on bobbby.online"
+        },
+        {
+          "pattern": "/hotel-carbon/library",
+          "why": "400 KB page"
+        },
+        {
+          "pattern": "/skee-host/chat*",
+          "why": "belongs to node skee-relay: proxies DeepSeek"
+        }
+      ]
+    },
+    {
+      "id": "app",
+      "label": "Phoenix blog (via bobbby.online)",
+      "host": "bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/hotel-carbon",
+          "weight": 5,
+          "kind": "page",
+          "note": "Caddyfile handle /hotel-carbon* -> app; router.ex get \"/hotel-carbon\" send_file hotel_carbon.html; observed 200 15764B"
+        },
+        {
+          "path": "/hotel-carbon/studio",
+          "weight": 2,
+          "kind": "page",
+          "note": "router.ex get \"/hotel-carbon/studio\" (hotel_carbon_studio.html 54KB); NOT requested (verification budget), unverified"
+        },
+        {
+          "path": "/static/hotel-carbon/style.css",
+          "weight": 6,
+          "kind": "asset",
+          "note": "Caddyfile handle /static/hotel-carbon/*; Plug.Static priv/static/static/hotel-carbon/style.css; observed 200 12115B"
+        },
+        {
+          "path": "/tennis-potatoes",
+          "weight": 4,
+          "kind": "page",
+          "note": "Caddyfile handle /tennis-potatoes*; router.ex get \"/tennis-potatoes\" (Vite shell); observed 200 2566B"
+        },
+        {
+          "path": "/static/tennis-potatoes/assets/index-4KL6pzjz.css",
+          "weight": 5,
+          "kind": "asset",
+          "note": "hashed asset referenced by tennis_potatoes.html; observed 200 4534B (hash changes on rebuild)"
+        },
+        {
+          "path": "/hotel-carbon/__obs-traffic-404",
+          "weight": 1,
+          "kind": "notfound",
+          "note": "matches handle /hotel-carbon* -> Phoenix no route -> 404; observed 404 9B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/hotel-carbon/library",
+          "why": "400 KB page"
+        },
+        {
+          "pattern": "/static/tennis-potatoes/assets/counties-*",
+          "why": "large JS, 842 KB"
+        },
+        {
+          "pattern": "/static/tennis-potatoes/assets/countries-*",
+          "why": "large JS, 108-757 KB"
+        },
+        {
+          "pattern": "/static/tennis-potatoes/assets/carmel-zoning-*",
+          "why": "large JS, 376 KB"
+        }
+      ]
+    },
+    {
+      "id": "blinks",
+      "label": "Blinks (links.bobbby.online)",
+      "host": "links.bobbby.online",
+      "scheme": "https",
+      "paths": [],
+      "avoid": [
+        {
+          "pattern": "/*",
+          "why": "no DNS A record on 2026-11-19 (curl 000, dig empty): unreachable, nothing catalogued. Source routes kept in TARGETS.md"
+        },
+        {
+          "pattern": "/stumble*",
+          "why": "random link then 302 to a third-party site"
+        },
+        {
+          "pattern": "/blinks/stumble*",
+          "why": "random link then 302 to a third-party site"
+        },
+        {
+          "pattern": "/review*",
+          "why": "auth (?key); votes over the socket write"
+        },
+        {
+          "pattern": "/api/*",
+          "why": "token auth; /api/blinks/export is limit 100000 (heavy)"
+        },
+        {
+          "pattern": "/live/*",
+          "why": "LiveView websocket"
+        },
+        {
+          "pattern": "/dev/*",
+          "why": "dev dashboard (not in prod)"
+        }
+      ]
+    },
+    {
+      "id": "blinks",
+      "label": "bobbbys.link landing",
+      "host": "bobbbys.link",
+      "scheme": "https",
+      "paths": [],
+      "avoid": [
+        {
+          "pattern": "/*",
+          "why": "DNS points at 192.64.119.240 (Namecheap), not the box; curl timed out. Would load someone else's server. The link-shortener concern: blinks_backend has NO shortlink redirect or click-count route (router.ex), but treat any short-code path as a counter-incrementing redirect if one is added"
+        }
+      ]
+    },
+    {
+      "id": "blinks",
+      "label": "bobbbys.link landing (www)",
+      "host": "www.bobbbys.link",
+      "scheme": "https",
+      "paths": [],
+      "avoid": [
+        {
+          "pattern": "/*",
+          "why": "DNS is a CNAME to parkingpage.namecheap.com: the observed 200 (2963B) was Namecheap's parking page, not the owner's app. Never send traffic here"
+        }
+      ]
+    },
+    {
+      "id": "nathan",
+      "label": "Gifmaker",
+      "host": "gifmaker.bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/",
+          "weight": 5,
+          "kind": "page",
+          "note": "router.ex:23 live \"/\" HomeLive (assigns only); observed 200 11010B"
+        },
+        {
+          "path": "/gifs",
+          "weight": 3,
+          "kind": "page",
+          "note": "router.ex:26 live \"/gifs\" (feed loads only after WS connect); observed 200 16195B"
+        },
+        {
+          "path": "/robots.txt",
+          "weight": 6,
+          "kind": "asset",
+          "note": "endpoint.ex:22 static_paths has robots.txt; NOT requested (verification budget), unverified"
+        },
+        {
+          "path": "/__obs-traffic-404",
+          "weight": 1,
+          "kind": "notfound",
+          "note": "no route -> Phoenix 404; observed 404 9B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/*post=1*",
+          "why": "auto-post to Bluesky (BLUESKY_APP_PASSWORD) for logged-in users"
+        },
+        {
+          "pattern": "/gif/*",
+          "why": "raw GIF bytes from a DB blob column (and posters): large"
+        },
+        {
+          "pattern": "/frame/*",
+          "why": "JPEG frames from DB"
+        },
+        {
+          "pattern": "/video/*",
+          "why": "frame index and caption search; ffmpeg GIF generation on events; heavy"
+        },
+        {
+          "pattern": "/library",
+          "why": "lists every video with thumbnails; moderate, unverified"
+        },
+        {
+          "pattern": "/random",
+          "why": "random-order query then 302; unverified cost"
+        },
+        {
+          "pattern": "/users/*",
+          "why": "auth (register/login/settings/confirm)"
+        },
+        {
+          "pattern": "/admin*",
+          "why": "admin only, includes prod LiveDashboard /admin/dashboard"
+        },
+        {
+          "pattern": "/add*",
+          "why": "login required"
+        },
+        {
+          "pattern": "/setup*",
+          "why": "login required"
+        },
+        {
+          "pattern": "/upload*",
+          "why": "admin upload"
+        },
+        {
+          "pattern": "/cache*",
+          "why": "admin"
+        },
+        {
+          "pattern": "/uploads/*",
+          "why": "user media, large"
+        },
+        {
+          "pattern": "/frames/*",
+          "why": "media, large"
+        },
+        {
+          "pattern": "/downloads/*",
+          "why": "download files"
+        },
+        {
+          "pattern": "/ffmpeg/*",
+          "why": "~70 MB of wasm if served"
+        },
+        {
+          "pattern": "/live/*",
+          "why": "LiveView websocket"
+        }
+      ]
+    },
+    {
+      "id": "marginalia",
+      "label": "Marginalia",
+      "host": "marginalia.bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/",
+          "weight": 5,
+          "kind": "page",
+          "note": "router.ex:58 live \"/\" LandingLive (static content); observed 200 69698B"
+        },
+        {
+          "path": "/sitemap.xml",
+          "weight": 2,
+          "kind": "page",
+          "note": "router.ex:71, cached 30 min; observed 200 68156B 0.55s"
+        },
+        {
+          "path": "/cases",
+          "weight": 1,
+          "kind": "page",
+          "note": "router.ex:75 read-only; HEAVY-ish: observed 200 151130B"
+        },
+        {
+          "path": "/robots.txt",
+          "weight": 6,
+          "kind": "asset",
+          "note": "endpoint.ex:23 static_paths; NOT requested (verification budget), unverified"
+        },
+        {
+          "path": "/__obs-traffic-404",
+          "weight": 1,
+          "kind": "notfound",
+          "note": "custom 404.html render; observed 404 1574B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/works*",
+          "why": "ensure_user_or_guest plug creates a guest user row per cookieless GET (router.ex:62-67: 762 junk rows already)"
+        },
+        {
+          "pattern": "/import*",
+          "why": "creates a guest user row on GET; GitHub import"
+        },
+        {
+          "pattern": "/stacks*",
+          "why": "creates a guest user row on GET; pages hold LLM buttons that spend money"
+        },
+        {
+          "pattern": "/cuts*",
+          "why": "creates a guest user row on GET"
+        },
+        {
+          "pattern": "/links*",
+          "why": "creates a guest user row on GET"
+        },
+        {
+          "pattern": "/users/*",
+          "why": "auth (settings, register, log-in)"
+        },
+        {
+          "pattern": "/cases/*/read*",
+          "why": "case chat (DeepSeek) over the socket; GET itself unverified"
+        },
+        {
+          "pattern": "/drafts*",
+          "why": "chat editor (DeepSeek) over the socket; GET itself unverified"
+        },
+        {
+          "pattern": "/live/*",
+          "why": "LiveView websocket"
+        },
+        {
+          "pattern": "/dev/*",
+          "why": "dev dashboard (not in prod)"
+        }
+      ]
+    },
+    {
+      "id": "tyler",
+      "label": "Tyler",
+      "host": "tyler.bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/",
+          "weight": 5,
+          "kind": "page",
+          "note": "router.ex:52 live \"/\" FindLive (Library.intake; DeepSeek only on chat event); observed 200 16588B"
+        },
+        {
+          "path": "/library",
+          "weight": 3,
+          "kind": "page",
+          "note": "router.ex:55 read-only; observed 200 37321B"
+        },
+        {
+          "path": "/robots.txt",
+          "weight": 6,
+          "kind": "asset",
+          "note": "endpoint.ex:23 static_paths; NOT requested (verification budget), unverified"
+        },
+        {
+          "path": "/__obs-traffic-404",
+          "weight": 1,
+          "kind": "notfound",
+          "note": "custom 404; observed 404 1564B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/search*",
+          "why": "?smart=1 runs SmartSearch (2 DeepSeek calls) and eats the shared daily model budget (Tyler.RateLimit); plain ?q= cost unverified"
+        },
+        {
+          "pattern": "/read/*",
+          "why": "annotate/deadline LLM calls (DeepSeek) once connected"
+        },
+        {
+          "pattern": "/read",
+          "why": "upload form; unverified"
+        },
+        {
+          "pattern": "/find*",
+          "why": "same LiveView as /, chat calls DeepSeek; covered by /"
+        },
+        {
+          "pattern": "/files/*",
+          "why": "send_file of crawled original PDFs: large"
+        },
+        {
+          "pattern": "/documents/*",
+          "why": "first Related.for_work build reads every work body; unverified cost"
+        },
+        {
+          "pattern": "/api/*",
+          "why": "dev/test only"
+        },
+        {
+          "pattern": "/live/*",
+          "why": "LiveView websocket"
+        },
+        {
+          "pattern": "/dev/*",
+          "why": "dev dashboard (not in prod)"
+        }
+      ]
+    },
+    {
+      "id": "dave",
+      "label": "Dave",
+      "host": "dave.bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/",
+          "weight": 5,
+          "kind": "page",
+          "note": "notedance_viewer router.ex:21 static landing; observed 200 16481B"
+        },
+        {
+          "path": "/__obs/traffic/404",
+          "weight": 1,
+          "kind": "notfound",
+          "note": "three segments so it misses /:slug (a DB lookup) and /:slug/tv; observed 404 1432B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/app*",
+          "why": "router.ex:23 says /app lists scores, but live answered 404: the local copy (_from-macbook/notedance_viewer) does not match the deployed app; unverified"
+        },
+        {
+          "pattern": "/*/musicxml*",
+          "why": "full MusicXML blob, large"
+        },
+        {
+          "pattern": "/imports/*",
+          "why": "settle_stuck can write on GET"
+        },
+        {
+          "pattern": "/issues*",
+          "why": "settle_stuck can write on GET"
+        },
+        {
+          "pattern": "/compose*",
+          "why": "composer bot over channel; unverified against deployed app"
+        },
+        {
+          "pattern": "/api/*",
+          "why": "bearer token auth"
+        },
+        {
+          "pattern": "/live/*",
+          "why": "LiveView websocket"
+        },
+        {
+          "pattern": "/socket/*",
+          "why": "Phoenix channel websocket (score:*, compose:*)"
+        }
+      ]
+    },
+    {
+      "id": "skyfeed",
+      "label": "Skyfeed (bsky map feeds)",
+      "host": "bskymapfeeds.bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/",
+          "weight": 4,
+          "kind": "page",
+          "note": "router.ex:20 live \"/\" MapLive (in-memory atlas metadata); observed 200 24979B"
+        },
+        {
+          "path": "/feed",
+          "weight": 4,
+          "kind": "page",
+          "note": "router.ex:25 live \"/feed\" form; observed 200 11553B"
+        },
+        {
+          "path": "/robots.txt",
+          "weight": 6,
+          "kind": "asset",
+          "note": "endpoint.ex:23 static_paths; NOT requested (verification budget), unverified"
+        },
+        {
+          "path": "/__obs-traffic-404",
+          "weight": 1,
+          "kind": "notfound",
+          "note": "Phoenix 404; observed 404 9B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/feed/*.*",
+          "why": "/feed/:handle: resolve_handle calls public.api.bsky.app uncached and starts a long-lived FeedServer (follows backfill) even on plain HTTP render. Written as *.* because handles contain a dot and /feed/* would also forbid the safe /feed form"
+        },
+        {
+          "pattern": "/feed/did*",
+          "why": "/feed/:handle given a DID: same Bluesky API call and FeedServer"
+        },
+        {
+          "pattern": "/atlas.json",
+          "why": "large gzipped map (cheap only with If-None-Match)"
+        },
+        {
+          "pattern": "/ops*",
+          "why": "firehose subscription once connected; unverified"
+        },
+        {
+          "pattern": "/firehose*",
+          "why": "firehose subscription once connected; unverified"
+        },
+        {
+          "pattern": "/crawl*",
+          "why": "unverified"
+        },
+        {
+          "pattern": "/communities*",
+          "why": "unverified"
+        },
+        {
+          "pattern": "/live/*",
+          "why": "LiveView websocket"
+        }
+      ]
+    },
+    {
+      "id": "obs-factor",
+      "label": "Factory (this)",
+      "host": "factory.bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/health",
+          "weight": 6,
+          "kind": "api",
+          "note": "router.ex get \"/health\" public, answers ok; observed 200 2B"
+        },
+        {
+          "path": "/login",
+          "weight": 3,
+          "kind": "page",
+          "note": "router.ex get \"/login\" (priv/static/login.html); observed 200 972B"
+        },
+        {
+          "path": "/__obs-traffic-404",
+          "weight": 1,
+          "kind": "notfound",
+          "note": "Phoenix 404; observed 404 33B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/",
+          "why": "session-gated page (redirects to /login)"
+        },
+        {
+          "pattern": "/api/*",
+          "why": "session-gated; /api/stream is SSE"
+        },
+        {
+          "pattern": "/logout",
+          "why": "POST only, clears session"
+        }
+      ]
+    },
+    {
+      "id": "soldat",
+      "label": "Arena (live)",
+      "host": "bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/arena/",
+          "weight": 2,
+          "kind": "page",
+          "note": "Caddyfile handle_path /arena/* -> soldat:8901 (watch.mjs serves the site at /); observed 200 97143B. Source not local"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/arena/ws",
+          "why": "1v1 game server websocket (soldat:8902)"
+        },
+        {
+          "pattern": "/arena/data.json*",
+          "why": "fight feed: ~5 MB capped (ARENA_DATA_FIGHTS=40), once over 300 MB"
+        },
+        {
+          "pattern": "/arena/desk-data.json*",
+          "why": "large (local stub 27.6 MB)"
+        }
+      ]
+    },
+    {
+      "id": "site-arena",
+      "label": "Arena replays",
+      "host": "bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/arena/play/",
+          "weight": 2,
+          "kind": "page",
+          "note": "Caddyfile handle_path /arena/play/* file_server /srv/arena/play; observed 200 639B"
+        }
+      ],
+      "avoid": []
+    },
+    {
+      "id": "dtree-ai",
+      "label": "dtree-ai",
+      "host": "bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/dtree-ai/health",
+          "weight": 3,
+          "kind": "api",
+          "note": "mba-vs-dj/proxy/server.mjs GET /health {ok,today}, no DeepSeek; observed 200 22B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/dtree-ai/edit*",
+          "why": "proxies DeepSeek: costs money per request"
+        },
+        {
+          "pattern": "/dtree-ai/explain*",
+          "why": "proxies DeepSeek: costs money per request"
+        },
+        {
+          "pattern": "/dtree-ai/ideas*",
+          "why": "proxies DeepSeek: costs money per request"
+        }
+      ]
+    },
+    {
+      "id": "skee-relay",
+      "label": "Skee relay",
+      "host": "bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/skee-host/health",
+          "weight": 3,
+          "kind": "api",
+          "note": "skee_skee_skee/relay/relay.mjs GET /health 200 ok; observed 200 2B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/skee-host/chat*",
+          "why": "proxies DeepSeek; per-IP and daily counters increment before the body is checked"
+        }
+      ]
+    },
+    {
+      "id": "skee-relay",
+      "label": "Skee relay (old host)",
+      "host": "old.bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/skee-host/health",
+          "weight": 2,
+          "kind": "api",
+          "note": "Caddyfile old.bobbby.online handle_path /skee-host/*; observed 200 2B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/skee-host/chat*",
+          "why": "proxies DeepSeek; counters increment"
+        }
+      ]
+    },
+    {
+      "id": "deciduous-mcp",
+      "label": "Deciduous MCP",
+      "host": "bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/deciduous-mcp/health",
+          "weight": 4,
+          "kind": "api",
+          "note": "deciduous/deciduous_mcp web/router.ex:57 send_resp 200 ok; observed 200 2B"
+        },
+        {
+          "path": "/deciduous-mcp/ready",
+          "weight": 1,
+          "kind": "api",
+          "note": "router.ex:61 SELECT from schema_migrations (1s timeout); observed 200 5B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/deciduous-mcp/mcp*",
+          "why": "bearer auth; MCP over SSE (Caddy flush_interval -1)"
+        },
+        {
+          "pattern": "/deciduous-mcp/events*",
+          "why": "websocket, token auth"
+        },
+        {
+          "pattern": "/deciduous-mcp/tokens*",
+          "why": "master token auth"
+        },
+        {
+          "pattern": "/deciduous-mcp/export*",
+          "why": "auth; whole graph, heavy"
+        },
+        {
+          "pattern": "/deciduous-mcp/documents/*",
+          "why": "auth"
+        },
+        {
+          "pattern": "/deciduous-mcp/messages*",
+          "why": "auth; message board"
+        },
+        {
+          "pattern": "/deciduous-mcp/blob/*",
+          "why": "PUT uploads; auth"
+        },
+        {
+          "pattern": "/deciduous-mcp/import*",
+          "why": "POST write"
+        },
+        {
+          "pattern": "/deciduous-mcp/ops*",
+          "why": "POST write"
+        },
+        {
+          "pattern": "/deciduous-mcp/claim*",
+          "why": "POST write"
+        },
+        {
+          "pattern": "/deciduous-mcp/locate*",
+          "why": "POST"
+        }
+      ]
+    },
+    {
+      "id": "slides-relay",
+      "label": "Slides relay",
+      "host": "slides.bobbby.online",
+      "scheme": "https",
+      "paths": [],
+      "avoid": [
+        {
+          "pattern": "/relay*",
+          "why": "phone-remote websocket relay (slides/server/relay.mjs); a plain GET would only answer 426 (unverified). Nothing safe to catalogue"
+        }
+      ]
+    },
+    {
+      "id": "lumines",
+      "label": "Lumines rooms",
+      "host": "lumines.bobbby.online",
+      "scheme": "https",
+      "paths": [],
+      "avoid": [
+        {
+          "pattern": "/ws*",
+          "why": "rooms server websocket (matchmaking and shared-board relay); /healthz is not proxied (it falls to the static SPA)"
+        }
+      ]
+    },
+    {
+      "id": "site-deciduous",
+      "label": "deciduous.dev",
+      "host": "deciduous.dev",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/",
+          "weight": 5,
+          "kind": "page",
+          "note": "deciduous/docs/index.html 32KB; observed 200 32074B"
+        },
+        {
+          "path": "/llms.txt",
+          "weight": 4,
+          "kind": "asset",
+          "note": "deciduous/docs/llms.txt; observed 200 5638B"
+        },
+        {
+          "path": "/__obs-traffic-404",
+          "weight": 1,
+          "kind": "notfound",
+          "note": "Caddy file_server 404; observed 404 0B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/*graph-data.json",
+          "why": "1.2 MB each (/graph-data.json, /demo/graph-data.json)"
+        },
+        {
+          "pattern": "/llms-full.txt",
+          "why": "241 KB"
+        },
+        {
+          "pattern": "/demo/*",
+          "why": "/demo/index.html 405 KB, bundle 680 KB"
+        },
+        {
+          "pattern": "/tutorial/search-index.json",
+          "why": "218 KB"
+        },
+        {
+          "pattern": "/git-history.json",
+          "why": "198 KB"
+        },
+        {
+          "pattern": "/*.cast.gz",
+          "why": "188 KB recording"
+        }
+      ]
+    },
+    {
+      "id": "site-deciduous",
+      "label": "deciduous.dev (www)",
+      "host": "www.deciduous.dev",
+      "scheme": "https",
+      "paths": [],
+      "avoid": [
+        {
+          "pattern": "/*",
+          "why": "no DNS A record on 2026-11-19 (curl 000): unreachable"
+        }
+      ]
+    },
+    {
+      "id": "site-phstats",
+      "label": "phishjamexplorer.com",
+      "host": "phishjamexplorer.com",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/",
+          "weight": 5,
+          "kind": "page",
+          "note": "phstats Vite index.html; observed 200 1516B"
+        },
+        {
+          "path": "/vite.svg",
+          "weight": 4,
+          "kind": "asset",
+          "note": "phstats/public/vite.svg (copied verbatim by Vite); observed 200 1497B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/*tracks.json",
+          "why": "11.9 MB each (/tracks.json, /data/tracks.json)"
+        },
+        {
+          "pattern": "/assets/*",
+          "why": "bundle hashes unknown locally (no dist/); ~500 KB JS"
+        },
+        {
+          "pattern": "/__obs-traffic-404",
+          "why": "no 404 possible: try_files SPA fallback serves index.html with 200"
+        }
+      ]
+    },
+    {
+      "id": "site-phstats",
+      "label": "phishjamexplorer.com (www)",
+      "host": "www.phishjamexplorer.com",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/",
+          "weight": 2,
+          "kind": "page",
+          "note": "same Caddy block; observed 200 1516B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/*tracks.json",
+          "why": "11.9 MB"
+        }
+      ]
+    },
+    {
+      "id": "site-soldat-landing",
+      "label": "soldat.bobbby.online",
+      "host": "soldat.bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/",
+          "weight": 4,
+          "kind": "page",
+          "note": "Caddyfile file_server /srv/soldat-landing (source only on the box; blog/deploy.sh health-checks /); observed 200 38644B"
+        },
+        {
+          "path": "/__obs-traffic-404",
+          "weight": 1,
+          "kind": "notfound",
+          "note": "file_server 404; observed 404 0B"
+        }
+      ],
+      "avoid": []
+    },
+    {
+      "id": "site-blimp",
+      "label": "blimp.bobbby.online",
+      "host": "blimp.bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/",
+          "weight": 5,
+          "kind": "page",
+          "note": "blimp/docs (rsync to /opt/blimp); observed 200 38727B (local index.html is 2.6KB: deployed differs)"
+        },
+        {
+          "path": "/tutorial/",
+          "weight": 3,
+          "kind": "page",
+          "note": "blimp/docs/tutorial/; observed 200 28520B"
+        },
+        {
+          "path": "/__obs-traffic-404",
+          "weight": 1,
+          "kind": "notfound",
+          "note": "file_server 404; observed 404 0B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/tutorial/blimp.wasm",
+          "why": "203 KB"
+        },
+        {
+          "pattern": "/blog/img/*",
+          "why": "PNGs up to 680 KB"
+        }
+      ]
+    },
+    {
+      "id": "site-gaming",
+      "label": "gaming.bobbby.online",
+      "host": "gaming.bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/favicon.svg",
+          "weight": 5,
+          "kind": "asset",
+          "note": "whats_going_through_your_mind scripts/deploy.sh copies favicon.svg; observed 200 975B"
+        },
+        {
+          "path": "/game/main.js",
+          "weight": 4,
+          "kind": "asset",
+          "note": "game/main.js (ES module, no-cache); observed 200 2746B"
+        },
+        {
+          "path": "/__obs-traffic-404",
+          "weight": 1,
+          "kind": "notfound",
+          "note": "file_server 404; observed 404 0B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/og.png",
+          "why": "597 KB"
+        },
+        {
+          "pattern": "/*three.module.js",
+          "why": "three.js build, typically >1 MB"
+        },
+        {
+          "pattern": "/game/game.js",
+          "why": "106 KB"
+        },
+        {
+          "pattern": "/v/*",
+          "why": "versioned copy of the whole site; rev unknown"
+        }
+      ]
+    },
+    {
+      "id": "site-slides",
+      "label": "slides.bobbby.online",
+      "host": "slides.bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/",
+          "weight": 4,
+          "kind": "page",
+          "note": "slides dist/index.html (no-cache); observed 200 2538B"
+        },
+        {
+          "path": "/favicon.svg",
+          "weight": 4,
+          "kind": "asset",
+          "note": "slides/public/favicon.svg; observed 200 182B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/relay*",
+          "why": "belongs to node slides-relay: websocket"
+        },
+        {
+          "pattern": "/og.png",
+          "why": "138 KB"
+        },
+        {
+          "pattern": "/__obs-traffic-404",
+          "why": "no 404 possible: SPA try_files serves index.html with 200"
+        }
+      ]
+    },
+    {
+      "id": "site-lumines",
+      "label": "lumines.bobbby.online",
+      "host": "lumines.bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/",
+          "weight": 4,
+          "kind": "page",
+          "note": "lumines_hd dist/index.html; observed 200 9312B"
+        },
+        {
+          "path": "/league",
+          "weight": 3,
+          "kind": "page",
+          "note": "Caddyfile rewrite /league /league.html; observed 200 10135B"
+        },
+        {
+          "path": "/deck/",
+          "weight": 2,
+          "kind": "page",
+          "note": "public/deck/index.html; observed 200 24477B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/ws*",
+          "why": "belongs to node lumines: websocket"
+        },
+        {
+          "pattern": "/deck/shots/*",
+          "why": "PNG screenshots up to 1.5 MB (6.9 MB total)"
+        },
+        {
+          "pattern": "/__obs-traffic-404",
+          "why": "no 404 possible: try_files falls back to index.html"
+        }
+      ]
+    },
+    {
+      "id": "site-downloader",
+      "label": "downloader.bobbby.online",
+      "host": "downloader.bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/",
+          "weight": 4,
+          "kind": "page",
+          "note": "nathan_for_us/site/index.html; observed 200 19962B"
+        },
+        {
+          "path": "/__obs-traffic-404",
+          "weight": 1,
+          "kind": "notfound",
+          "note": "file_server 404; observed 404 0B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/*Framecut-Grabber*",
+          "why": "downloads are GitHub release links (third party, large binaries)"
+        }
+      ]
+    },
+    {
+      "id": "site-donny",
+      "label": "donny.bobbby.online",
+      "host": "donny.bobbby.online",
+      "scheme": "https",
+      "paths": [],
+      "avoid": [
+        {
+          "pattern": "/*",
+          "why": "no DNS record (curl 000); source not found locally (blog/docs/PROJECTS.md agrees)"
+        }
+      ]
+    },
+    {
+      "id": "site-padmac",
+      "label": "padmac.bobbby.online",
+      "host": "padmac.bobbby.online",
+      "scheme": "https",
+      "paths": [
+        {
+          "path": "/",
+          "weight": 4,
+          "kind": "page",
+          "note": "padmac/site/index.html; observed 200 17106B"
+        },
+        {
+          "path": "/__obs-traffic-404",
+          "weight": 1,
+          "kind": "notfound",
+          "note": "file_server 404; observed 404 0B"
+        }
+      ],
+      "avoid": [
+        {
+          "pattern": "/og.png",
+          "why": "115 KB"
+        }
+      ]
+    }
+  ]
+}

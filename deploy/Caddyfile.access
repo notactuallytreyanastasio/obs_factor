@@ -1,0 +1,41 @@
+# The access log the observer tails (docs/contract.md, Access log).
+#
+# Paste the snippet once near the top of the blog's Caddyfile (after the
+# global options block) and add `import access` as the first line of every
+# site block that should be counted. Sites without it are simply not in the
+# log; nothing else changes for them.
+#
+# What is written, per request: time, method, host, path WITHOUT the query
+# string, status, duration, response size, User-Agent, Cloudflare's country
+# code. What is not: client addresses, request or response headers (cookies,
+# tokens), TLS details. Checked on caddy:2.10.2 on 2026-11-19: a request for
+# /arena/x?token=secret is logged as "uri":"/arena/x".
+#
+# Disk: one live file of at most 50 MiB plus two rolled ones, so 150 MiB at
+# worst, in the caddy_logs volume. mode 0644 because the observer reads it as
+# `nobody` (Caddy's default is 0600; verified unreadable without it).
+
+(access) {
+	log_append ua {header.User-Agent}
+	log_append country {header.Cf-Ipcountry}
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 50MiB
+			roll_keep 2
+			mode 0644
+		}
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp "\?.*" ""
+				request>headers delete
+				request>remote_ip delete
+				request>remote_port delete
+				request>client_ip delete
+				request>tls delete
+				resp_headers delete
+				user_id delete
+			}
+		}
+	}
+}

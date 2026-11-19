@@ -31,15 +31,15 @@
 
     # whoami answers /health with 200 until POSTed another code:
     # lab/break.sh 5xx blog on.
-    %{id: "blog", label: "Blog", kind: :app, service: "blog", platform: "main", pos: {2, 0},
+    %{id: "blog", label: "Blog", kind: :app, style: "press", service: "blog", platform: "main", pos: {2, 0},
       hosts: ["blog.lab.test", "www.blog.lab.test"],
       probe: "http://blog:80/health", databases: ["lab_blog"]},
-    %{id: "links", label: "Links", kind: :app, service: "links", platform: "main", pos: {2, 2},
+    %{id: "links", label: "Links", kind: :app, style: "switchyard", service: "links", platform: "main", pos: {2, 2},
       hosts: ["links.lab.test"],
       probe: "http://links:80/health", databases: ["lab_links"]},
     # Path route on blog's host: Caddy counts its requests under
     # blog.lab.test (verified), so its belt is unmetered.
-    %{id: "arena", label: "Arena", kind: :app, service: "arena", platform: "main", pos: {3, 0},
+    %{id: "arena", label: "Arena", kind: :app, style: "arena", service: "arena", platform: "main", pos: {3, 0},
       via: ["blog.lab.test/arena/*"], probe: "http://arena:80/health"},
     %{id: "relay", label: "Relay (96 MB)", kind: :relay, service: "relay", platform: "main", pos: {2, 4},
       hosts: ["relay.lab.test"], probe: "http://relay:8788/health"},

@@ -86,6 +86,8 @@ services:
       - ./sites/docs:/srv/docs:ro
       - caddy_data:/data
       - caddy_config:/config
+      # The access log (deploy/Caddyfile.access); the observer mounts it read-only.
+      - caddy_logs:/var/log/caddy
 
   # Read-only Docker API: three GET endpoints, 403 for everything else.
   # The socket's :ro does NOT make the API read-only (connect() on a
@@ -137,10 +139,12 @@ services:
       HOST_DISK_PATH: /hostfs
       SITES_DIR: /sites
       TOPOLOGY: /app/topology/lab.exs
+      ACCESS_LOG: /caddy-logs/access.log
     volumes:
       # An empty directory, only so statfs() has a path on the filesystem we
       # mean. In the lab that is the laptop's disk (Colima's virtiofs share).
       - ./state/hostfs:/hostfs:ro
+      - caddy_logs:/caddy-logs:ro
       - ./sites:/sites:ro
     networks: [default, obs]
     ports:
@@ -154,3 +158,4 @@ volumes:
   pgdata:
   caddy_data:
   caddy_config:
+  caddy_logs:

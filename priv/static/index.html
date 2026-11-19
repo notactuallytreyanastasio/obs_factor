@@ -30,6 +30,13 @@
     </div>
   </header>
 
+  <div id="insidebar" hidden>
+    <button type="button" id="backbtn" aria-label="Back to the floor">
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M14 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Floor
+    </button>
+    <div class="where"><span class="lead">inside</span> <b id="inside-name"></b> <span id="inside-kind"></span></div>
+    <button type="button" id="inspect-outer">Inspect the building</button>
+  </div>
   <div id="attention" hidden>
     <span class="title">Needs attention:</span>
     <div class="items" id="attention-items"></div>
@@ -58,6 +65,14 @@
     <div class="lg-row"><span class="pw cpu"></span>CPU <span class="pw mem"></span>memory</div>
     <div class="lg-row muted">power line width: what it draws</div>
     <div class="lg-items" id="legend-items"></div>
+    <div class="lg-row muted">items on a request belt, by what came back:</div>
+    <div class="lg-items classes">
+      <span style="--c:#ffd166">2xx</span><span style="--c:#6ab7ff">3xx</span><span style="--c:#c77dff">4xx</span><span style="--c:#ff4d4d">5xx</span><span style="--c:#dfe6f2">other</span>
+    </div>
+    <div class="lg-row muted">belt rails: the colour of the building it feeds</div>
+    <div class="lg-row"><span class="gauge"></span>gauge: memory, of its limit (red tick) or of the box</div>
+    <div class="lg-row"><span class="queue"></span>crates at the dock: requests in flight</div>
+    <div class="lg-row"><span class="alive"></span>blue lamps: things alive inside (LiveView sessions)</div>
     <h4>Sources</h4>
     <ul id="sources"></ul>
   </aside>

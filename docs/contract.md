@@ -48,6 +48,8 @@ only by agreement, and say so when you do.
 | `HOST_DISK_PATH` | a path on the host's root filesystem, for statfs | `/hostfs` |
 | `SITES_DIR` | one subdirectory per static site Caddy serves | `/sites` |
 | `TOPOLOGY` | path to the topology file | `priv/topology/prod.exs` |
+| `ACCESS_LOG` | Caddy's JSON access log, read-only (Access log) | `/caddy-logs/access.log` |
+| `REPORT_TOKEN` | optional bearer token sent to every `report` URL (Reports) | |
 
 Tick is 5 s. History is in memory: 5 s resolution for 1 h, 1 min for 24 h.
 
@@ -267,3 +269,251 @@ non-null 5 s values; the `1m` series is empty until the first minute closes.
 - `priv/static/**`, `scripts/dev-static.mjs`: frontend.
 - `lab/`, `Dockerfile`, `.dockerignore`, `deploy.sh`, `deploy/`, `priv/topology/*.exs`,
   `README.md`: lab and wiring.
+
+## Per-subdomain detail *(agreed 2026-11-19)*
+
+More of what Caddy already serves per host, and a building of its own for
+every subdomain. Same rule as everything else: unknown is `null`, never zero.
+
+**Topology.** A node may carry `style: "press"`: the name of the building the
+browser draws for it. A lowercase word (`\A[a-z][a-z0-9-]*\z`, checked at boot). It is passed
+through untouched as `"style"` on the node (`null` when absent, and on every
+node the topology does not list). The observer does not know the names; a
+name the browser does not know draws the building of the node's `kind`.
+
+**`hosts[]`** entries gain, next to `rps`, `err_rps`, `avg_ms`:
+
+```json
+{"host": "bobbby.online", "rps": 3.2, "err_rps": 0.0, "avg_ms": 8.1,
+ "codes": {"2xx": 3.0, "3xx": 0.15, "4xx": 0.05, "5xx": 0.0, "other": 0.0},
+ "in_bps": 310.0, "out_bps": 48211.5, "in_flight": 2}
+```
+
+- `codes`: req/s by status class, from
+  `caddy_http_request_duration_seconds_count{code,host}`. `"other"` is every
+  code outside 200-599 (101 upgrades, Caddy's `0`). `codes` is `null` when
+  `rps` is `null`; when Caddy is read and has never seen the host, every class
+  is `0.0`. `err_rps` stays what it was (the `5xx` class).
+- `in_bps`, `out_bps`: request and response body bytes per second, from
+  `caddy_http_request_size_bytes_sum` and `caddy_http_response_size_bytes_sum`.
+  `null` and `0.0` exactly as `rps`.
+- `in_flight`: `caddy_http_requests_in_flight{host}` summed over handlers, an
+  integer. A gauge, so it is known whenever Caddy is read, on the first scrape
+  and across a restart too (when the rates are `null`); `null` only while the
+  Caddy source fails; `0` for a host Caddy has never seen. *(backend)*
+- `codes` need not add up to `rps`: `rps` counts requests as they start
+  (`caddy_http_requests_total`), `codes` as they finish (the duration count),
+  so a long request lands in a later tick. *(backend)*
+- A duration series without a numeric `code`, or a fractional in-flight
+  value, fails the Caddy source for that tick with the offending value.
+  *(backend)*
+- As everywhere, series with `handler="metrics"` are not counted.
+
+**Edges.** Every edge has `"codes"`: on `internet>caddy` and on metered
+`caddy>node` belts it is the class rates summed over the belt's hosts (`null`
+if any part is unknown); on every other edge `null`.
+
+**History.** New series where a node has hosts (and on the proxy):
+`rps_4xx` ("4xx", req/s), `out_bps` ("Bytes out", B/s), `in_flight`
+("In flight", requests). Summed over the node's hosts; `null` if any part is
+unknown.
+
+**Facts.** A host's fact line may also say what is in flight and bytes out.
+
+**What the browser does with it** *(frontend)*. Buildings by `style`:
+`press`, `foundry`, `switchyard`, `studio`, `library`, `conservatory`,
+`observatory`, `control`, `arena`, `greenhouse`, `arcade`, `lab`, `stage`
+(`priv/static/assets/js/styles.js`). Items on a request belt are coloured by
+status class in the proportions of the belt's `codes`; a belt's rails take
+the colour of the building it feeds. Every container building carries a
+memory gauge (of its limit when it has one, marked with a red tick, else of
+the box's memory) and one crate at its dock per request in flight (at most
+eight drawn). The database's yard holds one container per fixed number of
+bytes, coloured by database; the inspector says how many bytes that is.
+
+## Access log *(agreed 2026-11-19)*
+
+Caddy's counters know hostnames, not paths. A seventh source, `access`, tails
+Caddy's JSON access log and adds what the counters cannot: path routes
+metered, the busiest paths of each node, latency percentiles, who is asking.
+
+**The file.** `ACCESS_LOG` is its path inside the observer (`/caddy-logs/access.log`);
+unset, the source fails with `ACCESS_LOG is not set`. One JSON object per
+line, as Caddy 2.10.2 writes it with the `(access)` snippet in
+`deploy/Caddyfile.access` (captured live, 2026-11-19):
+
+```json
+{"level":"info","ts":1795071671.7652287,"logger":"http.log.access.log0","msg":"handled request","request":{"proto":"HTTP/1.1","method":"GET","host":"a.test","uri":"/arena/x"},"bytes_read":0,"duration":0.000152417,"size":5,"status":200,"country":"US","ua":"Mozilla/5.0 test"}
+```
+
+`uri` has no query string (Caddy strips it before writing), there are no
+headers and no client address in the file, `country` is Cloudflare's
+`Cf-Ipcountry` (`""` without it), `ua` the User-Agent, `duration` seconds,
+`size` response bytes. A 5xx line has `"level":"error"`. Nothing else is
+written to this file's lines that the observer relies on.
+
+**Reading.** Each tick the collector reads what was appended since its last
+read. On its first read it starts at the end of the file: history is not
+replayed. A new inode, or a file shorter than the offset, is a rotation:
+reading restarts at byte 0 of the new file and whatever was left unread in
+the old one is lost (said in the source's facts, not hidden). A last line
+without a newline waits for the next tick. More than 8 MiB appended in one
+tick: the oldest excess is skipped and counted as `skipped_bytes`. A line
+that is not the object above is counted in `bad_lines` and never crashes the
+collector. A missing or unreadable file fails the source with the reason.
+The observer stores no line: only the counts below, in memory.
+
+**Whose request it is.** The node whose `via` pattern matches `host + path`
+(`*` matches anything, the longest pattern wins), else the node that lists
+the host in `hosts`, else nobody (`unrouted`, shown on the proxy).
+
+**What the snapshot gains** (every field `null` while the source fails or has
+not read twice; rates are over the tick, tables over the last 300 s):
+
+- `sources.access`, like the other six.
+- Every node: `"routes"`, at most 8 rows, busiest first:
+  `{"path": "/arena/", "count": 42, "rps": 0.14, "errors": 0, "p95_ms": 12.0}`
+  (`count`, `errors` = 5xx, over 300 s; `rps` = count / 300). Paths are cut
+  at 80 characters; a node keeps at most 200 distinct paths per window and
+  folds the rest into one row with `"path": "(other)"`. `[]` when it had no
+  requests; `null` when unknown.
+- Every node: `"latency"`: `{"p50_ms": 3.1, "p95_ms": 40.2, "p99_ms": 180.0, "count": 512}`
+  over 300 s, `null` when unknown or when `count` is 0.
+- A node with `via` gains `"via_rps"` (requests/s over the tick on its path
+  routes) and `"via_codes"` (the five classes, as on hosts).
+- A node with `via` and no `hosts`: its `caddy>node` belt is
+  `"metered": true` with `rate` = `via_rps` and `codes` = `via_codes` while
+  the source is ok, and its headline is `{"value": via_rps, "unit": "req/s"}`.
+  While the source fails the belt is as before: `metered: false`, `rate: null`.
+- A host's own belt and `rps` still come from Caddy's counters and still
+  include the path routes that ride on that host: the arena's requests are
+  on the arena's belt and inside bobbby.online's.
+- `internet` gains `"clients"`:
+  `{"classes": {"browser": 310, "bot": 122, "tool": 60, "other": 20}, "countries": [{"code": "US", "count": 300}], "window_s": 300}`,
+  at most 8 countries, `""` reported as `"??"`. `tool` is a User-Agent
+  starting `obs-factor-traffic` or `curl/` or `Wget/`; `bot` one containing
+  `bot`, `spider`, `crawl` or `slurp` (any case) or empty; `browser` one
+  starting `Mozilla/` that is neither; the rest `other`.
+- The proxy's facts say lines read, `bad_lines`, `skipped_bytes`, rotations
+  and `unrouted` requests over the window.
+- History: `p95_ms` ("p95", ms) for nodes with requests in the log; `rps`
+  for nodes with only `via`.
+
+*(backend, 2026-11-19, sharpening the above)*: a tick that saw a rotation or
+skipped bytes reports `via_rps`, `via_codes` and the belt rate as `null` (the
+count is known short) while the tables still update. After one read the
+source is ok, so a via-only belt is already `metered: true` with `rate:
+null`. A line must carry `request.host`, `request.uri`, an integer `status`,
+a numeric `duration` and string `ua` and `country`, else it is a bad line (a
+default-format Caddy line is one). A country that is not two letters or
+digits is `"??"`. Hosts match without regard to case, paths with; a pattern
+without `*` is exact. `tool` is checked before `bot`. Traffic on a path route
+counts as activity for a node's status. Percentiles come from a log-scale
+histogram, 8 buckets per octave: within 4.4% of the exact sample. A line
+longer than 1 MiB without a newline is dropped into `skipped_bytes`. Two
+rotations the tail cannot see: a file truncated and regrown past the old
+offset between two reads, and one recreated on the same inode.
+
+## Reports: what is inside a building *(agreed 2026-11-19)*
+
+Docker, Caddy and Postgres see a sub-app from outside. A **report** is what
+the sub-app says about its own inside, in one shape for every runtime, so
+the observer and the browser never learn what Phoenix is. The first reporter
+is `packages/factory_report` (Elixir: the BEAM and every LiveView). A Node
+relay or the Blimp server reports by serving the same JSON.
+
+### The report (`GET <report url>` → 200 `application/json`)
+
+```json
+{
+  "factory_report": 1,
+  "app": "blog",
+  "at": "2026-11-19T07:40:00Z",
+  "runtime": {
+    "kind": "beam",
+    "versions": {"otp": "28", "elixir": "1.19.5", "phoenix": "1.7.19", "phoenix_live_view": "1.0.3", "app": "0.1.0"},
+    "uptime_s": 12345,
+    "gauges": {"memory.total": 123456789, "process.count": 812, "run_queue": 0},
+    "counters": {"reductions": 99887766, "io.out_bytes": 123456}
+  },
+  "units": [
+    {"kind": "liveview", "name": "BlogWeb.PostLive", "route": "/post/:slug", "count": 3,
+     "gauges": {"memory": 812345, "message_queue": 0},
+     "members": [{"id": "9f2c1a", "label": "/post/the-factory-must-grow", "since": "2026-11-19T07:31:02Z",
+                  "gauges": {"memory": 301234, "message_queue": 0}, "counters": {"events": 14}}]}
+  ],
+  "streams": [
+    {"kind": "liveview.event", "name": "BlogWeb.PostLive#like", "count": 120, "errors": 0, "duration_us": 1234567},
+    {"kind": "http.route", "name": "GET /post/:slug", "count": 4410, "errors": 2, "duration_us": 98765432},
+    {"kind": "db.query", "name": "Blog.Repo", "count": 99120, "errors": 0, "duration_us": 55443322},
+    {"kind": "outbound.http", "name": "api.deepseek.com", "count": 41, "errors": 1, "duration_us": 81234567}
+  ],
+  "truncated": {"units": 0, "members": 0, "streams": 0}
+}
+```
+
+Three ideas, and nothing else:
+
+- **`runtime`**: the machine room. `gauges` are values now (`"dotted.key":
+  number`); `counters` only ever grow while the process lives. Keys are open:
+  the observer shows what it is given. A unit of measure is in the key's
+  suffix by convention: `memory.*` and `*_bytes` are bytes, the rest counts.
+- **`units`**: long-lived things that exist inside right now, grouped by
+  `kind` + `name`: a LiveView page with its live sessions as `members`, a
+  channel topic, a game room, a websocket client. `count` is how many
+  members exist; `members` lists at most 20 of them (largest first by the
+  first gauge); `gauges` on the unit are sums over all members. `label` is
+  what a person would call the member (a LiveView's path, without query).
+  `id` is opaque and stable while the member lives.
+- **`streams`**: things that happen. One row per `kind` + `name`, cumulative
+  since the process started: `count`, `errors`, and `duration_us` (the sum).
+  The observer makes rates and averages from two reads, exactly as it does
+  with Caddy's counters. `kind` is open; the ones the Elixir reporter emits
+  are `http.route`, `liveview.mount`, `liveview.event`, `liveview.params`,
+  `channel.join`, `channel.event`, `db.query`, `outbound.http`, and `custom`
+  for what an app reports itself (`FactoryReport.event("gif.rendered", ...)`).
+- Bounds are the reporter's job: at most 100 units, 20 members per unit, 300
+  streams (the busiest by `count`), names cut at 120 characters. What was
+  cut is counted in `truncated`. No request parameters, no assigns, no
+  session data, no user identifiers, no query strings: names and numbers.
+- `factory_report` is the format version. A number the observer does not
+  know fails that node's report with the number.
+- If the reporter was given a token (`FACTORY_REPORT_TOKEN`), the request
+  must carry `authorization: Bearer <token>`; otherwise 401.
+
+### The observer
+
+- Topology: a node may have `report: "http://app:9568/report"` (an http(s)
+  URL, like `probe`). `REPORT_TOKEN` (env) is sent as the bearer token to
+  every report URL when set.
+- An eighth source, `reports`: every tick, each report URL is read (2 s
+  timeout, in parallel). The source is ok when the round ran; one node's
+  failure is that node's, not the source's.
+- Each node gains `"inside"`: `null` when it has no `report` URL, else
+
+```json
+{"ok": true, "error": null, "at": "2026-11-19T07:40:00Z",
+ "runtime": {"kind": "beam", "versions": {}, "uptime_s": 12345,
+             "gauges": {"memory.total": 123456789},
+             "rates": {"reductions": 51234.5}},
+ "units": [ ...as reported... ],
+ "streams": [{"kind": "http.route", "name": "GET /post/:slug", "count": 4410,
+              "rate": 1.2, "err_rate": 0.0, "avg_ms": 22.4}],
+ "truncated": {"units": 0, "members": 0, "streams": 0}}
+```
+
+  `rates` (per second, one per counter), `rate`, `err_rate` and `avg_ms` are
+  `null` until two reads of the same process exist; a smaller `uptime_s` or
+  any counter going backwards is a restart and nulls that tick's rates.
+  `avg_ms` is `null` when nothing happened in the tick. Streams are ordered
+  busiest first by `rate` (then `count`) and cut at 40. When the read fails:
+  `{"ok": false, "error": "...", "at": <last good or null>}` and every other
+  key `null`.
+- A node whose report fails gets an `attention` entry, severity `warn`
+  (`"Phoenix blog report failing: connection refused"`). It does not change
+  the node's status: the app may be fine and merely not reporting.
+- These four series live in the 1 h store only (`res=5s`); they are never
+  written to the 24 h store. *(2026-11-19)*
+- History, per node with a report: `beam_memory` (`memory.total`), 
+  `process_count` (`process.count`), `run_queue`, and `units` (the sum of
+  unit counts), where those gauges exist.

@@ -1,0 +1,39 @@
+{
+  "sites": [
+    {
+      "id": "blimp-blog", "label": "Blimp blog", "host": "bobbby.online", "scheme": "https",
+      "paths": [
+        { "path": "/", "weight": 5, "kind": "page", "note": "homepage" },
+        { "path": "/posts", "weight": 3, "kind": "page" },
+        { "path": "/app.css", "weight": 1, "kind": "asset" },
+        { "path": "/api/health", "weight": 1, "kind": "api" },
+        { "path": "/nope-404", "weight": 1, "kind": "notfound" },
+        { "path": "/dtree-ai/listed-by-mistake", "weight": 1, "kind": "api" }
+      ],
+      "avoid": [
+        { "pattern": "/dtree-ai/*", "why": "calls a paid LLM API" },
+        { "pattern": "/admin", "why": "login" }
+      ]
+    },
+    {
+      "id": "blimp-blog", "label": "Blimp blog", "host": "www.bobbby.online", "scheme": "https",
+      "paths": [ { "path": "/", "weight": 1, "kind": "redirect" } ],
+      "avoid": []
+    },
+    {
+      "id": "soldat", "label": "Soldat arena", "host": "bobbby.online", "scheme": "https",
+      "paths": [ { "path": "/arena/", "weight": 2, "kind": "page" }, { "path": "/arena/match/1", "weight": 1, "kind": "page" } ],
+      "avoid": [ { "pattern": "/arena/admin*", "why": "writes state" } ]
+    },
+    {
+      "id": "blinks", "label": "Links", "host": "links.bobbby.online", "scheme": "https",
+      "paths": [ { "path": "/", "weight": 1, "kind": "page" }, { "path": "/health", "weight": 1, "kind": "api" } ],
+      "avoid": []
+    },
+    {
+      "id": "deciduous-docs", "label": "Docs", "host": "deciduous.dev", "scheme": "https",
+      "paths": [ { "path": "/", "weight": 1, "kind": "page" } ],
+      "avoid": []
+    }
+  ]
+}
