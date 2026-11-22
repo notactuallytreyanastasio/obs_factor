@@ -26,7 +26,7 @@ defmodule ObsFactor.Sites do
           |> Enum.filter(fn {_, path} ->
             match?({:ok, %File.Stat{type: :directory}}, File.lstat(path))
           end)
-          |> Map.new(fn {name, path} -> {name, walk(path)} end)
+          |> Map.new(fn {name, path} -> {name, walk_site(path)} end)
 
         {:ok, sites, state}
 
@@ -35,7 +35,18 @@ defmodule ObsFactor.Sites do
     end
   end
 
-  @doc "`%{bytes, files, newest_mtime}` for one directory tree."
+  # One unreadable site must not blind the other ten (on the box /opt/gaming
+  # is mode 700 and the observer runs as nobody). The site keeps its entry,
+  # with every number nil and the error named, so its building reads
+  # "unknown" with the reason instead of the whole source failing.
+  defp walk_site(path) do
+    walk(path)
+  rescue
+    e in File.Error ->
+      %{bytes: nil, files: nil, newest_mtime: nil, error: Exception.message(e)}
+  end
+
+  @doc "`%{bytes, files, newest_mtime}` for one directory tree. Raises `File.Error`."
   def walk(path) do
     acc = do_walk(path, %{bytes: 0, files: 0, newest: nil})
 
