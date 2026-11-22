@@ -68,6 +68,24 @@ defmodule ObsFactor.SnapshotTest do
     assert %{kind: "unplaced"} = node!(s, "aaa-other-db-1")
   end
 
+  test "a scaled service is one node: the other replicas are listed on it, not unplaced", %{topology: t} do
+    docker = Fixtures.docker()
+    m1 = Enum.find(docker.containers, &(&1.name == "blog-marginalia-1"))
+    m2 = %{m1 | id: "m2", name: "blog-marginalia-2", mem_bytes: 2_000_000}
+    m3 = %{m1 | id: "m3", name: "blog-marginalia-3", state: "restarting"}
+
+    sources = Fixtures.sources(%{docker: Fixtures.ok(%{docker | containers: [m3, m2 | docker.containers]})})
+    {s, _} = Snapshot.build(t, sources, Snapshot.empty_memory(), Fixtures.now())
+
+    m = node!(s, "marginalia")
+    assert m.container.name == "blog-marginalia-1"
+
+    assert [%{name: "blog-marginalia-2", state: "running", mem_bytes: 2_000_000}, %{name: "blog-marginalia-3", state: "restarting"}] =
+             m.container.replicas
+
+    refute Enum.any?(s.nodes, &(&1.id in ["blog-marginalia-2", "blog-marginalia-3"]))
+  end
+
   test "a listed service with no container is down", %{snapshot: s} do
     g = node!(s, "ghost")
     assert g.status == "down"
@@ -801,7 +819,9 @@ defmodule ObsFactor.SnapshotTest do
                  }
                ],
                "events" => [],
-               "truncated" => %{"units" => 0, "members" => 0, "streams" => 0}
+               "truncated" => %{"units" => 0, "members" => 0, "streams" => 0},
+               "cluster" => nil,
+               "members" => nil
              }
     end
 
@@ -1025,7 +1045,9 @@ defmodule ObsFactor.SnapshotTest do
                units: nil,
                streams: nil,
                events: nil,
-               truncated: nil
+               truncated: nil,
+               cluster: nil,
+               members: nil
              }
 
       assert {app.status, app.reason} == {node!(ok, "app").status, node!(ok, "app").reason}
@@ -1071,7 +1093,9 @@ defmodule ObsFactor.SnapshotTest do
                units: nil,
                streams: nil,
                events: nil,
-               truncated: nil
+               truncated: nil,
+               cluster: nil,
+               members: nil
              }
 
       assert %{

@@ -93,7 +93,7 @@ defmodule FactoryReportTest do
       assert report["truncated"] == %{"units" => 0, "members" => 0, "streams" => 0}
 
       assert Enum.sort(Map.keys(report)) ==
-               ~w(app at events factory_report runtime streams truncated units)
+               ~w(app at cluster events factory_report runtime streams truncated units)
 
       decoded = report |> Jason.encode!() |> Jason.decode!()
       assert decoded == report
@@ -106,6 +106,45 @@ defmodule FactoryReportTest do
 
     test "start_link refuses to start without an app" do
       assert_raise ArgumentError, ~r/app:/, fn -> FactoryReport.start_link(port: false) end
+    end
+  end
+
+  describe "cluster" do
+    test "a node that is not distributed says so and lists nobody" do
+      start()
+
+      if Node.alive?() do
+        :ok
+      else
+        assert %{"node" => "nonode@nohost", "distributed" => false, "connections" => [], "globals" => []} =
+                 FactoryReport.report()["cluster"]
+      end
+    end
+
+    # A real second node: :peer starts one, connects it, and the section
+    # must list the connection with byte counts and a global name it holds.
+    @tag :distributed
+    test "a connected node is listed with its traffic, and globals say where they live" do
+      start()
+
+      unless Node.alive?() do
+        {:ok, _} = Node.start(:"factory_report_test@127.0.0.1", :longnames)
+      end
+
+      {:ok, peer, other} = :peer.start_link(%{name: :peer.random_name(), host: ~c"127.0.0.1", longnames: true})
+      on_exit(fn -> catch_exit(:peer.stop(peer)) end)
+      true = Node.connect(other)
+      :yes = :erpc.call(other, :global, :register_name, [:fr_test_global, :erpc.call(other, :erlang, :whereis, [:init])])
+      :global.sync()
+
+      cluster = FactoryReport.report()["cluster"]
+      assert cluster["distributed"]
+      assert %{"kind" => "visible", "in_bytes" => i, "out_bytes" => o, "send_queue_bytes" => q} =
+               Enum.find(cluster["connections"], &(&1["node"] == to_string(other)))
+
+      assert i > 0 and o > 0 and q >= 0
+      assert %{"node" => node} = Enum.find(cluster["globals"], &(&1["name"] == ":fr_test_global"))
+      assert node == to_string(other)
     end
   end
 

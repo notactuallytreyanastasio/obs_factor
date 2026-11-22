@@ -536,8 +536,9 @@ export function drawBuilding(ctx, b, s) {
     case "unplaced": return unplaced(ctx, b, s);
     case "construction": return construction(ctx, b, s);
     case "resource":
-      if (n.id === "host-cpu") return cpu(ctx, b, s);
-      if (n.id === "host-mem") return mem(ctx, b, s);
+      // n.resource on a cluster's per-node rooms; the floor's own by id
+      if ((n.resource ?? n.id) === "cpu" || n.id === "host-cpu") return cpu(ctx, b, s);
+      if ((n.resource ?? n.id) === "mem" || n.id === "host-mem") return mem(ctx, b, s);
       return disk(ctx, b, s);
     default:
       // A kind this page does not know: draw a bare marked crate so it is
@@ -553,7 +554,7 @@ export function chimneys(b) {
   if (styleOf(b.node)) return styleChimneys(b);
   switch (b.node.kind) {
     case "app": return [P(x + 0.7, y + 0.35, 2.45)];
-    case "resource": return b.node.id === "host-cpu" ? [P(x + 0.6, y + 0.55, 2.7), P(x + 1.25, y + 0.45, 2.3)] : [];
+    case "resource": return b.node.id === "host-cpu" || b.node.resource === "cpu" ? [P(x + 0.6, y + 0.55, 2.7), P(x + 1.25, y + 0.45, 2.3)] : [];
     default: return [];
   }
 }
