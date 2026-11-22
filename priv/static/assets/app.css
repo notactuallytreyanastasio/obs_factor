@@ -34,7 +34,11 @@ body {
 body.factory { overflow: hidden; overscroll-behavior: none; }
 button { font: inherit; color: inherit; }
 
-#stars, #floor { position: fixed; inset: 0; display: block; }
+#stars, #under, #floor { position: fixed; inset: 0; display: block; }
+/* the floor a building stands on, drawn faint under its inside */
+#under { pointer-events: none; opacity: 0; transition: opacity 0.5s ease; }
+#under.on { opacity: 0.25; }
+@media (prefers-reduced-motion: reduce) { #under { transition: none; } }
 #floor { touch-action: none; cursor: grab; }
 #floor.dragging { cursor: grabbing; }
 #floor.pointing { cursor: pointer; }

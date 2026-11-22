@@ -14,6 +14,10 @@ import { LogExplorer } from "./logs.js";
 const $ = (id) => document.getElementById(id);
 const canvas = $("floor");
 const scene = new Scene(canvas);
+// While inside a building, the floor it stands on stays drawn underneath,
+// faint, on a canvas of its own (#under, pointer-events: none).
+const under = new Scene($("under"));
+let underBase = null; // {outer, inner}: the two cameras the layers were lined up at
 const chips = new Chips($("labels"));
 const topbar = new TopBar();
 const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -53,6 +57,8 @@ function freeArea() {
 
 function resize() {
   scene.resize(window.innerWidth, window.innerHeight);
+  under.resize(window.innerWidth, window.innerHeight);
+  if (under.setTall(window.innerWidth / window.innerHeight < 0.85) && insideOf) lineUpUnder();
   if (scene.setTall(window.innerWidth / window.innerHeight < 0.85)) {
     chips.update(snap);
     renderAttention(snap, scene.problems, (id) => select(id, true), () => toggleLegend(true));
@@ -171,9 +177,11 @@ function showView() {
     insideOf = null; inspectOuter = false;
     $("insidebar").hidden = true; document.body.classList.remove("inside");
     scene.theme = null;
+    hideUnder();
     console.error(`obs_factor: left the inside view, ${why}`);
   }
   snap = insideOf ? interiorSnapshot(outerSnap, node) : outerSnap;
+  if (insideOf) under.setSnapshot(outerSnap);
   const changed = scene.setSnapshot(snap);
   chips.update(snap);
   topbar.snapshot(outerSnap);
@@ -203,6 +211,8 @@ function enter(id) {
     $("insidebar").hidden = false;
     showView();
     scene.fit(freeArea());
+    lineUpUnder();
+    $("under").classList.add("on");
     if (scene.motion) { const to = { ...scene.cam }; scene.cam.z = clampZoom(to.z * 0.3); startFly(to, 520); }
     dirty = true;
   };
@@ -210,6 +220,34 @@ function enter(id) {
   const f = freeArea();
   const z = 2.6;
   startFly({ z, x: c[0] - (f.x + f.w / 2 - scene.view.w / 2) / z, y: c[1] - (f.y + f.h / 2 - scene.view.h / 2) / z }, 420, swap);
+}
+
+// The floor below is fitted the way the overview is, with the building we
+// are in ringed, and pinned to the inside as if both were one plane: panning
+// or zooming the inside moves the floor with it. Cameras map
+// screen = (world - cam) * z + view/2, so with k = inner.z / outer.z the
+// floor's camera is outer + (inner camera - inner) * k, at zoom z / k.
+function lineUpUnder() {
+  under.setSnapshot(outerSnap);
+  under.fit(freeArea());
+  under.selected = insideOf;
+  underBase = { outer: { ...under.cam }, inner: { ...scene.cam } };
+}
+
+function followUnder() {
+  const { outer, inner } = underBase;
+  const k = inner.z / outer.z;
+  under.cam.z = scene.cam.z / k;
+  under.cam.x = outer.x + (scene.cam.x - inner.x) * k;
+  under.cam.y = outer.y + (scene.cam.y - inner.y) * k;
+}
+
+function hideUnder() {
+  underBase = null;
+  under.selected = null;
+  $("under").classList.remove("on");
+  const c = $("under");
+  c.getContext("2d").clearRect(0, 0, c.width, c.height);
 }
 
 function leave() {
@@ -221,6 +259,7 @@ function leave() {
   scene.theme = null;
   document.body.classList.remove("inside");
   $("insidebar").hidden = true;
+  hideUnder();
   showView();
   scene.fit(freeArea());
   const c = scene.nodeCenter(id);
@@ -479,7 +518,7 @@ connect({
 
 let lastCam = "";
 const stats = { frames: 0, ms: 0, worst: 0 };
-window.__obsFactor = { stats, scene, tour, beam, logs };
+window.__obsFactor = { stats, scene, under, tour, beam, logs };
 
 function frame(now) {
   requestAnimationFrame(frame);
@@ -488,6 +527,7 @@ function frame(now) {
   const animate = scene.motion && snap;
   if (!animate && !dirty) return;
   const t0 = performance.now();
+  if (underBase) { followUnder(); under.motion = scene.motion; under.draw(now); }
   scene.draw(now);
   const camKey = `${scene.cam.x.toFixed(2)},${scene.cam.y.toFixed(2)},${scene.cam.z.toFixed(4)},${scene.selected},${snap ? snap.at : ""}`;
   if (camKey !== lastCam || dirty) {
