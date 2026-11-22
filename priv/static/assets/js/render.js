@@ -6,7 +6,8 @@ import { drawBuilding, drawFittings, drawPad, drawPadRing, drawLamp, chimneys, h
 import { layout, routeBelts, topoKey, FOOT } from "./layout.js";
 import { isNum } from "./fmt.js";
 
-export const ITEM_COLOR = { requests: "#ffd166", commits: "#4cc9f0", prompts: "#f472b6" };
+// "dist": bytes between the nodes of a cluster (inside.js, clusterRooms)
+export const ITEM_COLOR = { requests: "#ffd166", commits: "#4cc9f0", prompts: "#f472b6", dist: "#b69cff" };
 const EXTRA = ["#90be6d", "#f9844a", "#b388ff", "#43aa8b", "#f94144"];
 export const CPU_COLOR = "#ff7a45";
 export const MEM_COLOR = "#7c8cff";
@@ -217,7 +218,8 @@ export class Scene {
     const tn = st === "unknown" ? tone("muted") : st === "down" ? tone("charred") : tone();
     let load = 0;
     const host = this.snap.host;
-    if (n.id === "host-cpu") load = isNum(host.cpu_used_cores) && host.cores ? host.cpu_used_cores / host.cores : 0;
+    if (n.load !== undefined) load = isNum(n.load) ? Math.max(0, Math.min(1, n.load)) : 0;
+    else if (n.id === "host-cpu") load = isNum(host.cpu_used_cores) && host.cores ? host.cpu_used_cores / host.cores : 0;
     else if (n.id === "host-mem") load = isNum(host.mem_used_bytes) && host.mem_total_bytes ? host.mem_used_bytes / host.mem_total_bytes : 0;
     else if (n.id === "host-disk") load = isNum(host.disk_used_bytes) && host.disk_total_bytes ? host.disk_used_bytes / host.disk_total_bytes : 0;
     else if (n.container && isNum(n.container.cpu_cores)) load = Math.min(1, n.container.cpu_cores);

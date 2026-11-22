@@ -25,7 +25,9 @@ export function bytes(b) {
   let i = 0, v = b;
   while (Math.abs(v) >= 1000 && i < u.length - 1) { v /= 1024; i++; }
   const s = i === 0 ? String(Math.round(v)) : v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2);
-  return `${s.replace(/\.?0+$/, "") || "0"} ${u[i]}`;
+  // trailing zeros of a fraction only: "100" stays 100 (it read "1 MB"
+  // for 100 MB, "12 MB" for 120 MB, until 2026-11-22)
+  return `${s.includes(".") ? s.replace(/\.?0+$/, "") : s} ${u[i]}`;
 }
 
 export function bps(b) { return isNum(b) ? `${bytes(b)}/s` : UNKNOWN; }

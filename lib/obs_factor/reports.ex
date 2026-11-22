@@ -34,6 +34,15 @@ defmodule ObsFactor.Reports do
 
   Rates are over the observer's clock, between the two moments the answers
   arrived.
+
+  ## Replicas: one report per node
+
+  A report URL whose host resolves to several addresses (a compose service
+  scaled to three) is read at every address, and each is remembered on its
+  own: counters from three nodes compared with each other would be three
+  restarts a tick. The node's data is then the first answering member's
+  (by address), plus `members`: every member's data with its `address`.
+  One address, or a name that does not resolve, is read as before.
   """
 
   @behaviour ObsFactor.Collector
@@ -50,6 +59,8 @@ defmodule ObsFactor.Reports do
   @max_string 120
   @max_events 50
   @max_message 300
+  @max_connections 64
+  @max_globals 50
 
   @impl true
   def name, do: :reports
@@ -63,10 +74,13 @@ defmodule ObsFactor.Reports do
   def collect(%{targets: targets, token: token} = state) do
     started = System.system_time(:millisecond)
 
-    {data, nodes} =
-      targets
+    # {id, address or nil, url}: one per replica of a scaled service
+    reads = Enum.flat_map(targets, fn {id, url} -> Enum.map(expand(url), fn {addr, u} -> {id, addr, u} end) end)
+
+    {per_read, nodes} =
+      reads
       |> Task.async_stream(
-        fn {_id, url} ->
+        fn {_id, _addr, url} ->
           result = fetch(url, token)
           {result, System.system_time(:millisecond)}
         end,
@@ -75,19 +89,116 @@ defmodule ObsFactor.Reports do
         on_timeout: :kill_task,
         ordered: true
       )
-      |> Enum.zip(targets)
-      |> Enum.reduce({%{}, state.nodes}, fn {outcome, {id, _url}}, {data, nodes} ->
+      |> Enum.zip(reads)
+      |> Enum.reduce({[], %{}}, fn {outcome, {id, addr, _url}}, {acc, nodes} ->
         {result, at_ms} =
           case outcome do
             {:ok, pair} -> pair
             {:exit, _} -> {{:error, "timed out"}, started}
           end
 
-        {node_data, node_state} = step(Map.get(nodes, id, new_node()), result, at_ms)
-        {Map.put(data, id, node_data), Map.put(nodes, id, node_state)}
+        key = if addr, do: {id, addr}, else: id
+        {node_data, node_state} = step(Map.get(state.nodes, key, new_node()), result, at_ms)
+        {[{id, addr, node_data} | acc], Map.put(nodes, key, node_state)}
       end)
 
+    data =
+      per_read
+      |> Enum.reverse()
+      |> Enum.group_by(&elem(&1, 0), fn {_, addr, d} -> {addr, d} end)
+      |> Map.new(fn
+        {id, [{nil, d}]} -> {id, d}
+        {id, members} -> {id, combine(members)}
+      end)
+
+    # Members that went away (scaled down) are forgotten with their node state.
     {:ok, data, %{state | nodes: nodes}}
+  end
+
+  # The first member that answered, by address, stands for the node; all of
+  # them are listed. What each node counts is its own share (its sockets,
+  # its requests), so units, streams and events are the sum over the members
+  # that answered; runtime and cluster stay per member. None answered: the
+  # first one's error.
+  @doc false
+  def combine(members) do
+    members = Enum.sort_by(members, fn {addr, _} -> addr_sort(addr) end)
+    listed = Enum.map(members, fn {addr, d} -> Map.put(d, :address, addr) end)
+    {_, lead} = Enum.find(members, hd(members), fn {_, d} -> d.ok end)
+    ok = for {_, d} <- members, d.ok, do: d
+
+    lead =
+      if length(ok) > 1 do
+        %{lead | units: sum_units(ok), streams: sum_streams(ok), events: newest_events(ok)}
+      else
+        lead
+      end
+
+    Map.put(lead, :members, listed)
+  end
+
+  defp sum_units(datas) do
+    datas
+    |> Enum.flat_map(& &1.units)
+    |> Enum.group_by(&{&1.kind, &1.name})
+    |> Enum.map(fn {_, [u | _] = us} ->
+      %{u | count: us |> Enum.map(& &1.count) |> Enum.sum(), members: us |> Enum.flat_map(& &1.members) |> Enum.take(@max_members)}
+    end)
+    |> Enum.sort_by(&{-&1.count, &1.kind, &1.name})
+    |> Enum.take(@max_units)
+  end
+
+  # A rate is known only if every node's is; the average duration is the
+  # members' averages weighted by their rates.
+  defp sum_streams(datas) do
+    datas
+    |> Enum.flat_map(& &1.streams)
+    |> Enum.group_by(&identity/1)
+    |> Enum.map(fn {_, [s | _] = ss} ->
+      add = fn key -> if Enum.any?(ss, &is_nil(&1[key])), do: nil, else: ss |> Enum.map(& &1[key]) |> Enum.sum() end
+      rate = add.(:rate)
+      timed = Enum.filter(ss, &(is_number(&1.avg_ms) and is_number(&1.rate) and &1.rate > 0))
+      weight = timed |> Enum.map(& &1.rate) |> Enum.sum()
+      avg = if weight > 0, do: Enum.reduce(timed, 0, &(&1.avg_ms * &1.rate + &2)) / weight
+
+      %{s | count: ss |> Enum.map(& &1.count) |> Enum.sum(), rate: rate, err_rate: add.(:err_rate), avg_ms: avg}
+    end)
+  end
+
+  defp newest_events(datas) do
+    datas
+    |> Enum.flat_map(& &1.events)
+    |> Enum.sort_by(&(&1[:at] || ""), :desc)
+    |> Enum.take(@max_events)
+  end
+
+  defp addr_sort(addr) do
+    case :inet.parse_address(String.to_charlist(addr)) do
+      {:ok, tuple} -> tuple
+      _ -> addr
+    end
+  end
+
+  @doc """
+  The URLs to read for one report URL: `[{nil, url}]` when its host is one
+  address (or an address, or does not resolve: then the read fails with
+  the usual error), else `[{address, url with the host replaced}]`.
+  """
+  def expand(url) do
+    uri = URI.parse(url)
+
+    with host when is_binary(host) <- uri.host,
+         {:error, _} <- :inet.parse_address(String.to_charlist(host)),
+         {:ok, addrs} when length(addrs) > 1 <- :inet.getaddrs(String.to_charlist(host), :inet) do
+      addrs
+      |> Enum.uniq()
+      |> Enum.map(fn a ->
+        ip = a |> :inet.ntoa() |> to_string()
+        {ip, URI.to_string(%{uri | host: ip})}
+      end)
+    else
+      _ -> [{nil, url}]
+    end
   end
 
   @doc "GETs one report URL: `{:ok, reading}` or `{:error, reason}`."
@@ -126,7 +237,8 @@ defmodule ObsFactor.Reports do
       units: reading.units,
       streams: rates.streams,
       events: reading.events,
-      truncated: reading.truncated
+      truncated: reading.truncated,
+      cluster: cluster_rates(node_state.prev, reading, rates.restart)
     }
 
     {data, %{node_state | prev: reading, last_ok: at}}
@@ -211,6 +323,29 @@ defmodule ObsFactor.Reports do
           p -> s.count < p.count or s.errors < p.errors or s.duration_us < p.duration_us
         end
       end)
+  end
+
+  # Bytes per second on each connection, between two reads of the same node
+  # (a connection that is new since the last read has no rate yet).
+  defp cluster_rates(_prev, %{cluster: nil}, _restart), do: nil
+
+  defp cluster_rates(prev, %{cluster: c} = cur, restart) do
+    before = if prev && prev[:cluster] && !restart, do: Map.new(prev.cluster.connections, &{&1.node, &1}), else: %{}
+    dt_s = if prev, do: (cur.at_ms - prev.at_ms) / 1000, else: 0
+
+    connections =
+      Enum.map(c.connections, fn conn ->
+        p = before[conn.node]
+
+        rate = fn key ->
+          if p && dt_s > 0 && is_number(conn[key]) && is_number(p[key]) && conn[key] >= p[key],
+            do: (conn[key] - p[key]) / dt_s
+        end
+
+        Map.merge(conn, %{in_bps: rate.(:in_bytes), out_bps: rate.(:out_bytes)})
+      end)
+
+    %{c | connections: connections}
   end
 
   defp unknown(cur, restart) do
@@ -309,6 +444,7 @@ defmodule ObsFactor.Reports do
       |> Enum.map(fn {e, i} -> event!(e, "events[#{i}]") end)
 
     truncated = optional_object!(doc["truncated"], "truncated")
+    cluster = cluster!(doc["cluster"])
 
     %{
       app: optional_string!(doc, "app", "app"),
@@ -323,6 +459,7 @@ defmodule ObsFactor.Reports do
       units: units,
       streams: streams,
       events: events,
+      cluster: cluster,
       truncated: %{
         units: optional_count!(truncated, "units", "truncated.units") + length(cut_units),
         members: optional_count!(truncated, "members", "truncated.members") + cut_members,
@@ -332,6 +469,47 @@ defmodule ObsFactor.Reports do
   end
 
   defp validate!(_other), do: fail("report is not a JSON object")
+
+  # Optional: reporters before the cluster section have none.
+  defp cluster!(nil), do: nil
+
+  defp cluster!(c) when is_map(c) do
+    %{
+      node: string!(c, "node", "cluster.node"),
+      distributed: c["distributed"] == true,
+      connections:
+        c["connections"]
+        |> list!("cluster.connections")
+        |> Enum.take(@max_connections)
+        |> Enum.with_index()
+        |> Enum.map(fn {conn, i} ->
+          where = "cluster.connections[#{i}]"
+          conn = object!(conn, where)
+
+          %{
+            node: string!(conn, "node", "#{where}.node"),
+            kind: optional_string!(conn, "kind", "#{where}.kind"),
+            in_bytes: optional_number(conn["in_bytes"]),
+            out_bytes: optional_number(conn["out_bytes"]),
+            send_queue_bytes: optional_number(conn["send_queue_bytes"])
+          }
+        end),
+      globals:
+        c["globals"]
+        |> list!("cluster.globals")
+        |> Enum.take(@max_globals)
+        |> Enum.with_index()
+        |> Enum.map(fn {g, i} ->
+          g = object!(g, "cluster.globals[#{i}]")
+          %{name: string!(g, "name", "cluster.globals[#{i}].name"), node: string!(g, "node", "cluster.globals[#{i}].node")}
+        end)
+    }
+  end
+
+  defp cluster!(_other), do: fail("cluster is not an object")
+
+  defp optional_number(n) when is_number(n) and n >= 0, do: n
+  defp optional_number(_), do: nil
 
   defp unit!(unit, where) when is_map(unit) do
     {members, cut} = unit["members"] |> list!("#{where}.members") |> Enum.split(@max_members)

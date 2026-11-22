@@ -14,6 +14,10 @@
 //   stream db.query       -> a store per repo, fed from the hub
 //   stream outbound.http  -> an outside service per host, fed from the hub
 //   anything else         -> a small station of its own, fed from the hub
+//   members (a cluster)   -> a machine room per BEAM node, a "distribution"
+//                            building in each, belts between them carrying
+//                            each connection's bytes/s, and every :global
+//                            name as a landmark on the node that holds it
 //
 // The hub ("Endpoint") stands for "somewhere inside": a report says how
 // often the database is queried, not which page asked.
@@ -209,7 +213,11 @@ export function interiorSnapshot(outer, node) {
   };
   const memParts = Object.entries(g).filter(([k, v]) => k.startsWith("memory.") && k !== "memory.total" && isNum(v)).sort((a, b) => b[1] - a[1]);
   const gaugeFacts = (pick) => Object.entries(g).filter(([k]) => pick(k)).map(([k, v]) => ({ label: k, value: String(v) }));
-  nodes.push(
+  const members = (r.members ?? []).filter(Boolean);
+  const attention = [];
+  if (members.length > 1) {
+    clusterRooms(members, node, outer, blank, nodes, edges, attention);
+  } else nodes.push(
     blank({
       id: "host-cpu", label: "Schedulers", kind: "resource", platform: "host", pos: null,
       status: util == null ? "unknown" : "working", reason: util == null ? "scheduler use not reported yet" : null,
@@ -238,13 +246,113 @@ export function interiorSnapshot(outer, node) {
     { id: "work", label: "routes and jobs" },
     { id: "stores", label: "stores and outside" },
     { id: "host", label: `${kind} machine room` },
+    ...members.map((m, i) => ({ id: `node${i}`, label: m.cluster?.node ?? m.address })),
   ].filter((p) => nodes.some((n) => n.platform === p.id));
+  if (cut > 0) attention.push({ node: null, severity: "warn", text: `the report was cut: ${t.units ?? 0} units, ${t.members ?? 0} members, ${t.streams ?? 0} streams left out` });
 
   return {
     interior: { of: node.id, label: node.label, kind, versions: rt.versions ?? {}, uptime_s: rt.uptime_s ?? null, events },
     at: outer.at, tick_ms: outer.tick_ms,
     sources: { report: { ok: true, at: r.at, error: null } },
     host, platforms, nodes, edges,
-    attention: cut > 0 ? [{ node: null, severity: "warn", text: `the report was cut: ${t.units ?? 0} units, ${t.members ?? 0} members, ${t.streams ?? 0} streams left out` }] : [],
+    attention,
   };
+}
+
+// A machine room per node of a cluster. Each member's report is that node's
+// own view: its gauges, and the connections it has. A connection one side
+// lists and the other does not is a partial partition, said in attention
+// and drawn as a down belt; a member whose report failed is a dark room.
+function clusterRooms(members, node, outer, blank, nodes, edges, attention) {
+  const byName = new Map(members.map((m, i) => [m.cluster?.node, i]).filter(([k]) => k));
+  const shortName = (name) => String(name ?? "?").replace(/^[^@]*@/, "@");
+  const limit = node.container?.mem_limit_bytes ?? outer.host?.mem_total_bytes ?? null;
+
+  members.forEach((m, i) => {
+    const plat = `node${i}`;
+    const g = m.runtime?.gauges ?? {};
+    const num = (k) => (isNum(g[k]) ? g[k] : null);
+    const cores = num("schedulers.online"), util = num("scheduler.utilization");
+    const mem = num("memory.total"), procs = num("process.count"), plimit = num("process.limit");
+    const dark = !m.ok;
+    const why = dark ? `report failing: ${m.error ?? "no answer"}` : null;
+    nodes.push(
+      blank({
+        id: `${plat}:cpu`, label: "Schedulers", kind: "resource", resource: "cpu", platform: plat, pos: [0, 0],
+        status: dark || util == null ? "unknown" : "working", reason: why ?? (util == null ? "scheduler use not reported yet" : null),
+        load: util, headline: { value: util == null ? null : round(util * 100, 1), unit: `% of ${cores ?? "?"}` },
+        facts: Object.entries(m.runtime?.rates ?? {}).map(([k, v]) => ({ label: `${k} /s`, value: v == null ? null : String(v) })),
+      }),
+      blank({
+        id: `${plat}:mem`, label: "Memory", kind: "resource", resource: "mem", platform: plat, pos: [1, 0],
+        status: dark || mem == null ? "unknown" : "working", reason: why,
+        load: mem != null && limit ? mem / limit : null, headline: { value: mem, unit: "B" },
+        holds: Object.entries(g).filter(([k, v]) => k.startsWith("memory.") && k !== "memory.total" && isNum(v)).map(([k, v]) => ({ label: k.slice(7), bytes: v })),
+      }),
+      blank({
+        id: `${plat}:procs`, label: "Processes", kind: "resource", resource: "procs", platform: plat, pos: [2, 0],
+        status: dark || procs == null ? "unknown" : "working", reason: why,
+        load: procs != null && plimit ? procs / plimit : null, headline: { value: procs, unit: "processes" },
+      }),
+    );
+
+    const conns = m.cluster?.connections ?? [];
+    const outBps = conns.reduce((a, c) => (isNum(c.out_bps) ? a + c.out_bps : a), 0);
+    nodes.push(blank({
+      id: `${plat}:dist`, label: "Distribution", kind: "relay", platform: plat, pos: [0, 1],
+      status: dark ? "unknown" : conns.length ? "working" : "idle",
+      reason: why ?? (m.cluster && !m.cluster.distributed ? "not distributed: started without a node name" : null),
+      headline: { value: dark ? null : conns.length, unit: conns.length === 1 ? "connection" : "connections" },
+      facts: [
+        { label: "node", value: m.cluster?.node ?? null },
+        { label: "address", value: m.address },
+        { label: "sending", value: dark ? null : `${round(outBps, 0)} B/s` },
+        ...conns.map((c) => ({ label: shortName(c.node), value: `${c.kind}${isNum(c.send_queue_bytes) && c.send_queue_bytes > 0 ? `, ${c.send_queue_bytes} B queued` : ""}` })),
+      ],
+    }));
+
+    // what this node can see the other ends of
+    for (const c of conns) {
+      const j = byName.get(c.node);
+      if (j == null) continue; // a hidden node or one outside this service (an observer, a remote shell)
+      const back = (members[j].cluster?.connections ?? []).some((x) => x.node === m.cluster?.node);
+      if (members[j].ok && !back) {
+        attention.push({ node: `${plat}:dist`, severity: "alert", text: `${m.cluster.node} lists ${c.node}, which does not list it back: a partial partition` });
+      }
+      edges.push({
+        id: `${plat}:dist>node${j}:dist`, from: `${plat}:dist`, to: `node${j}:dist`, item: "dist",
+        rate: isNum(c.out_bps) ? round(c.out_bps, 1) : null, unit: "B/s", metered: true, label: null, codes: null,
+        status: members[j].ok && !back ? "down" : undefined,
+      });
+    }
+    // a member that should see the others and does not
+    if (!dark && m.cluster) {
+      for (const [name, j] of byName) {
+        if (j !== i && members[j].ok && !conns.some((c) => c.node === name)) {
+          attention.push({ node: `${plat}:dist`, severity: "alert", text: `${m.cluster.node} is not connected to ${name}` });
+        }
+      }
+    }
+  });
+
+  // :global names, each on the node it lives on. Taken from every member's
+  // view: two nodes disagreeing about where a name lives is said, too.
+  const where = new Map();
+  for (const m of members) for (const gl of m.cluster?.globals ?? []) {
+    if (!where.has(gl.name)) where.set(gl.name, new Set());
+    where.get(gl.name).add(gl.node);
+  }
+  let k = 0;
+  for (const [name, at] of [...where].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const homes = [...at];
+    if (homes.length > 1) attention.push({ node: null, severity: "alert", text: `the nodes disagree where ${name} lives: ${homes.join(", ")}` });
+    const j = byName.get(homes[0]);
+    if (j == null) continue;
+    const slot = 1 + (k++ % 2);
+    nodes.push(blank({
+      id: `node${j}:g:${name}`, label: `★ ${name.replace(/^Elixir\./, "").split(".").slice(-2).join(".")}`, kind: "app", platform: `node${j}`,
+      pos: [slot, 1 + Math.floor((k - 1) / 2)], status: "working",
+      headline: { value: null, unit: "global" }, facts: [{ label: "registered as", value: name }, { label: "lives on", value: homes[0] }],
+    }));
+  }
 }

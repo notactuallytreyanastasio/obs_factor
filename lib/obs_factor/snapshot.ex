@@ -161,6 +161,10 @@ defmodule ObsFactor.Snapshot do
   Docker have that service (two stacks both with a `db`), the container from
   the *home project* wins: the project that supplies the most of the
   topology's services. The others become unplaced nodes.
+
+  Several containers of one service in the home project are replicas of one
+  node: the first running one (by name) is its container, the rest are
+  listed under the container's `replicas`.
   """
   def match(nodes, containers) do
     home = home_project(nodes, containers)
@@ -182,8 +186,10 @@ defmodule ObsFactor.Snapshot do
 
         case Enum.sort_by(mine, &{&1.state != "running", &1.name}) do
           [] -> {acc, others}
-          # A scaled service: the first running replica is the node, the rest are unplaced.
-          [first | replicas] -> {Map.put(acc, node.id, first), others ++ replicas}
+          # A scaled service (marginalia as a cluster): the first running
+          # replica is the node's container, and the others are its
+          # `replicas`, not unplaced buildings of their own.
+          [first | replicas] -> {Map.put(acc, node.id, Map.put(first, :replicas, replicas)), others}
         end
       end)
 
@@ -417,7 +423,11 @@ defmodule ObsFactor.Snapshot do
       mem_bytes: c.mem_bytes,
       mem_limit_bytes: mem_limit,
       net_rx_bps: round_to(c.net_rx_bps, 1),
-      net_tx_bps: round_to(c.net_tx_bps, 1)
+      net_tx_bps: round_to(c.net_tx_bps, 1),
+      replicas:
+        Enum.map(Map.get(c, :replicas, []), fn r ->
+          %{name: r.name, state: r.state, cpu_cores: round_to(r.cpu_cores, 4), mem_bytes: r.mem_bytes}
+        end)
     }
   end
 
@@ -559,7 +569,9 @@ defmodule ObsFactor.Snapshot do
     units: nil,
     streams: nil,
     events: nil,
-    truncated: nil
+    truncated: nil,
+    cluster: nil,
+    members: nil
   }
 
   # The node's `inside`: nil without a `report` URL, else what the report
@@ -603,9 +615,42 @@ defmodule ObsFactor.Snapshot do
             end),
           events: report.events,
           # What is not shown here is counted, whoever cut it.
-          truncated: %{report.truncated | streams: report.truncated.streams + length(cut)}
+          truncated: %{report.truncated | streams: report.truncated.streams + length(cut)},
+          cluster: cluster_view(report[:cluster]),
+          # A scaled service: one entry per node, each with its own machine
+          # room and its own view of the cluster. nil for a single node.
+          members: members(report[:members])
         }
     end
+  end
+
+  defp members(nil), do: nil
+
+  defp members(list) do
+    Enum.map(list, fn m ->
+      base = %{address: m.address, ok: m.ok, error: m.error, at: iso(m.at)}
+
+      if m.ok do
+        Map.merge(base, %{
+          runtime: %{m.runtime | rates: Map.new(m.runtime.rates, fn {k, v} -> {k, round_to(v, 3)} end)},
+          cluster: cluster_view(m[:cluster])
+        })
+      else
+        Map.merge(base, %{runtime: nil, cluster: nil})
+      end
+    end)
+  end
+
+  defp cluster_view(nil), do: nil
+
+  defp cluster_view(c) do
+    %{
+      c
+      | connections:
+          Enum.map(c.connections, fn conn ->
+            %{conn | in_bps: round_to(conn[:in_bps], 1), out_bps: round_to(conn[:out_bps], 1)}
+          end)
+    }
   end
 
   ## Access log

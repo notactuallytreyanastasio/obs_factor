@@ -391,6 +391,91 @@ defmodule ObsFactor.ReportsTest do
     end
   end
 
+  describe "the cluster section" do
+    defp clustered(conns, globals \\ []) do
+      Map.put(Fixtures.report_doc(), "cluster", %{
+        "node" => "app@10.0.0.2",
+        "distributed" => true,
+        "connections" => conns,
+        "globals" => globals
+      })
+    end
+
+    test "is optional: a reporter from before it has none" do
+      assert validated!(Fixtures.report_doc()).cluster == nil
+    end
+
+    test "is read and bounded, and a connection's byte counts become rates" do
+      conn = fn i, o -> %{"node" => "app@10.0.0.3", "kind" => "visible", "in_bytes" => i, "out_bytes" => o, "send_queue_bytes" => 0} end
+      first = clustered([conn.(1_000, 4_000)], [%{"name" => "Marginalia.Runs", "node" => "app@10.0.0.3"}]) |> validated!()
+      assert first.cluster.node == "app@10.0.0.2"
+      assert [%{name: "Marginalia.Runs", node: "app@10.0.0.3"}] = first.cluster.globals
+
+      {d1, st} = Reports.step(Reports.new_node(), {:ok, first}, 0)
+      assert [%{in_bps: nil, out_bps: nil}] = d1.cluster.connections
+
+      second = clustered([conn.(3_000, 5_000)]) |> validated!()
+      {d2, _} = Reports.step(st, {:ok, second}, 2_000)
+      assert [%{in_bps: 1000.0, out_bps: 500.0, send_queue_bytes: 0}] = d2.cluster.connections
+
+      many = for i <- 1..100, do: conn.(i, i)
+      assert length(validated!(clustered(many)).cluster.connections) == 64
+    end
+
+    test "a cluster that is not an object fails the report" do
+      assert {:error, "cluster is not an object"} = Reports.validate(Map.put(Fixtures.report_doc(), "cluster", []))
+    end
+  end
+
+  describe "replicas" do
+    defp member(streams, units, ok \\ true) do
+      if ok do
+        %{ok: true, error: nil, at: ~U[2026-11-22 00:00:00Z], runtime: %{}, units: units, streams: streams, events: [], cluster: nil}
+      else
+        %{ok: false, error: "connection refused", at: nil}
+      end
+    end
+
+    defp s(name, count, rate, avg) do
+      %{kind: "http.route", name: name, by: nil, count: count, rate: rate, err_rate: 0.0, avg_ms: avg}
+    end
+
+    defp u(name, count), do: %{kind: "liveview", name: name, route: nil, count: count, gauges: %{}, members: []}
+
+    test "each node counts its own share: the node's streams and units are the sum, every member is listed" do
+      data =
+        Reports.combine([
+          {"10.0.0.3", member([s("GET /", 30, 3.0, 20.0)], [u("Show", 2)])},
+          {"10.0.0.10", member([], [], false)},
+          {"10.0.0.2", member([s("GET /", 10, 1.0, 40.0), s("GET /a", 1, nil, nil)], [u("Show", 1), u("Index", 4)])}
+        ])
+
+      # the lead is the first that answered, by address (10.0.0.2 < 10.0.0.3 < 10.0.0.10)
+      assert Enum.map(data.members, & &1.address) == ~w(10.0.0.2 10.0.0.3 10.0.0.10)
+      assert %{ok: false, error: "connection refused"} = List.last(data.members)
+
+      root = Enum.find(data.streams, &(&1.name == "GET /"))
+      assert root.count == 40 and root.rate == 4.0
+      # weighted by rate: (20 * 3 + 40 * 1) / 4
+      assert root.avg_ms == 25.0
+      # one node does not know /a's rate yet: neither does the sum
+      assert Enum.find(data.streams, &(&1.name == "GET /a")).rate == nil
+
+      assert [%{name: "Index", count: 4}, %{name: "Show", count: 3}] = data.units
+    end
+
+    test "nobody answered: the first member's error stands for the node" do
+      data = Reports.combine([{"10.0.0.3", member([], [], false)}, {"10.0.0.2", member([], [], false)}])
+      assert %{ok: false, error: "connection refused", members: [_, _]} = data
+    end
+
+    test "a name with one address, an address, or no name at all is read as given" do
+      assert Reports.expand("http://127.0.0.1:9568/report") == [{nil, "http://127.0.0.1:9568/report"}]
+      assert Reports.expand("http://localhost:9568/report") == [{nil, "http://localhost:9568/report"}]
+      assert Reports.expand("http://no-such-host.invalid:9568/report") == [{nil, "http://no-such-host.invalid:9568/report"}]
+    end
+  end
+
   describe "parse" do
     test "the fixture body" do
       assert {:ok, %{app: "blog"}} = Reports.parse(Fixtures.report_body())
