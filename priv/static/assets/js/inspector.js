@@ -9,7 +9,7 @@ const $ = (id) => document.getElementById(id);
 const u = (v, f = (x) => x) => (v == null ? `<span class="unk">${UNKNOWN}</span>` : esc(f(v)));
 
 export class Inspector {
-  constructor({ onClose, onNavigate }) {
+  constructor({ onClose, onNavigate, onExplore }) {
     this.el = $("inspector");
     this.body = $("inspector-body");
     this.onClose = onClose;
@@ -20,9 +20,16 @@ export class Inspector {
     this.histErr = null;
     this.histTimer = null;
     $("inspector-close").addEventListener("click", () => this.close());
-    this.body.innerHTML = '<div class="live"></div><div class="sec hist"></div>';
+    this.body.innerHTML = '<div class="live"></div><div class="sec buildlog" hidden></div><div class="sec hist"></div>';
     this.live = this.body.querySelector(".live");
+    this.logEl = this.body.querySelector(".buildlog");
+    this.buildId = null;
+    this.buildTimer = null;
     this.histEl = this.body.querySelector(".hist");
+    this.logEl.addEventListener("click", (e) => {
+      if (!this.buildId || window.getSelection()?.toString()) return;
+      if (e.target.closest("pre, .lx-open")) onExplore?.({ service: ["builder"], job: [this.buildId] });
+    });
     this.live.addEventListener("click", (e) => {
       const a = e.target.closest("[data-goto]");
       if (a) { e.preventDefault(); this.onNavigate(a.dataset.goto); }
@@ -69,6 +76,7 @@ export class Inspector {
     this.el.classList.remove("tall");
     document.body.classList.remove("inspecting");
     clearTimeout(this.histTimer);
+    this.syncBuild(null);
     this.onClose();
   }
 
@@ -76,11 +84,52 @@ export class Inspector {
     if (!this.id) return;
     this.snap = snap;
     const n = snap.nodes.find((x) => x.id === this.id);
+    this.syncBuild(n);
     if (!n) {
       this.live.innerHTML = `<div class="ins-head"><h2>${esc(this.id)}</h2></div><p class="note err">This node is no longer in the snapshot.</p>`;
       return;
     }
-    this.live.innerHTML = [head(n), facts(n), holds(n), power(n, snap), drawnBy(n, snap), inside(n), flows(n, snap), latency(n), clients(n), hostsTable(n), routes(n, snap), via(n), probe(n), container(n)].join("");
+    this.live.innerHTML = [head(n), build(n), facts(n), holds(n), power(n, snap), drawnBy(n, snap), inside(n), flows(n, snap), latency(n), clients(n), hostsTable(n), routes(n, snap), via(n), probe(n), container(n)].join("");
+  }
+
+  // The build's log is not in the snapshot: fetched from /api/builds/:id,
+  // every 2 s while the job runs, once when it has finished.
+  syncBuild(n) {
+    const id = n?.build?.id ?? null;
+    if (id === this.buildId) {
+      if (id && n.build.status === "running" && !this.buildTimer) this.loadBuild();
+      return;
+    }
+    clearTimeout(this.buildTimer); this.buildTimer = null;
+    this.buildId = id;
+    this.logEl.hidden = !id;
+    if (id) { this.logEl.innerHTML = '<h3>Build log</h3><p class="note">Loading…</p>'; this.loadBuild(); }
+  }
+
+  async loadBuild() {
+    const id = this.buildId;
+    clearTimeout(this.buildTimer); this.buildTimer = null;
+    if (!id) return;
+    let job, error;
+    try {
+      const r = await fetch(`/api/builds/${encodeURIComponent(id)}`, { cache: "no-store", credentials: "same-origin" });
+      if (r.status === 401) return window.location.assign("/login");
+      job = await r.json();
+      if (!r.ok) error = job.error || `builder answered ${r.status}`;
+    } catch (x) { error = x.message; }
+    if (id !== this.buildId) return;
+    const pre = this.logEl.querySelector("pre");
+    const stuck = !pre || pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 8;
+    if (error) this.logEl.innerHTML = `<h3>Build log</h3><p class="note err">${esc(error)}</p>`;
+    else {
+      const lines = job.log.slice(-150).map((l) => `<span class="st">${esc(l.step)}</span>${esc(l.line)}`).join("\n");
+      const plan = job.plan_summary;
+      this.logEl.innerHTML = (plan ? `<h3>The agent's plan</h3><p class="plan-sum">${esc(plan.summary)}</p>${plan.notes ? `<p class="note">${esc(plan.notes)}</p>` : ""}` : "") +
+        `<h3>Build log <span class="unk">${job.log.length} lines</span><button type="button" class="lx-open">Search ↗</button></h3><pre title="Click to search this log">${lines || "nothing yet"}</pre>`;
+      const p2 = this.logEl.querySelector("pre");
+      if (stuck) p2.scrollTop = p2.scrollHeight;
+    }
+    if (job?.status === "running" || error) this.buildTimer = setTimeout(() => this.loadBuild(), 2000);
   }
 
   async loadHistory() {
@@ -127,6 +176,19 @@ function head(n) {
     <div class="status-pill st-${esc(n.status)}"><span class="lamp ${esc(n.status)}" style="background:${n.status === "unknown" ? "transparent" : STATUS_COLOR[n.status] ?? "#888"}"></span>${esc(n.status)}<span class="unk" style="font-weight:500;margin-left:6px">${esc(headlineText(n.headline))}</span></div>
     ${n.reason ? `<div class="reason">${esc(n.reason)}</div>` : ""}
   </div>`;
+}
+
+const STEP_MARK = { done: "✓", failed: "✕", running: "●", pending: "·" };
+
+function build(n) {
+  const b = n.build;
+  if (!b) return "";
+  const steps = (b.steps || []).map((s) => `<li class="bs ${esc(s.state)}"><span class="mk" aria-hidden="true">${STEP_MARK[s.state] ?? "?"}</span><b>${esc(s.name)}</b><span class="nt">${s.note ? esc(s.note) : ""}</span></li>`).join("");
+  const src = b.repo ? `<p class="src"><a href="${esc(b.repo)}" target="_blank" rel="noopener noreferrer">${esc(b.repo.replace("https://github.com/", ""))}</a>${b.ref ? ` @ ${esc(b.ref)}` : ""}${b.commit ? ` <span class="unk">${esc(b.commit.slice(0, 12))}</span>` : ""}</p>` : "";
+  const state = b.status === "running" ? `building: ${esc(b.step)}` : b.status === "failed" ? `failed at ${esc(b.step)}` : b.mode === "route" ? "lot reserved" : "live";
+  return `<div class="sec build"><h3>Build <span class="unk">${esc(b.id)}</span></h3>
+    <p class="bstate ${esc(b.status)}">${state} · <a href="http://${esc(b.fqdn)}" target="_blank" rel="noopener noreferrer">${esc(b.fqdn)}</a></p>
+    ${src}<ol class="steps">${steps}</ol>${b.error ? `<p class="note err">${esc(b.error)}</p>` : ""}</div>`;
 }
 
 function facts(n) {

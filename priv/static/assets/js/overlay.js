@@ -13,6 +13,7 @@ export function headlineText(h) {
   if (!h) return UNKNOWN;
   const unit = h.unit ?? "";
   if (!isNum(h.value)) return unit ? `${UNKNOWN} ${unit}` : UNKNOWN;
+  if (unit === "% built") return `${num(h.value)}% built`;
   if (unit.startsWith("%")) return `${num(h.value)}${unit}`;
   if (unit === "B") return bytes(h.value);
   if (unit === "B/s") return bps(h.value);
@@ -79,7 +80,7 @@ export class Chips {
   }
 }
 
-const KNOWN_KINDS = new Set(["proxy", "app", "relay", "db", "static", "external", "resource", "source", "unplaced"]);
+const KNOWN_KINDS = new Set(["proxy", "app", "relay", "db", "static", "external", "resource", "source", "unplaced", "construction"]);
 
 function priority(n, snap) {
   const att = snap.attention.findIndex((a) => a.node === n.id);
@@ -89,6 +90,7 @@ function priority(n, snap) {
   if (att >= 0) p += 200 - att;
   if (n.kind === "proxy" || n.kind === "resource" || n.kind === "source" || n.kind === "db") p += 60;
   if (n.kind === "unplaced") p += 55;
+  if (n.kind === "construction" || n.build?.status === "running") p += 80;
   if (isNum(n.headline?.value) && n.headline.unit === "req/s") p += Math.min(40, n.headline.value * 10);
   return p;
 }

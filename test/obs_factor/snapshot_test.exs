@@ -209,7 +209,10 @@ defmodule ObsFactor.SnapshotTest do
     json = s |> Jason.encode!() |> Jason.decode!()
 
     assert Map.keys(json) |> Enum.sort() ==
-             ~w(at attention edges host nodes platforms sources tick_ms)
+             ~w(at attention builder edges host nodes platforms sources tick_ms)
+
+    # No builder configured: the key is there and null.
+    assert json["builder"] == nil
 
     assert json["sources"]["docker"] == %{
              "ok" => true,
@@ -229,7 +232,7 @@ defmodule ObsFactor.SnapshotTest do
 
       assert Map.keys(n) |> Enum.sort() ==
                Enum.sort(
-                 ~w(container facts headline holds hosts id inside kind label latency platform pos probe reason routes status style via) ++
+                 ~w(build container facts headline holds hosts id inside kind label latency platform pos probe reason routes status style via) ++
                    extra
                )
 

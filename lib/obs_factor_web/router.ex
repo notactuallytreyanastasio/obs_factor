@@ -15,6 +15,11 @@ defmodule ObsFactorWeb.Router do
     plug RequireSession, on_missing: :json
   end
 
+  pipeline :builder_api do
+    plug :accepts, ["json"]
+    plug ObsFactorWeb.Plugs.BuilderToken
+  end
+
   scope "/", ObsFactorWeb do
     get "/health", HealthController, :show
   end
@@ -38,6 +43,21 @@ defmodule ObsFactorWeb.Router do
 
     get "/snapshot", ApiController, :snapshot
     get "/history", ApiController, :history
+    get "/beam", ApiController, :beam
     get "/stream", StreamController, :stream
+    post "/builds", BuildsController, :create
+    get "/builds/:id", BuildsController, :show
+    get "/builds/:id/log", BuildsController, :log
+    get "/logs", ApiController, :logs
+  end
+
+  # OBS_ROLE=builder only; the plug answers 404 on the observer.
+  scope "/builder/api", ObsFactorWeb do
+    pipe_through :builder_api
+
+    get "/jobs", BuilderController, :index
+    post "/jobs", BuilderController, :create
+    get "/jobs/:id", BuilderController, :show
+    get "/jobs/:id/log", BuilderController, :log
   end
 end

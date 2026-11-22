@@ -6,6 +6,10 @@ import { Chips, TopBar, renderAttention, renderLegend, renderSites } from "./ove
 import { Inspector } from "./inspector.js";
 import { connect } from "./live.js";
 import { canEnter, interiorSnapshot } from "./inside.js";
+import { esc } from "./fmt.js";
+import { BeamPanel } from "./beam.js";
+import { Tour } from "./tour.js";
+import { LogExplorer } from "./logs.js";
 
 const $ = (id) => document.getElementById(id);
 const canvas = $("floor");
@@ -24,11 +28,13 @@ let dirty = true;
 let fitted = false;
 let fly = null;
 
+const logs = new LogExplorer({ snap: () => snap });
 const inspector = new Inspector({
   onClose: () => { scene.selected = null; dirty = true; },
   onNavigate: (id) => {
     if (insideOf && (inspectOuter || !snap.nodes.some((n) => n.id === id))) { leave(); select(id, true); } else select(id, true);
   },
+  onExplore: (preset) => logs.open(preset),
 });
 
 // ---- viewport -------------------------------------------------------------
@@ -328,16 +334,110 @@ function toggleLegend(open) {
   const lg = $("legend");
   lg.hidden = !(open ?? lg.hidden);
   $("legendbtn").setAttribute("aria-expanded", String(!lg.hidden));
-  if (!lg.hidden) toggleSites(false);
+  if (!lg.hidden) { toggleSites(false); toggleBuilder(false); beam.toggle(false); }
 }
 $("legendbtn").addEventListener("click", () => toggleLegend());
 function toggleSites(open) {
   const el = $("sites");
   el.hidden = !(open ?? el.hidden);
   $("sitesbtn").setAttribute("aria-expanded", String(!el.hidden));
-  if (!el.hidden) toggleLegend(false);
+  if (!el.hidden) { toggleLegend(false); toggleBuilder(false); beam.toggle(false); }
 }
 $("sitesbtn").addEventListener("click", () => toggleSites());
+
+// ---- build new app ----------------------------------------------------------
+// The form posts to /api/builds; the observer forwards it to the builder.
+// The new lot shows up on the floor with the next snapshot (the builder is
+// read like any source), and is selected as soon as it does.
+
+const STEP_TEXT = {
+  name: (f) => `A record <b>${esc(f)}</b> → the box`,
+  route: () => "Caddy site for it: a placeholder page",
+  source: () => "clone the repository",
+  recipe: () => "agent reads README.md, writes the build plan",
+  image: () => "docker build",
+  service: () => "run the container on the stack's network",
+  check: (f, m) => (m === "route" ? "check the lot answers" : "point the route at it; health check through Caddy"),
+};
+const MODE_STEPS = { route: ["name", "route", "check"], github: ["name", "route", "source", "recipe", "image", "service", "check"] };
+let pendingSelect = null;
+
+function toggleBuilder(open) {
+  const el = $("builder");
+  el.hidden = !(open ?? el.hidden);
+  $("buildbtn").setAttribute("aria-expanded", String(!el.hidden));
+  if (!el.hidden) { toggleLegend(false); toggleSites(false); beam.toggle(false); renderPlan(); el.querySelector("input[name=name]").focus(); }
+}
+$("buildbtn").addEventListener("click", () => toggleBuilder());
+
+function renderPlan() {
+  const f = $("build-form");
+  const mode = f.mode.value;
+  const name = f.name.value.trim() || "name";
+  const fqdn = `${name}${$("build-domain").textContent}`;
+  f.querySelector(".gh").hidden = mode !== "github";
+  $("build-plan").innerHTML = MODE_STEPS[mode].map((s) => `<li><span class="sn">${s}</span>${STEP_TEXT[s](fqdn, mode)}</li>`).join("");
+}
+$("build-form").addEventListener("input", renderPlan);
+
+$("build-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const err = $("build-error");
+  err.hidden = true;
+  const body = { name: f.name.value.trim(), mode: f.mode.value };
+  if (body.mode === "github") { body.repo = f.repo.value.trim(); body.ref = f.ref.value.trim(); }
+  $("build-go").disabled = true;
+  try {
+    const r = await fetch("/api/builds", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify(body) });
+    if (r.status === 401) return window.location.assign("/login");
+    const j = await r.json().catch(() => ({ error: `builder answered ${r.status}` }));
+    if (!r.ok) throw new Error(j.error || `builder answered ${r.status}`);
+    pendingSelect = j.name;
+    f.name.value = "";
+    toggleBuilder(false);
+    if (snap?.nodes.some((n) => n.id === pendingSelect)) { select(pendingSelect, true); pendingSelect = null; }
+  } catch (x) {
+    err.textContent = x.message; err.hidden = false;
+  } finally {
+    $("build-go").disabled = false;
+  }
+});
+// ---- under the hood, and the tour ---------------------------------------
+
+const beam = new BeamPanel({
+  onOpen: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); inspector.close(); },
+  onExplore: (preset) => logs.open(preset),
+});
+$("logsbtn").addEventListener("click", () => { toggleMenu(false); logs.open(); });
+$("beambtn").addEventListener("click", () => beam.toggle());
+
+// A screen box around a building, for the tour's spotlight.
+function nodeRect(id) {
+  const a = scene.nodeAnchor(id), c = scene.nodeCenter(id);
+  if (!a || !c) return null;
+  const [tx, ty] = scene.toScreen(a), [, my] = scene.toScreen(c);
+  const h = Math.max(40, (my - ty) * 2 + 20), w = Math.max(70, h * 1.3);
+  return new DOMRect(tx - w / 2, ty - 26, w, h + 26);
+}
+
+const tour = new Tour({
+  snap: () => snap,
+  select: (id, flyTo = false) => select(id, flyTo),
+  centreOn: (id) => centreOn(id),
+  closeInspector: () => inspector.close(),
+  closeAll: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); inspector.close(); logs.close(); },
+  panel: (name, open) => ({ legend: toggleLegend, sites: toggleSites })[name](open),
+  fitAll: () => fitAll(true),
+  nodeRect,
+  beam,
+  logs,
+});
+$("tourbtn").addEventListener("click", () => tour.start());
+$("beambtn2").addEventListener("click", () => { toggleMenu(false); beam.toggle(true); });
+$("tourbtn2").addEventListener("click", () => { toggleMenu(false); tour.start(); });
+let tourAsked = new URLSearchParams(window.location.search).has("tour");
+
 function toggleMenu(open) {
   const m = $("menu");
   m.hidden = !(open ?? m.hidden);
@@ -355,6 +455,10 @@ function onSnapshot(s) {
   $("loading").hidden = true;
   showView();
   if (!fitted) { fitAll(false, true); fitted = true; }
+  $("buildbtn").hidden = !s.builder;
+  if (s.builder) $("build-domain").textContent = `.${s.builder.domain}`;
+  if (pendingSelect && s.nodes.some((n) => n.id === pendingSelect)) { const id = pendingSelect; pendingSelect = null; select(id, true); }
+  if (tourAsked) { tourAsked = false; setTimeout(() => tour.start(), 400); }
 }
 
 $("backbtn").addEventListener("click", () => leave());
@@ -375,7 +479,7 @@ connect({
 
 let lastCam = "";
 const stats = { frames: 0, ms: 0, worst: 0 };
-window.__obsFactor = { stats, scene };
+window.__obsFactor = { stats, scene, tour, beam, logs };
 
 function frame(now) {
   requestAnimationFrame(frame);

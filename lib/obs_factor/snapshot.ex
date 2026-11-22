@@ -29,6 +29,9 @@ defmodule ObsFactor.Snapshot do
     reports = data(sources.reports)
 
     containers = if docker, do: docker.containers, else: []
+    builder = data(Map.get(sources, :builder, %{ok: false, data: nil}))
+    jobs = if builder, do: builder.jobs, else: []
+    {topology, label_problems, builds} = ObsFactor.Labelled.merge(topology, containers, jobs)
     {matched, unplaced} = match(topology.nodes, containers)
 
     env = %{
@@ -69,12 +72,14 @@ defmodule ObsFactor.Snapshot do
     internet = internet_node(env)
     all = Enum.map(listed ++ resources ++ [internet] ++ extra, &with_access(&1, env))
 
+    all = Enum.map(all, &attach_build(&1, builds[&1.id]))
     nodes = Enum.map(all, &Map.delete(&1, :attention))
 
     attention =
       (Enum.map(Rules.sources(sources), fn {sev, text} ->
          %{node: nil, severity: sev, text: text}
        end) ++
+         Enum.map(label_problems, fn {sev, text} -> %{node: nil, severity: sev, text: text} end) ++
          Enum.flat_map(all, fn n ->
            Enum.map(n.attention, fn {sev, text} -> %{node: n.id, severity: sev, text: text} end)
          end))
@@ -93,7 +98,9 @@ defmodule ObsFactor.Snapshot do
       platforms: topology.platforms,
       nodes: Enum.map(nodes, &Map.delete(&1, :active_now)),
       edges: edges(topology, env),
-      attention: attention
+      attention: attention,
+      # null unless a builder is configured (BUILDER_URL); see docs/contract.md.
+      builder: builder && %{domain: builder.domain, modes: builder.modes}
     }
 
     {snapshot, %{memory | last_active: last_active}}
@@ -104,6 +111,47 @@ defmodule ObsFactor.Snapshot do
 
   defp iso(nil), do: nil
   defp iso(%DateTime{} = dt), do: dt |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+
+  ## Builds
+
+  # The builder job's summary, as the inspector and the construction site
+  # draw it. Only the fields the browser uses; the log is fetched on demand.
+  defp attach_build(n, nil), do: Map.put(n, :build, nil)
+
+  # The lot's status is the job's: building is working, a failed step is
+  # down with the step's error, a finished route-only lot is idle.
+  defp attach_build(%{kind: "construction"} = n, job) do
+    {status, reason} =
+      case job["status"] do
+        "running" -> {"working", "building: #{job["step"]}"}
+        "failed" -> {"down", "build failed at #{job["step"]}: #{job["error"]}"}
+        "live" -> {"idle", if(job["mode"] == "route", do: "lot reserved, placeholder page", else: "built, no container running")}
+        other -> raise ArgumentError, "build #{job["id"]} has unknown status #{inspect(other)}"
+      end
+
+    steps = job["steps"] || []
+    done = Enum.count(steps, &(&1["state"] in ["done", "skipped"]))
+    pct = if steps == [], do: nil, else: round(100 * done / length(steps))
+
+    %{
+      n
+      | status: status,
+        reason: reason,
+        headline: %{value: pct, unit: "% built"},
+        facts: [fact("build", job["id"]), fact("hostname", job["fqdn"]) | n.facts],
+        attention:
+          if(status == "down", do: [{"alert", "#{n.label}: #{reason}"}], else: [])
+    }
+    |> Map.put(:build, build_json(job))
+  end
+
+  defp attach_build(n, job), do: Map.put(n, :build, build_json(job))
+
+  defp build_json(nil), do: nil
+
+  defp build_json(job) do
+    Map.take(job, ~w(id name fqdn mode repo ref commit status step steps error created_at plan_summary))
+  end
 
   ## Matching containers to topology entries
 
@@ -231,6 +279,14 @@ defmodule ObsFactor.Snapshot do
         attention: attention
     }
     |> Map.put(:active_now, active_now)
+  end
+
+  # A builder job's lot: the hostname is real (DNS and a Caddy route exist
+  # from the first two steps), so its traffic is read like any other host's.
+  defp listed_node(%{kind: :construction} = t, _container, env) do
+    hosts = host_readings(t.hosts, env)
+    %{base(t) | hosts: hosts, facts: host_facts(hosts)}
+    |> Map.put(:active_now, any_traffic?(hosts))
   end
 
   defp listed_node(%{kind: :external} = t, _container, _env) do

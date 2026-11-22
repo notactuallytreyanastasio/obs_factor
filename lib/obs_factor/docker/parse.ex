@@ -22,7 +22,9 @@ defmodule ObsFactor.Docker.Parse do
       status_text: c["Status"],
       service: labels["com.docker.compose.service"],
       project: labels["com.docker.compose.project"],
-      oneoff: labels["com.docker.compose.oneoff"] == "True"
+      oneoff: labels["com.docker.compose.oneoff"] == "True",
+      # obs_factor.* labels without the prefix (see ObsFactor.Labelled).
+      labels: for({"obs_factor." <> k, v} <- labels, into: %{}, do: {k, v})
     }
   end
 

@@ -35,3 +35,6 @@ obs_factor-*.tar
 # local secrets and PR bodies
 .env
 .prs/
+
+# What lab/builder.sh writes: per-app Caddy blocks and DNS hosts.
+/lab/built/

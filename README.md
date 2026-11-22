@@ -133,6 +133,153 @@ service names that do not resolve outside the Docker network, so every
 probed node is `down` with `probe failed: host not found`. For those, run
 the container.
 
+### The tour, and under the hood
+
+**Tour** (bottom bar, or the ☰ menu on a phone, or `/?tour`) walks the
+live page in 19 stops: the floor, the live clock, the attention strip, the
+lamps, the sources, Caddy and its inspector, per-host rates, history, a
+probe, a container, the sites list, a build's real log, then **Under the
+hood**: the observer's own VM, its supervision tree with one collector per
+source, the ETS tables the snapshot is built from, and its own log. Every
+number a stop quotes is read at that stop. A stop whose subject isn't there
+(no failing source, no built app, no probed container) is skipped, never
+filled in.
+
+Checked with headless Chrome against the lab at 1440×900 and 390×844, all
+stops, no page errors; and once with `docker stop obslab-docker-proxy-1`,
+where the tour finds the failing `Docker` collector and its log line
+`source docker: host not found`.
+
+**Log explorer.** Click any log on the page (the build log in the
+inspector, the log in Under the hood) or ☰ → Logs. One list holds the
+observer's own log (`service:observer`, tailed every 2 s) and the whole job
+log of every build on the floor (`service:builder`). Builder lines are
+program output with no level, so their level is `unset`, not a guess.
+
+- Search: `level:error`, `-source:docker`, `"host not found"`, `/time(d)? out/`,
+  `job:deci-*`, `level:(warning OR error)`, `a OR b`, `line:>100`, `request_id:*`.
+  A broken query says what's wrong (`missing ) after level:(`).
+- Facets (level, service, source, build, step, module, domain) with counts
+  computed without their own filter, so they show what a change would give.
+- A histogram stacked by level; drag across it to zoom into a time range,
+  double-click to reset. Presets 5m to 1d, or all.
+- Click a line for every attribute, each with + (only this) and − (exclude),
+  and "±1 min around it" for context. `/` search, ↑↓ move, Esc close.
+
+Checked in headless Chrome at desktop and phone sizes, no page errors.
+Several of the queries above were run against the lab, including the regex
+and the error message for a broken query; live tail picked up new lines.
+
+Not there: container logs. They'd need `/containers/{id}/logs` through
+`docker-proxy`, which allows three GET endpoints on purpose, and app logs
+can carry secrets. The two logs the tour shows are the builder's job log
+and the observer's own.
+
+### Building apps (prototype)
+
+"Build new app" in the factory makes a new hostname and, optionally, an app
+behind it, from primitives that each do one real thing and check it:
+
+| step | primitive | checked by |
+|---|---|---|
+| `name` | A record `<name>.lab.test -> 127.0.0.1` in `lab/built/dns/hosts`, served by CoreDNS (`dns`) | asking that DNS server (over TCP) |
+| `route` | `lab/built/caddy/<name>.caddy`, a placeholder page, `caddy reload` | GET through Caddy with that Host |
+| `source` | `git clone --depth 1` of a `https://github.com/...` repo | the commit sha |
+| `recipe` | a small agent (`ObsFactor.Builder.Agent`, DeepSeek over its chat completions API) reads the README and the code, and writes `.obs_factor/build.json` (and a Dockerfile if there is none) | the builder validates the plan |
+| `image` | `docker build` | exit status |
+| `service` | `docker run` on `obslab_default` with `obs_factor.*` labels, generated secrets via `--env-file` | still running after 8 s |
+| `check` | the route becomes a `reverse_proxy` | the plan's health path answers through Caddy |
+
+"Just the lot" stops after `route`: DNS and a placeholder page. The lot is
+on the floor from the first step (a `construction` node on the "built here"
+platform), with its steps, the agent's plan and the build log in the
+inspector; once the container runs, it is an ordinary building.
+
+The builder runs on the laptop, not in a container, because it needs Docker
+write and git (in production that would make it root on the box). The
+observer stays read-only and reaches it at `host.docker.internal:14100`.
+The agent is any OpenAI-compatible chat completions API: `BUILDER_LLM_URL`,
+`BUILDER_LLM_KEY`, `BUILDER_LLM_MODEL`. `lab/builder.sh` defaults to
+`https://api.deepseek.com` and `deepseek-flash`, and takes the key from
+`DEEPSEEK_API_KEY` in `~/code/blog/.env` (`BUILDER_ENV_FILE` to change it):
+
+```bash
+docker compose -f lab/compose.yml --profile observer up -d --build
+lab/builder.sh                          # OBS_ROLE=builder on 127.0.0.1:14100
+open http://localhost:14000             # "Build new app"
+dig +tcp @127.0.0.1 -p 15353 deci.lab.test +short
+curl -H 'Host: deci.lab.test' localhost:18080/
+```
+
+What it writes is under `lab/built/` (gitignored): `dns/hosts`, `caddy/`,
+`jobs/<id>.json` and `.log`, `apps/<name>/src` (the clone) and
+`apps/<name>/secrets.env` (mode 600).
+
+The agent is a loop over `POST /chat/completions` with tools: send the
+conversation, run the tool calls it asks for, append the results, repeat
+until it answers without a tool call (40 turns at most). Its four tools are
+confined to the clone: `list_files`, `read_file`, `grep`, and `write_file`,
+which only writes under `.obs_factor/`. No shell, no network, no symlink is
+followed. The repository's text still reaches the model, so a README can
+steer what it writes: the builder validates the plan (paths stay inside the
+clone, the port is a port, env names are env names) instead of trusting it.
+
+Every turn resends the whole conversation, so the loop is built to keep
+the conversation small. Tool results are capped (a `read_file` is 150 lines
+by default and at most 12000 characters; the model pages and greps instead
+of reading whole files). Past 24k prompt tokens, every tool result older
+than the last two turns is replaced by a one-line stub, all in one batch, so
+the prompt prefix stays the same between compactions and the provider's
+prefix cache keeps hitting. The prompt asks for independent reads in the
+same turn. Measured on deciduous with `deepseek-flash`, recipe step only:
+
+| | turns | tool calls | prompt tokens (from cache) | completion | time |
+|---|---|---|---|---|---|
+| before | 21 | 37 | 621,563 (581,888) | 9,553 | 72 s |
+| after, run 1 | 14 | 25 | 177,781 (148,992) | 5,837 | 44 s |
+| after, run 2 | 11 | 19 | 165,915 (139,776) | 5,221 | 38 s |
+
+All three plans were the same server (port 4141, the root Dockerfile, the
+token as a secret, `/data` as a volume). The health path differed between
+runs (`/health`, `/api/v1/health`); both are real routes (`src/api.rs`).
+
+#### A records in Cloudflare
+
+`BUILDER_DNS_PROVIDER=cloudflare` makes the name step write the A record
+through Cloudflare's v4 API instead of the lab's hosts file. Same rules: the
+record's `comment` carries `obs_factor name=<name> job=<id>`, the builder
+only updates or deletes records carrying it, and any other record under the
+name (A, AAAA, CNAME, TXT) fails the step with what it found.
+
+```sh
+BUILDER_DNS_PROVIDER=cloudflare
+BUILDER_CF_API_TOKEN=...            # Zone > DNS > Edit, on this zone only
+BUILDER_CF_ZONE_ID=...              # zone overview page, right column
+BUILDER_CF_PROXIED=true             # match the other bobbby.online sites
+BUILDER_DOMAIN=bobbby.online
+BUILDER_A_RECORD=<the box's public IPv4>
+BUILDER_DNS_SERVER=alberto.ns.cloudflare.com:53
+BUILDER_SITE_PREFIX=                # empty: Caddy's automatic HTTPS
+```
+
+`BUILDER_DNS_SERVER` is the zone's own nameserver on purpose. A public
+resolver that was asked for the name before it existed caches NXDOMAIN for
+up to 30 minutes, and the step would wait on that cache instead of
+Cloudflare. Checked on 2026-11-20: `alberto.ns.cloudflare.com` answers
+over TCP (what `Name.lookup` uses) with the proxied addresses for
+`factory.bobbby.online`, and with nothing for a name that does not exist.
+With proxying on, the answer is Cloudflare's addresses, not the box's, so
+the step accepts any A answer then.
+
+Tested against an in-memory fake of the API (`test/obs_factor/builder_name_test.exs`:
+create, update in place, refuse a foreign CNAME, delete only its own,
+Cloudflare's error codes passed through). Not yet run against the real
+zone: there is no API token on the laptop.
+
+Not done: tearing an app down from the UI, a production home for the
+builder (Docker write is root on the box; the lab's builder runs on the
+laptop and reloads the lab's Caddy only).
+
 ### Breaking it on purpose
 
 `lab/break.sh --help` lists everything. Each row was run against the

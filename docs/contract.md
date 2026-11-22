@@ -249,6 +249,103 @@ the proxy; `internet` has `rps`), `cpu_cores`, `mem_bytes`, `net_rx_bps`,
 (`host-disk`), `bytes` (static). A `1m` point is the mean of that minute's
 non-null 5 s values; the `1m` series is empty until the first minute closes.
 
+## `GET /api/beam?level=debug|info|warning|error` *(2026-11-20)*
+
+The observer looking at itself, for the "Under the hood" panel and the tour.
+Read at request time; nothing is cached or estimated (`ObsFactor.Beam`).
+
+```json
+{"at": "...", "log_kept": 500,
+ "vm": {"node", "otp", "erts", "elixir", "uptime_s", "schedulers", "run_queue",
+        "process_count", "process_limit", "port_count", "atom_count", "ets_count",
+        "memory": {"total", "processes", "ets", "binary", "code", "atom", "system"}},
+ "processes": [{"id": "Docker", "type": "worker", "pid": "<0.1569.0>", "alive": true,
+   "status": "waiting", "message_queue_len": 0, "memory_bytes": 230000, "reductions": 81234,
+   "current_function": ":gen_server.loop/5", "links": 2,
+   "source": {"name": "docker", "ok": true, "error": null, "last_ok_at": "...",
+              "attempted_ms_ago": 1000, "max_age_ms": 15000}}],
+ "tables": [{"name": "Sources", "type": "set", "size": 7, "memory_bytes": 51896, "owner": "<0.1554.0>"}],
+ "log": [{"at": 1795128738444, "level": "info", "text": "source docker: ok",
+          "where": "ObsFactor.Collector.log_transition/3", "pid": "<0.1569.0>"}]}
+```
+
+`processes` is the top of `ObsFactor.Supervisor`; a collector's row has
+`source`, the raw entry from `ObsFactor.Sources`. A child whose init returned
+`:ignore` has `pid` `":undefined"` and `alive: false`. `log` is
+`ObsFactor.LogRing`: the newest 200 events at `level` or worse, oldest first,
+from the last 500 kept in memory since the ring started (boot lines before it
+are only on stdout). Requests to `/api/beam` itself are not logged. A `level`
+outside the list is 400.
+
+## `GET /api/logs?after=ID` *(2026-11-20)*
+
+The log ring for the log explorer: `{"events": [...], "last_id": 123, "kept": 2000}`,
+every event with an id above `after` (default 0: all kept), oldest first. An
+event is `{id, at, level, text, where, pid, attrs}`; `attrs` is the Logger
+metadata minus process plumbing (`request_id`, `source` from the collectors,
+`file`, `line`, `domain`, `application`, ...), atoms as bare strings. Ids only
+grow, so `after=last_id` tails. A non-integer `after` is 400. Not logged
+itself.
+
+## `GET /api/builds/:id/log` *(2026-11-20)*
+
+The whole job log from the builder's file (`/builder/api/jobs/:id/log`), up
+to its last 20000 lines: `{"id", "log": [{"t", "step", "line"}]}`. The job
+in `GET /api/builds/:id` carries only the last 400. Unknown job is 404.
+
+## Building apps *(builder prototype, 2026-11-19)*
+
+The observer can show, and start, apps that a separate **builder** makes. The
+builder is the same release run with `OBS_ROLE=builder`: it holds Docker
+write, git and the agent CLI, which the observer never does. Its settings
+are in `lib/obs_factor/builder/config.ex`; the lab runs it with
+`lab/builder.sh`.
+
+Observer environment, both optional: `BUILDER_URL` (the builder's base URL)
+and `BUILDER_TOKEN` (bearer token). Unset, there is no builder source and
+the snapshot's `builder` is `null`.
+
+Additions to the snapshot:
+
+- `builder`: `null`, or `{"domain": "lab.test", "modes": ["github", "route"]}`
+  while the builder source is ok.
+- `sources.builder`: present only when `BUILDER_URL` is set.
+- Every node has `build`: `null`, or the latest job for that node's id:
+  `{"id", "name", "fqdn", "mode", "repo", "ref", "commit", "status"
+  ("running" | "failed" | "live"), "step", "steps": [{"name", "state"
+  ("pending" | "running" | "done" | "failed"), "note"}], "error",
+  "created_at", "plan_summary"}`. `plan_summary` is `null` until the agent's
+  plan passes validation, then `{"summary", "notes", "port", "health",
+  "secrets", "dockerfile"}` (secret *names* only).
+- `kind` `"construction"`: a job whose app has no running container yet (or
+  a route-only lot). `container` is `null`; `hosts` is the job's hostname,
+  read from Caddy like any host, with its belt from the proxy. `headline` is
+  `{"value": <percent of steps done>, "unit": "% built"}`. Status: running ->
+  `working` (reason `"building: <step>"`), failed -> `down` (reason
+  `"build failed at <step>: <error>"`, and an alert), finished -> `idle`.
+  Platform `"built"` when the topology lists it, else `null`.
+- Containers place themselves with labels: `obs_factor.id` (required),
+  `obs_factor.label`, `obs_factor.kind` (`app` | `relay`, default `app`),
+  `obs_factor.hosts` (comma separated), `obs_factor.probe`,
+  `obs_factor.platform`. Such a node has `pos` `null` (next free slot of its
+  platform) and is probed like a topology node. Labels that would take an
+  existing id or host, or carry a bad probe URL, are not used: the container
+  stays unplaced and a `warn` says why. So does a job named like a topology
+  node. Labels never carry secrets.
+
+Endpoints (behind the session, forwarded to the builder; status and body
+are the builder's, 502 when it cannot be reached, 404 when none is
+configured):
+
+- `POST /api/builds` JSON `{"name", "mode": "github" | "route", "repo",
+  "ref"}` -> 201 the job, or 422 `{"error"}`. `name` is 2-30 of `[a-z0-9-]`,
+  starting with a letter; `repo` must be `https://github.com/<owner>/<repo>`.
+- `GET /api/builds/:id` -> the job with `"log": [{"t", "step", "line"}]`
+  (the last 400 lines).
+
+The builder's own API is `/builder/api/jobs` (GET list, POST create) and
+`/builder/api/jobs/:id`, bearer token required, 404 on an observer.
+
 ## Auth
 
 - `GET /login` serves `priv/static/login.html`. `POST /login` with form field

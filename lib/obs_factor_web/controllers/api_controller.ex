@@ -34,4 +34,31 @@ defmodule ObsFactorWeb.ApiController do
   def history(conn, _params) do
     conn |> put_status(400) |> json(%{error: "node is required"})
   end
+
+  @doc "The observer's own VM, processes, tables and log: `ObsFactor.Beam`."
+  def beam(conn, params) do
+    level = Map.get(params, "level", "debug")
+
+    if level in Enum.map(ObsFactor.LogRing.levels(), &Atom.to_string/1) do
+      json(conn, ObsFactor.Beam.report(log_level: String.to_existing_atom(level)))
+    else
+      conn |> put_status(400) |> json(%{error: "level must be one of #{Enum.join(ObsFactor.LogRing.levels(), ", ")}"})
+    end
+  end
+
+  @doc """
+  The observer's log ring for the log explorer: every event kept with an id
+  above `after` (default 0, i.e. all of them), oldest first. The explorer
+  polls with the last id it has to tail.
+  """
+  def logs(conn, params) do
+    case Integer.parse(Map.get(params, "after", "0")) do
+      {after_id, ""} when after_id >= 0 ->
+        events = ObsFactor.LogRing.since(after_id)
+        json(conn, %{events: events, last_id: List.last(events)[:id] || after_id, kept: ObsFactor.LogRing.keep()})
+
+      _ ->
+        conn |> put_status(400) |> json(%{error: "after must be a non-negative integer"})
+    end
+  end
 end
