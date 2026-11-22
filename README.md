@@ -227,6 +227,16 @@ not done, and stays on the list as "cleared itself — check and cross off".
   crossed off this session with your notes, and a plain-text handover to
   copy. Log out offers it when you crossed something off.
 
+The panel is live over the page's one socket: the `objectives` channel's
+join reply is the list, each change anyone makes arrives as an `objective`
+push, and I'm on it / Cross off / Reopen / Flag are `act` and `pin` pushes
+on the same channel. The list changes when the broadcast comes back, not
+from the reply, so two browsers cross off in step. The debrief also lists
+what came over the `actions` topic since the tab opened (empty until
+something publishes there). No request is made on a timer; the one GET of
+`/api/objectives` is a resync after the store was unreadable at join and a
+change then arrived.
+
 It needs `OBJECTIVES_PG_URL`, a database and role of its own
 (`deploy/objectives-db.sql`, run as its header says). Unset, the Missions
 control is hidden and `/api/objectives` answers 503 `no objectives store`;

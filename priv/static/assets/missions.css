@@ -128,3 +128,4 @@ body:has(#attention:not([hidden])) #ms-toast { top: calc(var(--top) + 50px); }
 body.inside #ms-toast { top: calc(var(--top) + 60px); }
 body.inside:has(#attention:not([hidden])) #ms-toast { top: calc(var(--top) + 98px); }
 #ms-toast .ms-a { color: #ff8a80; font-weight: 700; margin-left: 4px; }
+.ms-raw { font: 11px/1.4 ui-monospace, monospace; word-break: break-all; }

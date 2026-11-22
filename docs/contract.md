@@ -418,7 +418,8 @@ with every number blanked), so a rule with a changing number is one
 objective. `by` is a name the person typed, not an identity.
 
 Errors, each `{"error": text}`: 503 `no objectives store: OBJECTIVES_PG_URL is not set`
-when the observer has no store (the page hides Missions on exactly this),
+when the observer has no store (the page hides Missions when the
+`objectives` join reply's error starts with this),
 503 with Postgres's reason when it has one but cannot use it, 404
 `no such objective`, 409 `cannot <action> an objective that is <state>` or
 `this came back since and is open as a newer objective` (reopen yields to

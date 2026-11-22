@@ -1,9 +1,11 @@
 // Missions: the objectives the floor has raised (ObsFactor.Objectives, over
-// /api/objectives), as things to check out and cross off before you leave.
+// the "objectives" channel), as things to check out and cross off before you
+// leave.
 //
 //   * the Missions control in the top bar: how many are undone, red when one
-//     is an alert. Hidden only when the observer says it has no store (503
-//     "no objectives store"); any other failure is shown, with its text.
+//     is an alert. Hidden only when the observer says it has no store (the
+//     join reply's error starts "no objectives store"); any other failure
+//     is shown, with its text.
 //   * the panel: open (alerts first), cleared itself (went away, nobody
 //     checked), done in the last 24 h. Go flies to the building, "I'm on
 //     it" says so to everyone, Cross off takes a note.
@@ -13,13 +15,25 @@
 //     objective drawn above a veil.
 //   * Before you leave: the debrief, and a plain-text handover.
 //
-// Polled every 5 s. Who you are is a name kept in localStorage: there is one
-// password and no accounts, so it is a label, not an identity.
+// Live over the page's one socket (bus.js): the "objectives" channel's join
+// reply is the list, and every change anyone makes (a rule, a pin, a look,
+// a cross-off, the 30 s last-seen write) arrives as an `objective` push that
+// replaces that row here. Pin and act are channel pushes; their reply is
+// only used for errors and for what this browser crossed off, the list
+// itself changes when the broadcast comes back, so every viewer sees the same
+// thing at the same moment. Nothing is fetched on a timer. The "actions"
+// topic feeds the debrief's "Actions this session".
+//
+// Who you are is a name kept in localStorage: there is one password and no
+// accounts, so it is a label, not an identity.
 
 import { esc, duration, utc } from "./fmt.js";
+import * as bus from "./bus.js";
 
 const $ = (id) => document.getElementById(id);
-const POLL_MS = 5000;
+const RECENT_MS = 24 * 3600 * 1000; // done rows the server keeps in its list
+const ACTIONS_KEY = "obs_factor.actions";
+const ACTIONS_KEPT = 200;
 const WHO_KEY = "obs_factor.who";
 const CROSSED_KEY = "obs_factor.crossed";
 const LENS_KEY = "obs_factor.lens";
@@ -55,7 +69,10 @@ export class Missions {
     this.crossed = this.loadCrossed();
     this.noticed = false;
     this.leaving = false;
-    this.timer = null;
+    this.link = bus.state(); // the socket's state, shown when it is not connected
+    this.actions = this.loadActions();
+    this.actionsErr = null;
+    this.resyncing = false;
 
     this.btn = $("missionsbtn");
     this.el = $("missions");
@@ -119,7 +136,7 @@ export class Missions {
       this.debrief(out);
     });
 
-    this.poll();
+    this.connect();
   }
 
   get open() { return !this.el.hidden; }
@@ -134,61 +151,131 @@ export class Missions {
     this.api.redraw();
   }
 
-  // ---- data ---------------------------------------------------------------
+  // ---- live -------------------------------------------------------------
 
-  async request(method, url, body) {
-    let r;
-    try {
-      r = await fetch(url, {
-        method, cache: "no-store", credentials: "same-origin",
-        headers: { accept: "application/json", ...(body ? { "content-type": "application/json" } : {}) },
-        body: body ? JSON.stringify(body) : undefined,
-      });
-    } catch (x) {
-      return { ok: false, status: 0, error: `the observer did not answer: ${x.message}` };
-    }
-    if (r.status === 401) { window.location.assign("/login"); return { ok: false, status: 401, error: "logged out" }; }
-    const j = await r.json().catch(() => null);
-    if (!r.ok) return { ok: false, status: r.status, error: j?.error || `the observer answered ${r.status} without a reason` };
-    if (!j) return { ok: false, status: r.status, error: `the observer answered ${r.status} with something that is not JSON` };
-    return { ok: true, status: r.status, body: j };
+  connect() {
+    bus.onState((st) => { this.link = st; this.renderButton(); if (this.open) this.render(); });
+    bus.subscribe("objectives", (event, payload) => {
+      if (event === "objective") this.merge(payload);
+      else if (event === "list") this.replace(payload);
+    }, {
+      // the join reply, and again after every reconnect: the whole list
+      onJoin: (reply) => this.replace(reply),
+      onError: (reason) => { this.configured = true; this.error = `the objectives channel refused the join: ${reason}`; this.changed(); },
+    });
+    bus.subscribe("actions", (event, payload) => {
+      if (event === "action") this.addAction(payload);
+    }, {
+      onJoin: () => { this.actionsErr = null; },
+      onError: (reason) => { this.actionsErr = `the actions channel refused the join: ${reason}`; },
+    });
   }
 
-  async poll() {
-    clearTimeout(this.timer);
-    const r = await this.request("GET", "/api/objectives");
-    if (r.ok) {
+  // {objectives} or {error}, from a join reply or a `list` push
+  replace(r) {
+    if (r && Array.isArray(r.objectives)) {
       this.configured = true; this.error = null; this.loaded = true;
-      this.list = r.body.objectives;
-    } else if (r.status === 503 && r.error.startsWith(NO_STORE)) {
-      this.configured = false; this.error = r.error; this.list = [];
+      this.list = r.objectives;
+    } else if (typeof r?.error === "string" && r.error.startsWith(NO_STORE)) {
+      this.configured = false; this.error = r.error; this.list = []; this.loaded = false;
       if (this.open) this.toggle(false);
       this.flagBtn.hidden = true;
-    } else if (r.status !== 401) {
-      // the store is there but failing, or the request did: say so, keep what we had
-      this.configured = true; this.error = r.error;
+    } else {
+      // the store is there but failing: say so, keep what we had
+      this.configured = true;
+      this.error = r?.error ?? `the objectives join answered ${JSON.stringify(r)}`;
     }
+    this.changed();
+  }
+
+  // one changed row, whoever changed it
+  merge(row) {
+    if (!row || row.id == null) return;
+    const i = this.list.findIndex((o) => o.id === row.id);
+    if (i >= 0) this.list[i] = row; else this.list.unshift(row);
+    if (row.state !== "done") this.crossed = this.crossed.filter((c) => c.id !== row.id);
+    this.saveCrossed();
+    // The list could not be read when we joined and the store is answering
+    // again: read it once, since changes alone do not make a whole list.
+    if (this.error && !this.resyncing) this.resync();
+    this.changed();
+  }
+
+  async resync() {
+    this.resyncing = true;
+    try {
+      const r = await fetch("/api/objectives", { cache: "no-store", credentials: "same-origin", headers: { accept: "application/json" } });
+      if (r.status === 401) { window.location.assign("/login"); return; }
+      const j = await r.json().catch(() => null);
+      if (r.ok && j) this.replace(j);
+      else this.replace({ error: j?.error || `GET /api/objectives answered ${r.status} without a reason` });
+    } catch (x) {
+      this.replace({ error: `GET /api/objectives: the observer did not answer: ${x.message}` });
+    } finally {
+      this.resyncing = false;
+    }
+  }
+
+  changed() {
+    // the server's list keeps done rows for 24 h; one merged in here does too
+    const cut = Date.now() - RECENT_MS;
+    this.list = this.list.filter((o) => o.state !== "done" || !o.done_at || Date.parse(o.done_at) > cut);
     this.renderButton();
     this.applyLens();
     if (this.open) this.render();
     if (!this.noticed && this.loaded) { this.noticed = true; this.notice(); }
-    this.timer = setTimeout(() => this.poll(), POLL_MS);
   }
 
   async act(id, action, note) {
-    if (!this.requireWho()) return;
+    if (!this.requireWho()) return false;
     this.itemErr.delete(String(id));
-    const r = await this.request("POST", `/api/objectives/${encodeURIComponent(id)}`, { action, by: this.who, note: note || undefined });
-    if (!r.ok) { this.itemErr.set(String(id), `${action === "done" ? "Cross off" : action === "look" ? "I'm on it" : "Reopen"} failed: ${r.error}`); this.render(true); return false; }
+    let row;
+    try {
+      row = await bus.push("objectives", "act", { id: Number(id), action, by: this.who, note: note || undefined });
+    } catch (x) {
+      this.itemErr.set(String(id), `${action === "done" ? "Cross off" : action === "look" ? "I'm on it" : "Reopen"} failed: ${x.message}`);
+      this.render(true);
+      return false;
+    }
+    // the list changes when the broadcast arrives; this only remembers what *I* crossed off
     if (action === "done") {
-      const o = r.body;
-      this.crossed = this.crossed.filter((c) => c.id !== o.id);
-      this.crossed.push({ id: o.id, title: o.title, node: o.node, label: this.label(o.node).text, severity: o.severity, note: o.note, by: o.done_by, at: o.done_at });
+      this.crossed = this.crossed.filter((c) => c.id !== row.id);
+      this.crossed.push({ id: row.id, title: row.title, node: row.node, label: this.label(row.node).text, severity: row.severity, note: row.note, by: row.done_by, at: row.done_at });
       this.saveCrossed();
     }
-    if (action === "reopen") { this.crossed = this.crossed.filter((c) => c.id !== r.body.id); this.saveCrossed(); }
-    await this.poll();
+    if (action === "reopen") { this.crossed = this.crossed.filter((c) => c.id !== row.id); this.saveCrossed(); }
     return true;
+  }
+
+  // ---- actions this session (the "actions" topic) ---------------------------
+
+  addAction(a) {
+    if (!a || typeof a !== "object") return;
+    this.actions.push({ seen: new Date().toISOString(), a });
+    if (this.actions.length > ACTIONS_KEPT) this.actions = this.actions.slice(-ACTIONS_KEPT);
+    store.set("sessionStorage", ACTIONS_KEY, JSON.stringify(this.actions));
+  }
+
+  loadActions() {
+    try { return JSON.parse(store.get("sessionStorage", ACTIONS_KEY) || "[]"); } catch { return []; }
+  }
+
+  // One line for whatever the engine published: it names its own fields, so
+  // the known ones are picked out and the rest is shown as it came.
+  actionText({ seen, a }) {
+    const what = a.action ?? a.kind ?? a.name ?? a.type ?? "action";
+    const on = a.target ?? a.node ?? a.container ?? a.pid ?? a.id;
+    const state = a.state ?? a.status ?? (a.error ? "failed" : a.ok === true ? "ok" : null);
+    const known = new Set(["action", "kind", "name", "type", "target", "node", "container", "pid", "id", "state", "status", "ok", "error", "result", "by", "at"]);
+    const rest = Object.entries(a).filter(([k]) => !known.has(k));
+    return {
+      head: `${what}${on != null ? ` ${on}` : ""}${state ? ` — ${state}` : ""}`,
+      by: a.by ?? null,
+      at: a.at ?? seen,
+      err: a.error != null ? (typeof a.error === "string" ? a.error : JSON.stringify(a.error)) : null,
+      result: a.result != null ? (typeof a.result === "string" ? a.result : JSON.stringify(a.result)) : null,
+      rest: rest.length ? JSON.stringify(Object.fromEntries(rest)) : null,
+    };
   }
 
   loadCrossed() {
@@ -290,11 +377,13 @@ export class Missions {
   }
 
   render(force = false) {
-    // Never pull an input out from under someone typing; the next poll renders.
+    // Never pull an input out from under someone typing; the next change renders.
     if (!force && this.el.contains(document.activeElement) && typing(document.activeElement) && !this.whoEl.contains(document.activeElement)) return;
     if (!this.whoEl.contains(document.activeElement)) this.renderWho(this.whoMsg);
-    this.errEl.hidden = !this.error;
-    this.errEl.textContent = this.error ? `Could not read the objectives: ${this.error}` : "";
+    const offline = this.link.state !== "connected" ? `Not live (${this.link.state}${this.link.detail ? `: ${this.link.detail}` : ""}): changes made elsewhere will show once the socket is back.` : "";
+    const msg = [this.error ? `Could not read the objectives: ${this.error}` : "", offline].filter(Boolean).join(" ");
+    this.errEl.hidden = !msg;
+    this.errEl.textContent = msg;
     const u = this.list.filter(undone);
     const open = u.filter((o) => o.state === "open" || o.state === "looking").sort((a, b) => sevRank(a) - sevRank(b) || Date.parse(b.opened_at) - Date.parse(a.opened_at));
     const cleared = u.filter((o) => o.state === "cleared");
@@ -402,10 +491,13 @@ export class Missions {
       if (f.elements.who) this.setWho(f.elements.who.value);
       const err = f.querySelector(".ms-warn");
       f.querySelectorAll("button").forEach((x) => { x.disabled = true; });
-      const r = await this.request("POST", "/api/objectives", { node: t.id, title: f.elements.title.value, note: f.elements.note.value, by: this.who });
-      if (!r.ok) { err.textContent = `Not flagged: ${r.error}`; err.hidden = false; f.querySelectorAll("button").forEach((x) => { x.disabled = false; }); return; }
+      try {
+        await bus.push("objectives", "pin", { node: t.id, title: f.elements.title.value, note: f.elements.note.value, by: this.who });
+      } catch (x) {
+        err.textContent = `Not flagged: ${x.message}`; err.hidden = false; f.querySelectorAll("button").forEach((b) => { b.disabled = false; }); return;
+      }
+      // the pin is in the list when its broadcast arrives (already, or in a moment)
       this.closeModal();
-      await this.poll();
       this.toggle(true);
     });
   }
@@ -424,6 +516,8 @@ export class Missions {
       ${this.error ? `<p class="ms-warn">The list may be stale: ${esc(this.error)}</p>` : ""}
       ${sec("Still open", open, li)}
       ${sec("Cleared itself, nobody checked", cleared, li)}
+      ${sec("Actions this session", this.actions, (x) => { const t = this.actionText(x); return `<li><b>${esc(t.head)}</b> <span class="unk">${t.by ? `by ${esc(t.by)}, ` : ""}${esc(ago(t.at))}</span>${t.err ? `<div class="ms-warn">${esc(t.err)}</div>` : ""}${t.result ? `<div class="unk">${esc(t.result)}</div>` : ""}${t.rest ? `<div class="unk ms-raw">${esc(t.rest)}</div>` : ""}</li>`; })}
+      ${this.actionsErr ? `<p class="ms-warn">${esc(this.actionsErr)}</p>` : !this.actions.length ? '<p class="unk">Everything anyone asks the observer to do, and what came of it, is listed here as it happens (the "actions" topic). Nothing has been asked since this tab opened.</p>' : ""}
       ${sec("You crossed off this session", this.crossed, (c) => `<li><span class="ms-sev">${esc(c.severity)}</span> ${esc(c.title)} <span class="unk">— ${esc(c.label)}</span>${c.note ? `<div class="ms-note">“${esc(c.note)}”</div>` : '<div class="unk">no note</div>'}</li>`)}
       <h4>Handover <span class="unk">plain text</span></h4>
       <textarea class="ms-handover" rows="8" readonly>${esc(text)}</textarea>
@@ -454,6 +548,10 @@ export class Missions {
       "",
       `Crossed off this session (${this.crossed.length}):`,
       ...(this.crossed.length ? this.crossed.map((c) => `  [${c.severity}] ${c.title} — ${c.label}: ${c.note || "no note"}`) : ["  none"]),
+      "",
+      `Actions this session (${this.actions.length}):`,
+      ...(this.actionsErr ? [`  (${this.actionsErr})`] : []),
+      ...(this.actions.length ? this.actions.map((x) => { const t = this.actionText(x); return `  ${t.head}${t.by ? ` by ${t.by}` : ""}, ${ago(t.at)}${t.err ? `: ${t.err}` : ""}${t.result ? `: ${t.result}` : ""}`; }) : ["  none"]),
     ].join("\n");
   }
 
