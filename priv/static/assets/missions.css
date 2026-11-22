@@ -1,0 +1,130 @@
+/* Missions (assets/js/missions.js): the top-bar control, the panel, the
+   flag form, the debrief, the notice. Its own file so app.css stays out of
+   the way of anyone else editing it. */
+
+/* ---- the control in the top bar ------------------------------------------ */
+.ms-btn {
+  margin-left: auto; height: 36px; padding: 0 10px 0 12px; border-radius: 10px; flex: none; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); font: 600 13px var(--sans); letter-spacing: 0.04em;
+}
+.ms-btn[hidden] { display: none; }
+.ms-btn:hover { background: rgba(255, 255, 255, 0.08); }
+.ms-btn:not([hidden]) + .iconbtn { margin-left: 0; }
+.ms-btn .n { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; display: inline-grid; place-items: center; font: 700 12px var(--mono); background: rgba(255, 255, 255, 0.08); color: var(--muted); }
+.ms-btn[data-level="warn"] .n { background: rgba(255, 179, 71, 0.2); color: #ffc46b; }
+.ms-btn[data-level="alert"] { border-color: rgba(255, 90, 90, 0.55); }
+.ms-btn[data-level="alert"] .n { background: #d63a3a; color: #fff; box-shadow: 0 0 10px rgba(255, 77, 77, 0.6); }
+.ms-btn[data-level="error"] { border-color: rgba(255, 90, 90, 0.55); color: #ffb4ad; }
+.ms-btn[data-level="error"] .n { background: transparent; border: 1px dashed #ff8a80; color: #ff8a80; }
+.ms-btn[aria-expanded="true"] { border-color: var(--cyan); }
+@media (max-width: 420px) { .ms-btn { font-size: 0; gap: 0; padding: 0 6px; } .ms-btn .n { font-size: 12px; } .ms-btn::before { content: "◎"; font-size: 15px; margin-right: 5px; color: var(--gold); } }
+
+/* ---- the panel -------------------------------------------------------------- */
+#missions {
+  position: fixed; left: 12px; top: calc(var(--top) + 10px); bottom: calc(64px + var(--safe-b)); z-index: 17;
+  width: min(430px, calc(100vw - 24px)); overflow: auto; overscroll-behavior: contain;
+  background: var(--panel-solid); border: 1px solid rgba(242, 201, 76, 0.32); border-radius: 12px; padding: 12px 14px 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+#missions[hidden] { display: none; }
+body:has(#attention:not([hidden])) #missions { top: calc(var(--top) + 48px); }
+body.inside #missions { top: calc(var(--top) + 60px); }
+body.inside:has(#attention:not([hidden])) #missions { top: calc(var(--top) + 97px); }
+@media (max-width: 759px) {
+  #missions { left: 0; right: 0; width: auto; top: var(--top); bottom: 0; border-radius: 0; border-width: 1px 0 0; padding-bottom: calc(20px + var(--safe-b)); z-index: 19; }
+  body:has(#attention:not([hidden])) #missions, body.inside #missions, body.inside:has(#attention:not([hidden])) #missions { top: var(--top); }
+}
+#missions .ms-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#missions h3 { margin: 0; font: 700 12px var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); }
+#missions h3 .unk { text-transform: none; letter-spacing: 0; font-weight: 500; margin-left: 6px; }
+#missions .iconbtn { width: 40px; height: 40px; font-size: 22px; background: none; border: 0; cursor: pointer; color: var(--muted); margin: 0; }
+#missions h4 { margin: 16px 0 6px; font: 700 11.5px var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+#missions .unk, #ms-modal .unk, #ms-toast .unk { color: var(--muted); }
+.ms-who { margin: 6px 0 8px; font-size: 13px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; }
+.ms-whoform { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; width: 100%; }
+.ms-whoform label { display: flex; gap: 8px; align-items: center; flex: 1; min-width: 0; }
+.ms-whoform input { flex: 1; min-width: 0; }
+.ms-link { background: none; border: 0; color: var(--cyan); cursor: pointer; padding: 2px; font-size: 12.5px; text-decoration: underline; text-underline-offset: 3px; }
+.ms-bar { display: flex; gap: 8px; flex-wrap: wrap; }
+#missions :where(button:not(.iconbtn):not(.ms-link)), #ms-modal :where(button) {
+  min-height: 34px; padding: 0 12px; border-radius: 8px; cursor: pointer; font-size: 13px;
+  background: #0b0e17; border: 1px solid var(--line); color: var(--text);
+}
+#missions :where(button:not(.iconbtn):not(.ms-link):hover:not(:disabled)), #ms-modal :where(button:hover:not(:disabled)) { border-color: rgba(255, 255, 255, 0.3); }
+#missions button:disabled, #ms-modal button:disabled { opacity: 0.45; cursor: not-allowed; }
+#missions .ms-lens.on { border-color: var(--gold); color: var(--gold); box-shadow: inset 0 0 0 1px rgba(242, 201, 76, 0.35); }
+#missions .ms-cross, #ms-modal .ms-cross { border-color: rgba(61, 220, 132, 0.5); color: #8ff0b8; }
+.ms-lensnote { margin: 8px 0 0; font-size: 12.5px; }
+.ms-err, .ms-warn { color: #ffb4ad; font-size: 13px; margin: 8px 0 0; }
+.ms-err { padding: 8px 10px; border: 1px solid rgba(255, 90, 90, 0.4); border-radius: 8px; background: rgba(110, 22, 28, 0.35); }
+.ms-hint, .ms-none { margin: 0 0 6px; font-size: 12.5px; }
+#missions input, #missions textarea, #ms-modal input, #ms-modal textarea {
+  background: #0b0e17; border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 7px 9px; font: 14px var(--sans); width: 100%;
+}
+#missions input:focus, #missions textarea:focus, #ms-modal input:focus, #ms-modal textarea:focus { outline: none; border-color: var(--cyan); }
+.ms-whoform input { width: auto; }
+
+.ms-item {
+  border: 1px solid var(--line); border-left: 3px solid #ffb347; border-radius: 8px; padding: 9px 10px 8px; margin-bottom: 8px; background: rgba(255, 255, 255, 0.02);
+}
+.ms-item.sev-alert { border-left-color: #ff5a5a; }
+.ms-item.st-cleared { border-left-style: dashed; }
+.ms-item.st-done { border-left-color: #3ddc84; opacity: 0.75; }
+.ms-item.st-done .ms-title { text-decoration: line-through; text-decoration-color: rgba(61, 220, 132, 0.7); }
+.ms-top { display: flex; gap: 8px; align-items: baseline; }
+.ms-sev { flex: none; font: 700 10.5px var(--mono); text-transform: uppercase; letter-spacing: 0.08em; padding: 1px 5px; border-radius: 4px; background: rgba(255, 179, 71, 0.18); color: #ffc46b; }
+.sev-alert .ms-sev { background: rgba(255, 90, 90, 0.2); color: #ff8a80; }
+.ms-title { font-weight: 600; overflow-wrap: anywhere; }
+.ms-meta { margin-top: 4px; font-size: 12.5px; color: var(--muted); }
+.ms-meta .ms-off { color: #ffb4ad; }
+.ms-meta .ms-nobldg { color: var(--dim); }
+.ms-looking { color: var(--cyan); font-weight: 600; margin-left: 4px; }
+.ms-cleared { color: #ffd7a3; margin-left: 4px; }
+.ms-done { color: #8ff0b8; margin-left: 4px; }
+.ms-note { margin-top: 4px; font-size: 13px; color: #d5dae6; font-style: italic; overflow-wrap: anywhere; }
+.ms-acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.ms-crossform { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.ms-crossform div { display: flex; gap: 6px; }
+.ms-item details { margin-top: 6px; font-size: 12.5px; }
+.ms-item summary { cursor: pointer; color: var(--muted); padding: 4px 0; }
+.ms-events { margin: 4px 0 0; padding-left: 18px; color: #c3c9d8; }
+.ms-events li { margin: 2px 0; overflow-wrap: anywhere; }
+.ms-events time { color: var(--dim); }
+
+/* ---- Flag in the inspector's header ---------------------------------------- */
+.ms-flagbtn {
+  position: absolute; top: 12px; right: 64px; z-index: 2; height: 44px; padding: 0 14px; border-radius: 10px; cursor: pointer;
+  background: var(--panel-solid); border: 1px solid rgba(255, 179, 71, 0.5); color: #ffc46b; font: 600 13px var(--sans);
+}
+.ms-flagbtn[hidden] { display: none; }
+.ms-flagbtn::before { content: "⚑ "; }
+@media (max-width: 759px) { .ms-flagbtn { top: 26px; } }
+#inspector:has(.ms-flagbtn:not([hidden])) .ins-head { padding-right: 120px; }
+
+/* ---- modal: the flag form and the debrief ----------------------------------- */
+#ms-modal { position: fixed; inset: 0; z-index: 45; background: rgba(3, 5, 11, 0.66); display: grid; place-items: center; padding: 16px; }
+#ms-modal[hidden] { display: none; }
+#ms-modal > * {
+  width: min(560px, 100%); max-height: calc(100vh - 32px); overflow: auto; background: var(--panel-solid);
+  border: 1px solid rgba(242, 201, 76, 0.4); border-radius: 14px; padding: 16px 18px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+#ms-modal h3 { margin: 0 0 6px; font-size: 17px; }
+#ms-modal h4 { margin: 14px 0 6px; font: 700 11.5px var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+#ms-modal label { display: flex; flex-direction: column; gap: 4px; margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+#ms-modal ul { list-style: none; margin: 0; padding: 0; }
+#ms-modal li { padding: 5px 0; border-top: 1px solid var(--line); font-size: 13.5px; overflow-wrap: anywhere; }
+.ms-mbtns { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; position: sticky; bottom: -16px; background: var(--panel-solid); padding: 10px 0 12px; }
+.ms-handover { font: 12px/1.45 var(--mono) !important; white-space: pre-wrap; resize: vertical; }
+
+/* ---- the notice on load -------------------------------------------------------- */
+#ms-toast {
+  position: fixed; top: calc(var(--top) + 12px); left: 50%; transform: translateX(-50%); z-index: 22; cursor: pointer;
+  background: var(--panel-solid); border: 1px solid rgba(242, 201, 76, 0.5); border-radius: 999px; padding: 8px 16px;
+  font-size: 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); white-space: nowrap; max-width: calc(100vw - 24px); overflow: hidden; text-overflow: ellipsis;
+}
+#ms-toast[hidden] { display: none; }
+body:has(#attention:not([hidden])) #ms-toast { top: calc(var(--top) + 50px); }
+body.inside #ms-toast { top: calc(var(--top) + 60px); }
+body.inside:has(#attention:not([hidden])) #ms-toast { top: calc(var(--top) + 98px); }
+#ms-toast .ms-a { color: #ff8a80; font-weight: 700; margin-left: 4px; }
