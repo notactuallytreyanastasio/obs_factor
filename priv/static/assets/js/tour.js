@@ -2,7 +2,7 @@
 // factory floor down to the BEAM processes that read the numbers and their
 // log. It drives the page the way a person would (opens the legend, selects
 // a building, opens "Under the hood"), and every number it quotes is read
-// from the live snapshot or /api/beam at that step. A stop whose subject is
+// from the live snapshot or the beam feed at that step. A stop whose subject is
 // not on this box (no failing source, no built app) is skipped, not faked.
 //
 // Start: the Tour button, or ?tour in the URL. Keys: → / Enter next,
@@ -186,9 +186,9 @@ function steps(api) {
       enter: async () => { api.closeAll(); api.beam.toggle(true); await waitFor(() => q("#beam .bm-tiles")); },
       body: () => {
         const v = api.beam.data?.vm;
-        return v ? `Below the factory: the observer is an Elixir app, and this is its own VM, read live from ${code("GET /api/beam")}.
+        return v ? `Below the factory: the observer is an Elixir app, and this is its own VM, read live from the ${code("observer:observer:-:beam")} feed on the page's socket.
           <b>OTP ${esc(v.otp)}</b> on ${esc(v.schedulers)} schedulers, up ${esc(duration(v.uptime_s))}, running <b>${esc(num(v.process_count))}</b> lightweight processes in ${esc(Math.round(v.memory.total / 1048576))} MB of memory.
-          A run queue above 0 for long means the schedulers can't keep up.` : `/api/beam didn't answer: ${esc(api.beam.error ?? "no data")}.`;
+          A run queue above 0 for long means the schedulers can't keep up.` : `The beam feed didn't answer: ${esc(api.beam.error ?? "no data")}.`;
       },
     },
     {

@@ -13,13 +13,17 @@ defmodule ObsFactorWeb.AuthController do
       conn
       |> configure_session(renew: true)
       |> put_session(:authed, true)
+      |> put_session(:sid, ObsFactorWeb.SocketTokenController.new_sid())
       |> redirect(to: "/")
     else
       redirect(conn, to: "/login?error=1")
     end
   end
 
+  # the session's open sockets (ObsFactorWeb.UserSocket.id/1) close too
   def delete(conn, _params) do
+    if sid = get_session(conn, :sid), do: ObsFactorWeb.Endpoint.broadcast("session:" <> sid, "disconnect", %{})
+
     conn
     |> configure_session(drop: true)
     |> redirect(to: "/login")

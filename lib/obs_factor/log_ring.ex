@@ -8,6 +8,11 @@ defmodule ObsFactor.LogRing do
   that logged, so it does one ETS insert and nothing that can block; this
   GenServer only owns the table and trims it. Events from before it starts
   (the first lines of boot) are not in it: stdout has them.
+
+  Each event is also broadcast on `ObsFactor.PubSub` topic `"logs"` as
+  `{:log, event}` (the "logs" channel tails it). The broadcast is a send to
+  each subscriber and logs nothing itself, so it cannot feed back into the
+  ring; pushing a log event to a browser logs nothing either.
   """
 
   use GenServer
@@ -15,6 +20,9 @@ defmodule ObsFactor.LogRing do
   @table __MODULE__
   @keep 2000
   @handler :obs_factor_ring
+  @topic "logs"
+
+  def topic, do: @topic
 
   def start_link(_), do: GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
 
@@ -46,7 +54,7 @@ defmodule ObsFactor.LogRing do
     if :ets.whereis(@table) != :undefined do
       id = System.unique_integer([:monotonic, :positive])
 
-      :ets.insert(@table, {id, %{
+      event = %{
         id: id,
         at: div(Map.get(meta, :time, :os.system_time(:microsecond)), 1000),
         level: level,
@@ -54,10 +62,21 @@ defmodule ObsFactor.LogRing do
         where: where(meta),
         pid: meta |> Map.get(:pid) |> pid_text(),
         attrs: attrs(meta)
-      }})
+      }
+
+      :ets.insert(@table, {id, event})
+      broadcast(event)
     end
 
     :ok
+  end
+
+  # A logger handler that raises is removed by :logger, so nothing here may:
+  # before PubSub has started (boot) the broadcast raises and is dropped.
+  defp broadcast(event) do
+    Phoenix.PubSub.broadcast(ObsFactor.PubSub, @topic, {:log, event})
+  rescue
+    _ -> :ok
   end
 
   # Logger metadata as searchable attributes (the explorer's facets):

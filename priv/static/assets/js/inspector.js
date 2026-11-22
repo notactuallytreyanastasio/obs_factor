@@ -3,7 +3,7 @@
 import { num, bytes, bps, withUnit, duration, esc, isNum, UNKNOWN, utc } from "./fmt.js";
 import { headlineText } from "./overlay.js";
 import { itemColor, HOLD_COLORS, CPU_COLOR, MEM_COLOR, STATUS_COLOR, CLASS_COLOR, containerPlan } from "./render.js";
-import { fetchHistory } from "./live.js";
+import * as bus from "./bus.js";
 
 const $ = (id) => document.getElementById(id);
 const u = (v, f = (x) => x) => (v == null ? `<span class="unk">${UNKNOWN}</span>` : esc(f(v)));
@@ -18,13 +18,13 @@ export class Inspector {
     this.res = "5s";
     this.hist = null;
     this.histErr = null;
-    this.histTimer = null;
+    this.histUnsub = null;
     $("inspector-close").addEventListener("click", () => this.close());
     this.body.innerHTML = '<div class="live"></div><div class="sec buildlog" hidden></div><div class="sec hist"></div>';
     this.live = this.body.querySelector(".live");
     this.logEl = this.body.querySelector(".buildlog");
     this.buildId = null;
-    this.buildTimer = null;
+    this.buildUnsub = null;
     this.histEl = this.body.querySelector(".hist");
     this.logEl.addEventListener("click", (e) => {
       if (!this.buildId || window.getSelection()?.toString()) return;
@@ -75,7 +75,7 @@ export class Inspector {
     this.el.hidden = true;
     this.el.classList.remove("tall");
     document.body.classList.remove("inspecting");
-    clearTimeout(this.histTimer);
+    this.histUnsub?.(); this.histUnsub = null;
     this.syncBuild(null);
     this.onClose();
   }
@@ -92,32 +92,36 @@ export class Inspector {
     this.live.innerHTML = [head(n), build(n), facts(n), holds(n), power(n, snap), drawnBy(n, snap), inside(n), flows(n, snap), latency(n), clients(n), hostsTable(n), routes(n, snap), via(n), probe(n), container(n)].join("");
   }
 
-  // The build's log is not in the snapshot: fetched from /api/builds/:id,
-  // every 2 s while the job runs, once when it has finished.
+  // The build's log is not in the snapshot: the feed builds:<id> on the
+  // socket (the builder's job, read every 2 s on the server while someone
+  // watches). Once the job has finished and been shown, we leave the topic.
   syncBuild(n) {
     const id = n?.build?.id ?? null;
     if (id === this.buildId) {
-      if (id && n.build.status === "running" && !this.buildTimer) this.loadBuild();
+      if (id && n.build.status === "running" && !this.buildUnsub) this.loadBuild();
       return;
     }
-    clearTimeout(this.buildTimer); this.buildTimer = null;
+    this.buildUnsub?.(); this.buildUnsub = null;
     this.buildId = id;
     this.logEl.hidden = !id;
     if (id) { this.logEl.innerHTML = '<h3>Build log</h3><p class="note">Loading…</p>'; this.loadBuild(); }
   }
 
-  async loadBuild() {
+  loadBuild() {
     const id = this.buildId;
-    clearTimeout(this.buildTimer); this.buildTimer = null;
-    if (!id) return;
-    let job, error;
-    try {
-      const r = await fetch(`/api/builds/${encodeURIComponent(id)}`, { cache: "no-store", credentials: "same-origin" });
-      if (r.status === 401) return window.location.assign("/login");
-      job = await r.json();
-      if (!r.ok) error = job.error || `builder answered ${r.status}`;
-    } catch (x) { error = x.message; }
-    if (id !== this.buildId) return;
+    if (!id || this.buildUnsub) return;
+    const take = (p) => {
+      if (id !== this.buildId || !p.at) return;
+      this.renderBuild(p.data, p.error);
+      if (p.data && p.data.status !== "running") { this.buildUnsub?.(); this.buildUnsub = null; }
+    };
+    this.buildUnsub = bus.subscribe(`builds:${id}`, (ev, p) => ev === "feed" && take(p), {
+      onJoin: take,
+      onError: (reason) => { if (id === this.buildId) this.renderBuild(null, `builds:${id} refused: ${reason}`); },
+    });
+  }
+
+  renderBuild(job, error) {
     const pre = this.logEl.querySelector("pre");
     const stuck = !pre || pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 8;
     if (error) this.logEl.innerHTML = `<h3>Build log</h3><p class="note err">${esc(error)}</p>`;
@@ -129,24 +133,25 @@ export class Inspector {
       const p2 = this.logEl.querySelector("pre");
       if (stuck) p2.scrollTop = p2.scrollHeight;
     }
-    if (job?.status === "running" || error) this.buildTimer = setTimeout(() => this.loadBuild(), 2000);
   }
 
-  async loadHistory() {
-    clearTimeout(this.histTimer);
+  // The series behind the charts: the feed history:<id>:<res> (re-read on
+  // the server every 15 s for 1 h, every 60 s for 24 h).
+  loadHistory() {
+    this.histUnsub?.(); this.histUnsub = null;
     const id = this.id, res = this.res;
     if (!id) return;
     if (!this.history) { this.hist = { series: [] }; this.histErr = null; this.renderHistory(); return; }
-    try {
-      const h = await fetchHistory(id, res);
-      if (id !== this.id || res !== this.res) return;
-      this.hist = h; this.histErr = null;
-    } catch (err) {
-      if (id !== this.id) return;
-      this.histErr = err.message;
-    }
-    this.renderHistory();
-    this.histTimer = setTimeout(() => this.loadHistory(), res === "5s" ? 15000 : 60000);
+    const take = (p) => {
+      if (id !== this.id || res !== this.res || !p.at) return;
+      if (p.error) this.histErr = p.error;
+      else { this.hist = p.data; this.histErr = null; }
+      this.renderHistory();
+    };
+    this.histUnsub = bus.subscribe(`history:${id}:${res}`, (ev, p) => ev === "feed" && take(p), {
+      onJoin: take,
+      onError: (reason) => { if (id === this.id) { this.histErr = `history refused: ${reason}`; this.renderHistory(); } },
+    });
   }
 
   renderHistory() {

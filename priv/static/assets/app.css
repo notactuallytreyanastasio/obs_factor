@@ -60,10 +60,10 @@ button { font: inherit; color: inherit; }
 .clock .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
 .clock[data-state="live"] .dot { background: var(--working); box-shadow: 0 0 8px var(--working); animation: pulse 2s ease-in-out infinite; }
 .clock[data-state="live"] #live { color: var(--text); }
-.clock[data-state="stale"] .dot, .clock[data-state="reconnecting"] .dot { background: var(--down); box-shadow: 0 0 8px var(--down); }
-.clock[data-state="stale"] #live, .clock[data-state="reconnecting"] #live { color: var(--down); font-weight: 700; }
-.clock[data-state="stale"] time, .clock[data-state="reconnecting"] time { color: var(--down); text-decoration: line-through; text-decoration-thickness: 1px; }
-#stale { color: var(--blocked); }
+.clock[data-state="stale"] .dot, .clock[data-state="reconnecting"] .dot, .clock[data-state="refused"] .dot { background: var(--down); box-shadow: 0 0 8px var(--down); }
+.clock[data-state="stale"] #live, .clock[data-state="reconnecting"] #live, .clock[data-state="refused"] #live { color: var(--down); font-weight: 700; }
+.clock[data-state="stale"] time, .clock[data-state="reconnecting"] time, .clock[data-state="refused"] time { color: var(--down); text-decoration: line-through; text-decoration-thickness: 1px; }
+#stale { color: var(--blocked); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 42vw; }
 .clock .sep { color: var(--dim); }
 @keyframes pulse { 50% { opacity: 0.45; } }
 

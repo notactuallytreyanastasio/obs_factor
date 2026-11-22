@@ -22,7 +22,9 @@ defmodule ObsFactor.ObjectivesTest do
     start_supervised!(Supervisor.child_spec({Postgrex, ObsFactor.Postgres.opts(@url, name: db, pool_size: 1, statement_timeout: "5000")}, id: db))
     Postgrex.query!(db, "DROP TABLE IF EXISTS objective_events, objectives", [])
     name = :"objectives_test_#{System.unique_integer([:positive])}"
-    start_supervised!({Objectives, db: db, name: name})
+    topic = "objectives_test_#{System.unique_integer([:positive])}"
+    Phoenix.PubSub.subscribe(ObsFactor.PubSub, topic)
+    start_supervised!({Objectives, db: db, name: name, topic: topic})
     # the schema is created in handle_continue: wait for it
     {:ok, _} = Objectives.list(name) |> retry(name)
     %{s: name, db: db}
@@ -100,6 +102,55 @@ defmodule ObsFactor.ObjectivesTest do
   test "no such objective, and nothing stored for one" do
     assert Objectives.key("db", "Postgres 96 of 100, 3.5 ms") == "db|Postgres # of #, # ms"
     assert Objectives.key(nil, "source docker failing") == "-|source docker failing"
+  end
+
+  test "every change is broadcast with the public row and its events", %{s: s} do
+    [o] = tick(s, [alert("db", "Postgres connections 96 of 100")])
+    assert_receive {:objective, %{id: id, state: "open", events: [%{kind: "seen"}]} = row}
+    assert id == o.id and is_binary(row.opened_at)
+
+    {:ok, _} = Objectives.act(o.id, "look", %{"by" => "bg"}, s)
+    assert_receive {:objective, %{id: ^id, state: "looking", looking_by: "bg", events: [_, %{kind: "looking"}]}}
+
+    GenServer.cast(s, {:observe, [], %{}, System.system_time(:millisecond) + 61_000})
+    {:ok, _} = Objectives.list(s)
+    assert_received {:objective, %{id: ^id, state: "cleared", events: [_, _, %{kind: "cleared itself"}]}}
+
+    {:ok, _} = Objectives.act(o.id, "done", %{"by" => "bg", "note" => "fine"}, s)
+    assert_receive {:objective, %{id: ^id, state: "done", note: "fine"}}
+
+    {:ok, pin} = Objectives.pin(%{"node" => "blog", "title" => "odd", "by" => "bg"}, s)
+    pin_id = pin.id
+    assert_receive {:objective, %{id: ^pin_id, source: "pin", events: [%{kind: "pinned"}]}}
+  end
+
+  describe "the objectives channel" do
+    import Phoenix.ChannelTest
+    @endpoint ObsFactorWeb.Endpoint
+
+    setup %{db: db} do
+      start_supervised!(Supervisor.child_spec({Objectives, db: db}, id: :default_objectives))
+      {:ok, _} = Objectives.list() |> retry(Objectives)
+      socket = socket(ObsFactorWeb.UserSocket, "session:t", %{sid: "t"})
+      %{socket: socket}
+    end
+
+    test "join replies with the list; a pin pushed by one viewer reaches every viewer", %{socket: socket} do
+      {:ok, %{objectives: []}, a} = subscribe_and_join(socket, ObsFactorWeb.ObjectivesChannel, "objectives")
+
+      ref = push(a, "pin", %{"node" => "blog", "title" => "looks wrong", "by" => "bg"})
+      assert_reply ref, :ok, %{id: id, source: "pin", title: "looks wrong"}
+      assert_push "objective", %{id: ^id, events: [%{kind: "pinned", by: "bg"}]}
+
+      ref = push(a, "act", %{"id" => id, "action" => "look", "by" => "kim"})
+      assert_reply ref, :ok, %{state: "looking"}
+      assert_push "objective", %{id: ^id, state: "looking", looking_by: "kim"}
+
+      ref = push(a, "act", %{"id" => "#{id}", "action" => "look"})
+      assert_reply ref, :error, %{error: "act needs an integer id" <> _}
+
+      {:ok, %{objectives: [%{id: ^id}]}, _} = subscribe_and_join(socket, ObsFactorWeb.ObjectivesChannel, "objectives")
+    end
   end
 
   defp ensure_database(url) do

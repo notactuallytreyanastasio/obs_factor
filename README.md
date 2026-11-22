@@ -133,6 +133,36 @@ service names that do not resolve outside the Docker network, so every
 probed node is `down` with `probe failed: host not found`. For those, run
 the container.
 
+### Live: one socket
+
+The page holds one websocket (`/socket`, Phoenix Channels) and everything
+live comes over it: the floor (`snapshots`, one push per tick), Under the
+hood (the feed `observer:observer:-:beam`), the log explorer (`logs`, each
+event as it is logged), the inspector's history (`history:<node>:<res>`) and
+build logs (`builds:<id>`), objectives and actions. On the server each of
+those is a PubSub topic; data that has to be fetched (the observer's own
+BEAM, a node's history, a build) is fetched by one process per topic
+however many browsers watch, and stops 10 s after the last one leaves.
+The page sends no request on a timer: after login its only `/api` request is
+`GET /api/socket_token` (a 60 s token for the socket), again before each
+reconnect. The top bar says `live`, `reconnecting` or `refused`, with the
+reason on hover. Topics, payloads and how to add a feed:
+docs/contract.md "Live: one socket".
+
+Opening the page under a host name other than `PHX_HOST` (the lab at
+`127.0.0.1` instead of `localhost`) needs `CHECK_ORIGIN`; without it the top
+bar says `refused` and names what is allowed.
+
+Checked in headless Chrome at 1440×900 against `mix phx.server` on the lab:
+6 snapshot pushes in 30 s, the beam feed every 2 s while the panel was open
+(one `phx_close` when it closed), 9 new log lines tailed from 3 requests made
+during the test, history charts filled from the feed, and one `/api`
+request in the whole session. With the server stopped the bar said
+`reconnecting: observer unreachable (Failed to fetch)`; restarted with
+`CHECK_ORIGIN=//localhost` it said `refused: the observer does not accept a
+websocket from http://127.0.0.1:14201: CHECK_ORIGIN allows ["//localhost"]`;
+restarted without, `live` again with no reload.
+
 ### The tour, and under the hood
 
 **Tour** (bottom bar, or the ☰ menu on a phone, or `/?tour`) walks the
@@ -152,8 +182,8 @@ where the tour finds the failing `Docker` collector and its log line
 
 **Log explorer.** Click any log on the page (the build log in the
 inspector, the log in Under the hood) or ☰ → Logs. One list holds the
-observer's own log (`service:observer`, tailed every 2 s) and the whole job
-log of every build on the floor (`service:builder`). Builder lines are
+observer's own log (`service:observer`, tailed live over the socket) and
+the whole job log of every build on the floor (`service:builder`). Builder lines are
 program output with no level, so their level is `unset`, not a guess.
 
 - Search: `level:error`, `-source:docker`, `"host not found"`, `/time(d)? out/`,

@@ -45,6 +45,7 @@ defmodule ObsFactorWeb.Router do
     get "/history", ApiController, :history
     get "/beam", ApiController, :beam
     get "/stream", StreamController, :stream
+    get "/socket_token", SocketTokenController, :show
     post "/builds", BuildsController, :create
     get "/builds/:id", BuildsController, :show
     get "/builds/:id/log", BuildsController, :log

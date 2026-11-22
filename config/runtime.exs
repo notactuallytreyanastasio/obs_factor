@@ -71,6 +71,16 @@ cond do
     config :obs_factor, :password, password
 end
 
+# Which page origins may open the websocket (/socket). Unset: the endpoint's
+# default, the host of PHX_HOST in prod (behind Caddy the browser's origin is
+# https://PHX_HOST, and Caddy passes the Host through); dev allows any.
+# Set it when the page is reached under another name, e.g. the lab's
+# CHECK_ORIGIN=//localhost,//127.0.0.1 for http://127.0.0.1:14000.
+case blank_to_nil.(System.get_env("CHECK_ORIGIN")) do
+  nil -> :ok
+  list -> config :obs_factor, ObsFactorWeb.Endpoint, check_origin: list |> String.split(",", trim: true) |> Enum.map(&String.trim/1)
+end
+
 if config_env() == :prod do
   secret_key_base =
     System.get_env("SECRET_KEY_BASE") ||

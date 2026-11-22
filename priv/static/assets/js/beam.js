@@ -1,9 +1,16 @@
-// "Under the hood": the observer's own BEAM, from GET /api/beam. The VM it
-// runs on, the processes under ObsFactor.Supervisor (one collector per
-// source), the ETS tables the snapshot is built from, and its own log.
-// Polled every 2 s while open; nothing here is drawn from the snapshot.
+// "Under the hood": the observer's own BEAM, from the feed
+// observer:observer:-:beam on the page's socket (ObsFactor.Beam.report/1,
+// fetched every 2 s on the server while anyone has the panel open, one
+// fetch however many do). The VM it runs on, the processes under
+// ObsFactor.Supervisor (one collector per source), the ETS tables the
+// snapshot is built from, and its last 500 log events, filtered by level
+// here. Nothing here is drawn from the snapshot.
 
 import { num, bytes, duration, esc, utc, UNKNOWN } from "./fmt.js";
+import * as bus from "./bus.js";
+
+const TOPIC = "observer:observer:-:beam";
+const RANK = ["debug", "info", "notice", "warning", "error", "critical", "alert", "emergency"];
 
 const $ = (id) => document.getElementById(id);
 const LEVELS = ["debug", "info", "warning", "error"];
@@ -13,7 +20,8 @@ export class BeamPanel {
   constructor({ onOpen, onExplore }) {
     this.el = $("beam");
     this.onOpen = onOpen;
-    this.timer = null;
+    this.unsub = null;
+    this.waiters = [];
     this.level = "debug";
     this.filter = "";
     this.prev = new Map(); // id -> [reductions, at ms]: reductions/s between polls
@@ -41,7 +49,7 @@ export class BeamPanel {
     this.el.querySelector(".bm-explore").addEventListener("click", () => onExplore?.({ service: ["observer"], query: this.filter }));
     this.logEl.title = "Click to search these logs";
     this.logEl.addEventListener("click", () => { if (!window.getSelection()?.toString()) onExplore?.({ service: ["observer"], query: this.filter }); });
-    this.el.querySelector("select").addEventListener("change", (e) => { this.level = e.target.value; this.load(); });
+    this.el.querySelector("select").addEventListener("change", (e) => { this.level = e.target.value; this.renderLog(); });
     this.el.querySelector("input").addEventListener("input", (e) => { this.filter = e.target.value.trim().toLowerCase(); this.renderLog(); });
   }
 
@@ -51,8 +59,8 @@ export class BeamPanel {
     const want = open ?? this.el.hidden;
     this.el.hidden = !want;
     $("beambtn").setAttribute("aria-expanded", String(want));
-    clearTimeout(this.timer);
     if (want) { this.onOpen?.(); this.load(); }
+    else { this.unsub?.(); this.unsub = null; }
   }
 
   setFilter(text) {
@@ -60,24 +68,31 @@ export class BeamPanel {
     input.value = text; this.filter = text.toLowerCase(); this.renderLog();
   }
 
-  // resolves after the next successful render: the tour waits on it
-  async load() {
-    clearTimeout(this.timer);
-    try {
-      const r = await fetch(`/api/beam?level=${this.level}`, { cache: "no-store", credentials: "same-origin" });
-      if (r.status === 401) return window.location.assign("/login");
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || `observer answered ${r.status}`);
-      this.data = j; this.error = null;
-    } catch (x) { this.error = x.message; }
-    this.render();
-    if (this.open) this.timer = setTimeout(() => this.load(), 2000);
-    return this.data;
+  // subscribes (once) and resolves on the next payload: the tour waits on it
+  load() {
+    const next = new Promise((resolve) => this.waiters.push(resolve));
+    if (!this.unsub) {
+      this.render();
+      this.unsub = bus.subscribe(TOPIC, (event, p) => { if (event === "feed") this.take(p); }, {
+        onJoin: (p) => { if (p.at) this.take(p); },
+        onError: (reason) => { this.error = `${TOPIC} refused: ${reason}`; this.render(); this.flush(); },
+      });
+    }
+    return next;
   }
+
+  take(p) {
+    if (p.error) this.error = p.error;
+    else { this.data = p.data; this.error = null; }
+    this.render();
+    this.flush();
+  }
+
+  flush() { const w = this.waiters; this.waiters = []; w.forEach((r) => r(this.data)); }
 
   render() {
     if (this.error) {
-      this.vmEl.innerHTML = `<p class="note err">/api/beam: ${esc(this.error)}${this.data ? ` (showing the read from ${esc(utc(new Date(this.data.at)))})` : ""}</p>`;
+      this.vmEl.innerHTML = `<p class="note err">${esc(TOPIC)}: ${esc(this.error)}${this.data ? ` (showing the read from ${esc(utc(new Date(this.data.at)))})` : ""}</p>`;
       if (!this.data) return;
     }
     const d = this.data;
@@ -125,7 +140,8 @@ export class BeamPanel {
     const d = this.data;
     if (!d) return;
     const stuck = this.logEl.scrollTop + this.logEl.clientHeight >= this.logEl.scrollHeight - 8;
-    const lines = d.log.filter((l) => !this.filter || `${l.level} ${l.text} ${l.where ?? ""}`.toLowerCase().includes(this.filter));
+    const floor = RANK.indexOf(this.level);
+    const lines = d.log.filter((l) => RANK.indexOf(l.level) >= floor).filter((l) => !this.filter || `${l.level} ${l.text} ${l.where ?? ""}`.toLowerCase().includes(this.filter));
     this.el.querySelector(".bm-logcount").textContent = `${lines.length} shown · the last ${d.log_kept} events are kept in memory`;
     this.logEl.innerHTML = lines.length
       ? lines.map((l) => `<span class="lt">${esc(utc(new Date(l.at)))}</span> <span class="lv ${esc(l.level)}">${esc(l.level.slice(0, 4))}</span> ${esc(l.text)}${l.where ? ` <span class="lw">${esc(l.where)}</span>` : ""}`).join("\n")
@@ -139,6 +155,7 @@ export class BeamPanel {
     if (!d) return null;
     const i = d.log.findIndex(test);
     if (i < 0) return null;
+    this.level = "debug"; this.el.querySelector("select").value = "debug";
     this.setFilter("");
     const spans = this.logEl.querySelectorAll(".lt");
     const el = spans[i];

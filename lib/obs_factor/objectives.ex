@@ -33,6 +33,14 @@ defmodule ObsFactor.Objectives do
   something changes state, and `last_seen_at` is written at most every
   30 s per row. If Postgres is unreachable the observer runs on, the
   error is logged once per minute, and the API answers 503 with it.
+
+  ## Live
+
+  Every change is broadcast on `ObsFactor.PubSub` topic `"objectives"`
+  (option `:topic`) as `{:objective, row}`, the same public row `list/0`
+  returns, with its events: a new one, one that came back or cleared
+  itself, a pin, a look / done / reopen, and the `last_seen_at` write that
+  happens at most every 30 s while a rule still sees it.
   """
   use GenServer
   require Logger
@@ -140,7 +148,8 @@ defmodule ObsFactor.Objectives do
   @impl true
   def init(opts) do
     db = Keyword.fetch!(opts, :db)
-    {:ok, %{db: db, live: %{}, ready: false, error: nil, logged_at: 0}, {:continue, :start}}
+    topic = Keyword.get(opts, :topic, "objectives")
+    {:ok, %{db: db, topic: topic, live: %{}, ready: false, error: nil, logged_at: 0}, {:continue, :start}}
   end
 
   @impl true
@@ -223,6 +232,7 @@ defmodule ObsFactor.Objectives do
       {:ok, row} ->
         event(state.db, row.id, "pinned", clip(attrs["by"]), clip(attrs["note"], 1000))
         row = if n = clip(attrs["note"], 1000), do: update!(state.db, row.id, "note = $2", [n]), else: row
+        announce(state, row)
         {:reply, {:ok, public(row)}, put_live(state, row, now)}
 
       {:error, e} ->
@@ -258,7 +268,10 @@ defmodule ObsFactor.Objectives do
       end
 
     case result do
-      {:ok, row} -> {:reply, {:ok, public(row)}, sync_live(state, row)}
+      {:ok, row} ->
+        announce(state, row)
+        {:reply, {:ok, public(row)}, sync_live(state, row)}
+
       {:error, e} -> {:reply, {:error, message(e)}, state}
     end
   end
@@ -269,6 +282,7 @@ defmodule ObsFactor.Objectives do
     case insert(st.db, key, "rule", a, evidence, now) do
       {:ok, row} ->
         event(st.db, row.id, "seen", nil, a.text)
+        announce(st, row)
         put_live(st, row, now)
 
       {:error, e} ->
@@ -281,6 +295,7 @@ defmodule ObsFactor.Objectives do
            [a.text, ms_to_dt(now)]) do
       {:ok, row} ->
         event(st.db, row.id, "came back", nil, a.text)
+        announce(st, row)
         put_live(st, row, now)
 
       {:error, e} ->
@@ -293,7 +308,10 @@ defmodule ObsFactor.Objectives do
 
     if now - row.flushed_ms >= @flush_ms do
       case update(st.db, row.id, "last_seen_at = $2, title = $3", [ms_to_dt(now), a.text]) do
-        {:ok, _} -> %{st | live: Map.put(st.live, row.key, %{row | flushed_ms: now})}
+        {:ok, written} ->
+          announce(st, written)
+          %{st | live: Map.put(st.live, row.key, %{row | flushed_ms: now})}
+
         {:error, e} -> failed(%{st | live: Map.put(st.live, row.key, row)}, e)
       end
     else
@@ -306,6 +324,7 @@ defmodule ObsFactor.Objectives do
            [ms_to_dt(now), ms_to_dt(row.last_seen_ms)]) do
       {:ok, row} ->
         event(st.db, row.id, "cleared itself", nil, nil)
+        announce(st, row)
         put_live(st, row, now)
 
       {:error, e} ->
@@ -332,6 +351,18 @@ defmodule ObsFactor.Objectives do
       %{last_seen_ms: ms} -> ms_to_dt(ms)
       _ -> r.last_seen_at
     end
+  end
+
+  # The row as list/0 shows it, with its events, to everyone on the topic.
+  # A failed events read still announces the change, with the reason.
+  defp announce(st, row) do
+    pub =
+      case events(st.db, [row.id]) do
+        {:ok, evs} -> Map.put(public(row), :events, Map.get(evs, row.id, []))
+        {:error, e} -> public(row) |> Map.put(:events, []) |> Map.put(:events_error, message(e))
+      end
+
+    Phoenix.PubSub.broadcast(ObsFactor.PubSub, st.topic, {:objective, pub})
   end
 
   # ---- SQL ---------------------------------------------------------------

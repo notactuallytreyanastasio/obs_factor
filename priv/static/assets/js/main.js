@@ -498,6 +498,7 @@ function onSnapshot(s) {
   if (s.builder) $("build-domain").textContent = `.${s.builder.domain}`;
   if (pendingSelect && s.nodes.some((n) => n.id === pendingSelect)) { const id = pendingSelect; pendingSelect = null; select(id, true); }
   if (tourAsked) { tourAsked = false; setTimeout(() => tour.start(), 400); }
+  logs.onSnapshot();
 }
 
 $("backbtn").addEventListener("click", () => leave());
@@ -512,6 +513,7 @@ window.addEventListener("keydown", (e) => { if (e.key === "Escape" && insideOf &
 connect({
   onSnapshot,
   onState: (state, detail) => topbar.setState(state, detail),
+  onTickError: (message) => topbar.setTickError(message),
 });
 
 // ---- loop -----------------------------------------------------------------
