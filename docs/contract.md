@@ -49,7 +49,8 @@ only by agreement, and say so when you do.
 | `SITES_DIR` | one subdirectory per static site Caddy serves | `/sites` |
 | `TOPOLOGY` | path to the topology file | `priv/topology/prod.exs` |
 | `ACCESS_LOG` | Caddy's JSON access log, read-only (Access log) | `/caddy-logs/access.log` |
-| `REPORT_TOKEN` | optional bearer token sent to every `report` URL (Reports) | |
+| `REPORT_TOKEN` | optional bearer token sent to every `report` URL (Reports), and with every observer read forwarded to a building (Observer) | |
+| `OBSERVER_ACTIONS_TOKEN` | bearer token sent with observer actions (Observer); the apps' `FACTORY_REPORT_ACTIONS_TOKEN`. Unset: every action answers 403, the observer's own VM included | |
 | `CHECK_ORIGIN` | optional: page origins allowed to open the websocket, comma-separated; unset = the host of `PHX_HOST` (Live: one socket) | `//localhost,//127.0.0.1` |
 | `OBJECTIVES_PG_URL` | optional: the objectives store, a database and role of its own (`deploy/objectives-db.sql`); unset, `/api/objectives` is 503 | `postgres://obs_factor_app:pw@db/obs_factor` |
 
@@ -780,3 +781,163 @@ Three ideas, and nothing else:
   per line (`time`, `level`, `msg`, `app`, `module`, `request_id`, `page`).
   Nothing reads those lines yet; they are for `docker logs` and for a later
   log source.
+
+## Observer: a building's BEAM, live *(2026-11-22)*
+
+`:observer` for one VM, as JSON, in two layers: the **engine** in
+`packages/factory_report` (`FactoryReport.Observer`), served by each app on
+its report port under `/observer/...`, and the **pass-through** on the
+observer, `/api/nodes/:id/observer/*path`, which is how the floor reaches it.
+Sub-apps are separate Erlang clusters, never connected to the observer: it
+reaches them over HTTP only.
+
+Today the pass-through is HTTP request/response. The PubSub feeds
+(`ObsFactor.Feeds`, topics `observer:<node_id>:<member or ->:<view>`) will
+call the same `ObsFactor.ObserverProxy.call/5` on a timer and broadcast what
+it returns; the shapes below are what those topics will carry.
+
+### Engine: `<report base>/observer/...` (each app's report port)
+
+Nothing runs until asked: no process, table or handler of its own.
+`FactoryReport.Observer.dispatch(method, path, params, opts)` is the same
+without HTTP. A pid is written `0.123.0` (`FactoryReport.Observer.pid_text/1`);
+a pid of another node is refused (400). Every answer is a JSON object with
+`"took_ms"` and `"node"` (`node()` as a string), errors included:
+`{"error": "...", "node": ..., "took_ms": ...}`.
+
+Auth. Reads need the report's token when the app was given one
+(`FACTORY_REPORT_TOKEN`, `authorization: Bearer <token>`, else 401
+`{"error": "unauthorized"}`). Actions are off (403 `{"error": "actions are
+off: no actions_token configured", "path": ...}`) unless the app sets
+`actions_token:` / `FACTORY_REPORT_ACTIONS_TOKEN`; then they take only
+`authorization: Bearer <actions_token>` (constant-time compare, else 401).
+Every action is logged by the app at `warning`:
+`factory_report observer action: kill 0.238.0 (:engine_throwaway) by <x-factory-by>`.
+`observer: false` turns `/observer` off (404).
+
+Reads (GET):
+
+| Path | Params | Answer (besides `node`, `took_ms`) |
+|---|---|---|
+| `` (index) | | `{"observer": 1, "reads": [...], "actions": [...], "inspect_state": false}` |
+| `system` | | `otp_release`, `erts_version`, `elixir`, `system_version`, `uptime_s`, `system_info`, `schedulers` `{online,total,dirty_cpu,dirty_cpu_online,dirty_io}`, `limits` `{process,port,atom,ets: {count,limit}}`, `memory` (`:erlang.memory`, bytes), `statistics` `{reductions,run_queue,run_queue_all,context_switches,gc_count,gc_words_reclaimed,io_in_bytes,io_out_bytes}`, `allocators` `[{name,blocks_bytes,carriers_bytes}]`, `distribution` `{alive,node,connected,net_ticktime_s}`, `logger` `{primary_level}` |
+| `apps` | | `{"count": n, "apps": [{"name","vsn","description","top_supervisor": pid or null,"error"}]}` (at most 200) |
+| `tree/:app` | `depth` 1..12 (8) | `{"app","supervisor","tree": node,"nodes","depth_limit","children_limit": 25,"node_limit": 1500,"time_limit_ms": 2000,"cut": {"depth","grouped","nodes","time","errors"}}` |
+| `procs` | `sort` = `reductions` (default) \| `memory` \| `message_queue_len`; `limit` 1..200 (50); `interval_ms` 0..2000 (0; > 0 only with `sort=reductions`: two samples, ranked by reductions between them) | `{"sort","limit","interval_ms","total","walked","walk_limit": 100000,"procs": [summary]}` |
+| `proc/:pid` | `state=true` (only if the app set `inspect_state: true`) | summary plus `application`, `links` `[{"pid"} \| {"port"}]`, `links_count`, `monitors`, `monitors_count`, `monitored_by`, `monitored_by_count`, `current_stacktrace` `[{"mfa","file","line"}]` (30), `dictionary_keys` (names only, 100), `dictionary_count`, `heap_size_words`, `total_heap_size_words`, `stack_size_words`, `garbage_collection`, `trap_exit`, `group_leader`, `priority`, `supervisor_path`, `state` (`{"status": "not requested"}` unless asked and allowed) |
+| `ets` | | `{"count","limit": 500,"cut","tables": [{"id","name","named","type","protection","size","memory_bytes","owner","owner_name"}]}` by memory |
+| `ports` | | `{"count","limit": 500,"cut","ports": [{"id","name","os_pid","connected","input_bytes","output_bytes"}]}` by traffic |
+
+A process summary: `{"pid","registered_name","current_function","initial_call","status","message_queue_len","memory","reductions","links"}`.
+A tree node is a summary plus `{"id" (inspect of the child id),"type": "worker"|"supervisor","children": [node] | null,"not_walked": null | "depth limit 2" | ...}`;
+a child that is not running is `{"id","type","pid": null,"status": "not running"}`;
+children past 25 per supervisor are one `{"group": true,"count","memory","message_queue_len_max"}`.
+`which_children` is sent only to processes proc_lib started as supervisors,
+1 s timeout each. Strings are cut at 200 characters, lists at 100. Message
+contents and dictionary values never leave the VM.
+
+Example, `GET /observer/procs?sort=memory&limit=1`:
+
+```json
+{"interval_ms": 0, "limit": 1, "sort": "memory", "total": 545, "walked": 545, "walk_limit": 100000,
+ "procs": [{"pid": "0.50.0", "registered_name": ":code_server", "current_function": ":code_server.loop/1",
+            "initial_call": ":erlang.apply/2", "status": "waiting", "message_queue_len": 0,
+            "memory": 2547256, "reductions": 982581, "links": 1}],
+ "node": "nonode@nohost", "took_ms": 1.8}
+```
+
+Actions (POST, JSON body):
+
+| Path | Body | Answer |
+|---|---|---|
+| `proc/:pid/kill` | | `{"ok": true,"action": "kill","pid","alive_after","exit_reason"}` |
+| `proc/:pid/exit` | `{"reason": "shutdown"\|"normal"\|"kill"}` | `{"ok": true,"action": "exit","reason","pid","alive_after","exit_reason"?}` |
+| `proc/:pid/gc` | | `{"ok": true,"action": "gc","pid","memory_before","memory_after"}` |
+| `tree/:app/restart` | `{"supervisor": "0.1.0","child_id": "MyApp.Worker"}` (`inspect` of the id, as the tree shows it) | `{"ok": true,"action": "restart","supervisor","child_id","old_pid","new_pid"}` |
+| `logger/level` | `{"level": "all"\|"debug"\|...\|"none"}` | `{"ok": true,"action": "logger_level","before","level"}` |
+
+Example: `POST /observer/proc/0.238.0/kill` →
+`{"ok": true, "action": "kill", "pid": "0.238.0", "alive_after": false, "exit_reason": ":killed", "node": "engineup@host", "took_ms": 0.09}`.
+
+Engine errors: 400 bad parameter or pid (`not a pid: "nope" (expected the
+form 0.123.0)`, `pid 4.1.0 is not on this node (...)`, `sort must be one
+of ...`, `reason must be one of shutdown, normal, kill`, `... is not a
+supervisor`); 404 no such endpoint, application, process (`no process
+0.238.0 (not alive)`) or child; 405 the wrong method (`GET is not allowed on
+/observer/proc/0.1.0/kill; use POST`); 409 refused: the answering process,
+`init` or a `kernel` process (`refused: 0.0.0 is init; killing it stops the
+VM`), a DynamicSupervisor's child by id; 500/504 `terminate_child` or
+`restart_child` failed or did not answer in 4500 ms, or a tree walk timed out.
+
+### Pass-through: `GET|POST /api/nodes/:id/observer/*path[?member=<address>]`
+
+Behind the session like the rest of `/api` (401 `{"error": "unauthorized"}`
+without it). `*path` is the engine path above; query parameters other than
+`member` are passed on for GET, the JSON body for POST.
+
+- **`id = "observer"`**: the observer's own VM, answered in-process by
+  `FactoryReport.Observer.dispatch/4` (no HTTP, no reporter started). The
+  index (`GET /api/nodes/observer/observer`) also carries
+  `"proxy": {"actions": true|false}` (whether `OBSERVER_ACTIONS_TOKEN` is
+  set). `member=` is refused (400 `the observer is one VM: member= does not
+  apply to node observer`). Actions are 403 `actions are off:
+  OBSERVER_ACTIONS_TOKEN is not set on the observer` when it is unset.
+- **any topology node with a `report` URL**: forwarded to the `/observer`
+  beside that report: same scheme, host, port and mount path, a trailing
+  `/report` replaced by `/observer` (`http://app:9568/report` →
+  `http://app:9568/observer/<path>`). Reads send `REPORT_TOKEN` as the bearer
+  token; actions send `OBSERVER_ACTIONS_TOKEN`, `content-type:
+  application/json` and `x-factory-by: <by>`. The upstream's status and JSON
+  body come back as they are (its 401, 403, 404, 409 ...).
+- **`member=<address>`** picks one member of a clustered node: the request
+  goes to that address instead of the report URL's host. The address must be
+  one of the node's members as the reports collector read them last (the
+  `address` of each `inside.members[]` entry). A node with several members
+  needs it.
+
+Who acts: a POST must say who, as the `x-factory-by` header or `"by"` in the
+body (the header wins; non-printing characters removed, cut at 80); else
+400. `"by"` is not forwarded in the body.
+
+Limits: path segments match `[A-Za-z0-9_.-]{1,200}`; reads time out after
+3 s, actions after 5 s; an upstream body over 4 MiB is refused (502).
+
+Errors (all `{"error": "..."}`, status as given):
+
+| Status | When | Example |
+|---|---|---|
+| 400 | bad path segment | `bad path segment "a b"` |
+| 400 | POST without who | `say who is acting: an x-factory-by header or "by" in the body` |
+| 400 | member not current | `"10.9.9.9" is not one of app's current members (10.0.0.5, 10.0.0.6)` |
+| 400 | member on a single node | `app is one node, not a cluster: member= does not apply` |
+| 400 | clustered node, no member | `app has 2 members: say which with member= (10.0.0.5, 10.0.0.6)` |
+| 400 | members unknown | `app's members are not known: reports source: ...` |
+| 403 | actions off here | `actions are off: OBSERVER_ACTIONS_TOKEN is not set on the observer` |
+| 404 | no such node | `no node "nope" in the topology` |
+| 404 | node without a report | `node caddy has no report URL, so no observer` |
+| 502 | upstream unreachable | `{"error": "127.0.0.1:19568: connection refused", "upstream_status": null}` |
+| upstream's | upstream answered non-JSON | `{"error": "app:9568 answered 404: not found (a factory_report without the observer?)", "upstream_status": 404}` |
+
+Every POST, done or refused, is recorded twice on the observer:
+
+- one `warning` log line (LogRing, so `/api/beam` and `/api/logs`), metadata
+  `source: "actions"`, `node_id`, `by`:
+  `action proc/0.238.0/kill on upvm by engine-agent: ok`,
+  `action proc/0.1.0/exit reason="shutdown" on app (10.0.0.5) by carol: 403: actions are off: ...`;
+- one message on `ObsFactor.PubSub` topic `"actions"`
+  (`ObsFactor.ObserverProxy.actions_topic/0`), so every viewer sees what
+  anyone did:
+
+```elixir
+{:action,
+ %{"at" => "2026-11-22T23:12:36.050Z", "node" => "upvm", "member" => nil,
+   "path" => "proc/0.238.0/kill", "params" => %{}, "by" => "engine-agent",
+   "status" => 200,
+   "result" => %{"ok" => true, "action" => "kill", "pid" => "0.238.0", "alive_after" => false, ...},
+   "error" => nil}}
+```
+
+  `member` is `nil` unless given; `params` holds only `reason`,
+  `supervisor`, `child_id`, `level`; `by` is `nil` when nobody said (that
+  request was refused); exactly one of `result` (the 2xx body) and `error`
+  (the message) is non-nil. Reads are not broadcast.

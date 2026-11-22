@@ -46,7 +46,11 @@ defmodule ObsFactor.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       {:req, "~> 0.5"},
-      {:postgrex, "~> 0.20"}
+      {:postgrex, "~> 0.20"},
+      # FactoryReport.Observer answers for the observer's own VM in-process
+      # (node id "observer" under /api/nodes/:id/observer). Only the library
+      # is used; no reporter is started here.
+      {:factory_report, path: "packages/factory_report"}
     ]
   end
 

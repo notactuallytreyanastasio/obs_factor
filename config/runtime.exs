@@ -30,6 +30,11 @@ if config_env() != :test do
     # Sent as the bearer token to every topology `report` URL when set.
     report_token: blank_to_nil.(System.get_env("REPORT_TOKEN"))
 
+  # The bearer token the observer sends with observer actions (POST
+  # /api/nodes/:id/observer/...): the apps' FACTORY_REPORT_ACTIONS_TOKEN.
+  # Unset: every action answers 403, the observer's own included.
+  config :obs_factor, observer_actions_token: blank_to_nil.(System.get_env("OBSERVER_ACTIONS_TOKEN"))
+
   # Required; ObsFactor.Application refuses to start without it.
   config :obs_factor, topology_path: blank_to_nil.(System.get_env("TOPOLOGY"))
 
