@@ -173,4 +173,37 @@ export function renderLegend(snap) {
     </li>`).join("");
 }
 
+// ---- sites ----------------------------------------------------------------
+// Every address the box answers on, one row each, with the service behind
+// it. `hosts` are whole hostnames with their own Caddy series (rate known);
+// `via` are path routes on someone else's hostname (not metered apart).
+
+export function renderSites(snap, onNode) {
+  const rows = [];
+  // Caddy carries every hostname; list one under Caddy only when no service
+  // behind it claims it (a redirect, the bare IP).
+  const owned = new Set(snap.nodes.filter((n) => n.kind !== "proxy").flatMap((n) => (n.hosts ?? []).map((h) => h.host)));
+  for (const n of snap.nodes) {
+    for (const h of n.hosts ?? []) {
+      if (n.kind === "proxy" && owned.has(h.host)) continue;
+      rows.push({ addr: h.host, rps: h.rps, metered: true, n });
+    }
+    for (const v of n.via ?? []) rows.push({ addr: v, rps: null, metered: false, n });
+  }
+  rows.sort((a, b) => a.addr.localeCompare(b.addr));
+  const body = $("sites-rows");
+  body.textContent = "";
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+    const status = ["working", "idle", "blocked", "down"].includes(r.n.status) ? r.n.status : "unknown";
+    const rate = r.metered ? (isNum(r.rps) ? num(r.rps) : UNKNOWN) : `<span class="unk" title="A path route: Caddy counts it under its hostname">via</span>`;
+    tr.innerHTML = `<td><span class="lamp ${status}" title="${esc(r.n.status)}${r.n.reason ? `: ${esc(r.n.reason)}` : ""}"></span></td>
+      <td><button type="button" class="go">${esc(r.addr)}</button></td>
+      <td class="svc">${esc(r.n.label)}</td><td class="r">${rate}</td>
+      <td><a href="https://${esc(r.addr.replace(/\*+$/, ""))}" target="_blank" rel="noopener noreferrer" aria-label="Open ${esc(r.addr)}">↗</a></td>`;
+    tr.querySelector(".go").addEventListener("click", () => onNode(r.n.id));
+    body.appendChild(tr);
+  }
+}
+
 export { withUnit };

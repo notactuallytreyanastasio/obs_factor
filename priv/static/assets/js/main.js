@@ -2,7 +2,7 @@
 
 import { Scene, clampZoom } from "./render.js";
 import { P } from "./iso.js";
-import { Chips, TopBar, renderAttention, renderLegend } from "./overlay.js";
+import { Chips, TopBar, renderAttention, renderLegend, renderSites } from "./overlay.js";
 import { Inspector } from "./inspector.js";
 import { connect } from "./live.js";
 
@@ -223,8 +223,16 @@ function toggleLegend(open) {
   const lg = $("legend");
   lg.hidden = !(open ?? lg.hidden);
   $("legendbtn").setAttribute("aria-expanded", String(!lg.hidden));
+  if (!lg.hidden) toggleSites(false);
 }
 $("legendbtn").addEventListener("click", () => toggleLegend());
+function toggleSites(open) {
+  const el = $("sites");
+  el.hidden = !(open ?? el.hidden);
+  $("sitesbtn").setAttribute("aria-expanded", String(!el.hidden));
+  if (!el.hidden) toggleLegend(false);
+}
+$("sitesbtn").addEventListener("click", () => toggleSites());
 function toggleMenu(open) {
   const m = $("menu");
   m.hidden = !(open ?? m.hidden);
@@ -245,6 +253,7 @@ function onSnapshot(s) {
   topbar.snapshot(s);
   renderAttention(s, scene.problems, (id) => select(id, true), () => toggleLegend(true));
   renderLegend(s);
+  renderSites(s, (id) => { if (window.innerWidth < 700) toggleSites(false); select(id, true); });
   if (inspector.open) inspector.update(s);
   if (!fitted) { fitAll(false, true); fitted = true; }
   dirty = true;
