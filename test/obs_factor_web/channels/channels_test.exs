@@ -112,12 +112,15 @@ defmodule ObsFactorWeb.ChannelsTest do
     end
 
     test "a topic no view serves is refused with the reason" do
-      assert {:error, %{reason: "no feed serves \"observer:nope:-:system\""}} =
+      # observer:* topics are ObsFactor.Feeds.ObserverViews', which names what is wrong
+      assert {:error, %{reason: "no node \"nope\" in the topology"}} =
                subscribe_and_join(
                  authed_socket(),
                  ObsFactorWeb.FeedChannel,
                  "observer:nope:-:system"
                )
+
+      assert {:error, "no feed serves \"elsewhere:x\""} = ObsFactor.Feeds.Views.spec("elsewhere:x")
 
       assert {:error, %{reason: "history topics are" <> _}} =
                subscribe_and_join(authed_socket(), ObsFactorWeb.FeedChannel, "history:blog:1d")

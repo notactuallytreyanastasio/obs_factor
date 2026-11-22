@@ -149,6 +149,20 @@ reconnect. The top bar says `live`, `reconnecting` or `refused`, with the
 reason on hover. Topics, payloads and how to add a feed:
 docs/contract.md "Live: one socket".
 
+A building's BEAM is on the same socket: `observer:<node>:<member or ->:<view>`
+(view `system`, `apps`, `tree:<app>`, `procs:<sort>`, `proc:<pid>`, `ets`,
+`ports`) is one feed per topic reading the app's `/observer/...` (or the
+observer's own VM in-process) every 1 to 5 s. An `action` pushed on such a
+topic (`{path: "proc/0.284.0/gc", by}`) goes to the app with
+`OBSERVER_ACTIONS_TOKEN`, is broadcast on `actions` to every viewer, and
+refetches that node's feeds at once. Checked in headless Chrome against
+`mix phx.server` on the lab: `observer:observer:-:tree:obs_factor` pushed
+every 2 s, a gc pushed on it was answered, came back on `actions`, and the
+tree was pushed again 5 ms later. No page shows these feeds yet; the lab's
+buildings report on Docker-network names, so only node `observer` was
+checked from outside the container. docs/contract.md "Observer: a
+building's BEAM, live", "On the bus".
+
 Opening the page under a host name other than `PHX_HOST` (the lab at
 `127.0.0.1` instead of `localhost`) needs `CHECK_ORIGIN`; without it the top
 bar says `refused` and names what is allowed.

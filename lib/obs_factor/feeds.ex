@@ -17,6 +17,8 @@ defmodule ObsFactor.Feeds do
       `:obs_factor, :feeds_linger_ms`) unless someone joins in between.
     * A fetch runs in a task under `ObsFactor.TaskSupervisor`, so a slow one
       never blocks a join; while one is in flight the next is skipped.
+    * `refetch/1` and `refetch_prefix/1` fetch at once, outside the
+      interval (after an action, so its effect shows without waiting).
 
   ## Adding a view
 
@@ -85,6 +87,26 @@ defmodule ObsFactor.Feeds do
     end
   end
 
+  @doc """
+  Fetches `topic` again now, outside its interval (after an action, so the
+  floor shows its effect at once). A fetch in flight is followed by one
+  more as soon as it finishes. No-op when the feed is not running.
+  """
+  def refetch(topic) do
+    case whereis(topic) do
+      nil -> :ok
+      pid -> send(pid, :refetch) && :ok
+    end
+  end
+
+  @doc "`refetch/1` for every running feed whose topic starts with `prefix`; returns those topics."
+  def refetch_prefix(prefix) when is_binary(prefix) do
+    for topic <- topics(), String.starts_with?(topic, prefix) do
+      refetch(topic)
+      topic
+    end
+  end
+
   @doc "Topics with a running feed."
   def topics, do: Registry.select(@registry, [{{:"$1", :_, :_}, [], [:"$1"]}])
 
@@ -128,6 +150,7 @@ defmodule ObsFactor.Feeds.Feed do
        subs: %{},
        last: nil,
        task: nil,
+       again: false,
        stop: nil
      }}
   end
@@ -147,9 +170,7 @@ defmodule ObsFactor.Feeds.Feed do
   @impl true
   def handle_info(:fetch, %{task: nil} = st) do
     Process.send_after(self(), :fetch, st.interval)
-    %{mod: mod, args: args} = st
-    task = Task.Supervisor.async_nolink(ObsFactor.TaskSupervisor, fn -> run(mod, args) end)
-    {:noreply, %{st | task: task.ref}}
+    {:noreply, start_fetch(st)}
   end
 
   # the previous fetch is still running: skip this period
@@ -158,11 +179,15 @@ defmodule ObsFactor.Feeds.Feed do
     {:noreply, st}
   end
 
+  # out of turn (Feeds.refetch/1): the periodic timer is left as it is
+  def handle_info(:refetch, %{task: nil} = st), do: {:noreply, start_fetch(st)}
+  def handle_info(:refetch, st), do: {:noreply, %{st | again: true}}
+
   def handle_info({ref, result}, %{task: ref} = st) do
     Process.demonitor(ref, [:flush])
     payload = Map.put(result, :at, DateTime.utc_now() |> DateTime.to_iso8601())
     Phoenix.PubSub.broadcast(ObsFactor.PubSub, st.topic, {:feed, st.topic, payload})
-    {:noreply, %{st | task: nil, last: payload}}
+    {:noreply, after_fetch(%{st | task: nil, last: payload})}
   end
 
   def handle_info({:DOWN, ref, :process, _, reason}, %{task: ref} = st) do
@@ -172,7 +197,7 @@ defmodule ObsFactor.Feeds.Feed do
     }
 
     Phoenix.PubSub.broadcast(ObsFactor.PubSub, st.topic, {:feed, st.topic, payload})
-    {:noreply, %{st | task: nil, last: payload}}
+    {:noreply, after_fetch(%{st | task: nil, last: payload})}
   end
 
   def handle_info({:DOWN, ref, :process, _, _}, st) do
@@ -185,6 +210,16 @@ defmodule ObsFactor.Feeds.Feed do
     do: {:stop, :normal, st}
 
   def handle_info({:linger_over, _}, st), do: {:noreply, st}
+
+  defp start_fetch(st) do
+    %{mod: mod, args: args} = st
+    task = Task.Supervisor.async_nolink(ObsFactor.TaskSupervisor, fn -> run(mod, args) end)
+    %{st | task: task.ref, again: false}
+  end
+
+  # a refetch asked for while that fetch was running: its answer may predate the action
+  defp after_fetch(%{again: true} = st), do: start_fetch(st)
+  defp after_fetch(st), do: st
 
   defp schedule_stop(st) do
     ref = make_ref()

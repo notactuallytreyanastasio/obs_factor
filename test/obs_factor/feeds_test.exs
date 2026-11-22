@@ -96,4 +96,13 @@ defmodule ObsFactor.FeedsTest do
     Process.sleep(Feeds.linger_ms() + 100)
     assert Feeds.whereis(topic) == feed
   end
+
+  test "refetch fetches now, outside the interval; refetch_prefix finds the topics", %{agent: agent, topic: topic} do
+    {_a, _} = viewer(topic, {Probe, {agent, :ok}, 60_000})
+    assert_receive {:feed, ^topic, %{data: %{n: 1}}}
+    assert Feeds.refetch_prefix(topic) == [topic]
+    assert_receive {:feed, ^topic, %{data: %{n: 2}}}, 500
+    assert Feeds.refetch("feeds-test:nobody") == :ok
+    assert Feeds.refetch_prefix("feeds-test:nobody") == []
+  end
 end

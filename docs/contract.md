@@ -176,13 +176,17 @@ pushes are what the channel sends the browser.
 | `objectives` | → `{objectives: [row]}` or `{error}` (no store, Postgres down: the join still succeeds) | `objective` row; `list` `{objectives}` if it changed during the join | `{:objective, row}` from `ObsFactor.Objectives` on every insert, came back, cleared itself, pin, look/done/reopen and the ≤30 s `last_seen_at` write; row as `GET /api/objectives`, with `events` |
 | `actions` | → `{}` | `action` map | `{:action, map}`, published by whoever acts (the engine); relayed as is, nothing kept |
 | `logs` | `{after: id}` → `{events, last_id, kept}`, every kept event above `after` | `events` `{events: [event]}` per event | `{:log, event}` from `ObsFactor.LogRing`, event as `GET /api/logs` |
-| `observer:<node>:<member or ->:<view>` | → last payload or `{}` | `feed` `{at, data}` or `{at, error}` | `{:feed, topic, payload}` from the topic's feed |
+| `observer:<node>:<member or ->:<view>` | → last payload or `{}`; refused with `{reason}` for an unknown node or view or a wrong member | `feed` `{at, data}` or `{at, error}` | `{:feed, topic, payload}` from the topic's feed (`ObsFactor.Feeds.ObserverViews`; Observer, "On the bus") |
 | `history:<node>:5s` / `:1m` | same | same | `ObsFactor.History.query/2` every 15 s / 60 s |
 | `builds:<id>` / `builds:<id>:log` | same | same | the builder's job (log tail) / whole log, every 2 s |
 
 Channel writes on `objectives`: `pin` `{node, title, note, by}` and `act`
 `{id (integer), action: look|done|reopen, note, by}`, replied with the row or
 `{error}`. `POST /api/objectives[/:id]` does the same and is broadcast the same.
+Channel write on `observer:*`: `action` `{path, params, by}` on the topic's
+node and member, replied with the engine's answer or `{error, status}`, and
+broadcast on `actions` (Observer, "On the bus"). `POST
+/api/nodes/:id/observer/*path` does the same.
 
 A join reply is read before the channel's PubSub subscription exists (Phoenix
 subscribes after `join/3` returns), so each channel re-reads once it is
@@ -196,6 +200,9 @@ process, which it monitors); fetches at once and every `interval_ms` in a
 task (a fetch still running skips the period); broadcasts every result,
 errors as `{at, error}` (a raise is an error with its message); hands the last
 payload to each newcomer; stops 10 s after its last subscriber left.
+`Feeds.refetch(topic)` / `Feeds.refetch_prefix(prefix)` fetch at once,
+outside the interval (a fetch in flight is followed by one more when it
+ends); actions use it so the floor shows their effect without waiting.
 Built-in: `observer:observer:-:beam` (`ObsFactor.Beam.report/1` with the
 last 500 log events at every level, every 2 s; the "Under the hood" panel
 filters levels itself). To add a view, implement `ObsFactor.Feeds.View`:
@@ -214,7 +221,8 @@ config :obs_factor, :feed_views, [MyViews]
 
 `ObsFactorWeb.UserSocket` routes `observer:*`, `history:*` and `builds:*` to
 `ObsFactorWeb.FeedChannel`; a topic no resolver claims is refused with
-`{reason: "no feed serves \"...\""}`.
+`{reason: "no feed serves \"...\""}`. Configured resolvers:
+`ObsFactor.Feeds.ObserverViews` (every other `observer:*` topic, below).
 
 `GET /api/snapshot`, `/api/stream` (SSE), `/api/beam`, `/api/logs`,
 `/api/history`, `/api/builds/:id[/log]` stay for scripts and anything
@@ -791,10 +799,12 @@ observer, `/api/nodes/:id/observer/*path`, which is how the floor reaches it.
 Sub-apps are separate Erlang clusters, never connected to the observer: it
 reaches them over HTTP only.
 
-Today the pass-through is HTTP request/response. The PubSub feeds
-(`ObsFactor.Feeds`, topics `observer:<node_id>:<member or ->:<view>`) will
-call the same `ObsFactor.ObserverProxy.call/5` on a timer and broadcast what
-it returns; the shapes below are what those topics will carry.
+The page reads it over the bus, not over HTTP: one feed per topic
+`observer:<node_id>:<member or ->:<view>` calls `ObsFactor.ObserverProxy.call/5`
+on its interval and broadcasts what it returns, and actions are channel
+pushes on those topics ("On the bus" below). The HTTP pass-through stays for
+scripts and anything outside the page. The engine shapes below are what the
+feeds carry as `data`.
 
 ### Engine: `<report base>/observer/...` (each app's report port)
 
@@ -941,3 +951,89 @@ Every POST, done or refused, is recorded twice on the observer:
   `supervisor`, `child_id`, `level`; `by` is `nil` when nobody said (that
   request was refused); exactly one of `result` (the 2xx body) and `error`
   (the message) is non-nil. Reads are not broadcast.
+
+### On the bus: `observer:<node_id>:<member or ->:<view>` *(2026-11-22)*
+
+`ObsFactor.Feeds.ObserverViews` (listed in `config :obs_factor, :feed_views`)
+serves every `observer:*` topic but `observer:observer:-:beam` (the built-in
+"Under the hood" feed). One feed per topic, however many browsers watch it;
+each fetch is `ObsFactor.ObserverProxy.call("GET", node, path, params, member: member)`,
+so in-process for node `observer` and over HTTP (with `REPORT_TOKEN`, 3 s
+timeout, 4 MiB cap) for a building.
+
+- `<node_id>`: `observer` or a topology node with a `report` URL.
+- `<member>`: `-` for the observer and for a single node; for a clustered
+  node, one `address` of its `inside.members[]` (the reports collector's
+  last read, which is what the snapshot shows). IPv4 addresses and names
+  only (`[A-Za-z0-9_.-]`).
+- `<view>`:
+
+| view | engine read | every |
+|---|---|---|
+| `system` | `system` | 5 s |
+| `apps` | `apps` | 5 s |
+| `tree:<app>` | `tree/<app>` (depth 8) | 2 s |
+| `procs:reductions` | `procs?sort=reductions&limit=50&interval_ms=1000`: ranked by reductions within one second, so a feed shows who is busy now, not who has run longest; the fetch takes ≥ 1 s | 2 s |
+| `procs:memory`, `procs:message_queue_len` | `procs?sort=<sort>&limit=50` | 2 s |
+| `proc:<pid>` | `proc/<pid>` (`0.123.0`) | 1 s |
+| `ets` | `ets` | 5 s |
+| `ports` | `ports` | 5 s |
+
+Intervals per view: `config :obs_factor, :observer_feed_intervals_ms, %{"proc" => 2_000}`
+(keys `system apps tree procs proc ets ports`).
+
+**Join.** Checked with the pass-through's own checks
+(`ObsFactor.ObserverProxy.check_target/2`), no request made. Reply: the
+feed's last payload, or `{}` before its first fetch. Refused with
+`{reason}`, the same text the HTTP pass-through gives:
+
+| topic | reason |
+|---|---|
+| `observer:nope:-:system` | `no node "nope" in the topology` |
+| `observer:caddy:-:system` | `node caddy has no report URL, so no observer` |
+| `observer:observer:10.0.0.1:system` | `the observer is one VM: member= does not apply to node observer` |
+| `observer:app:-:system`, app clustered | `app has 2 members: say which with member= (10.0.0.5, 10.0.0.6)` |
+| `observer:app:10.9.9.9:system` | `"10.9.9.9" is not one of app's current members (10.0.0.5, 10.0.0.6)` |
+| `observer:app:10.0.0.5:system`, app single | `app is one node, not a cluster: member= does not apply` |
+| `observer:observer:-:flame` | `no observer view "flame": one of system \| apps \| tree:<app> \| procs:<reductions\|memory\|message_queue_len> \| proc:<pid> \| ets \| ports` |
+| `observer:observer:-:procs:age` | `procs:<sort> sorts by reductions, memory, message_queue_len, not "age"` |
+| `observer:observer:-:proc:self` | `proc:<pid> needs a pid written 0.123.0, got "self"` |
+| `observer:observer:-:tree:Bad` | `tree:<app> needs an application name, got "Bad"` |
+| `observer:x` | `observer topics are observer:<node id>:<member address or ->:<view>, got "observer:x"` |
+
+**Pushes.** `feed` with `{at, data}`, `data` the engine's 200 answer as is
+(with `node` and `took_ms`), or `{at, error}`: every other answer, as
+`<node> [(<member>)] /observer/<path> answered <status>: <error>`, e.g.
+`observer /observer/proc/0.999.0 answered 404: no process 0.999.0 (not alive)`,
+`app /observer/ets answered 502: 127.0.0.1:19568: connection refused`; a 200
+without `node` is `app answered 200 without "node", not an observer engine
+answer: ...`. A member that left the cluster after the join is an error on
+every fetch, not a closed channel.
+
+**Actions.** Push `action` on any `observer:<node>:<member>:*` topic you have
+joined (the observer's `beam` topic included):
+
+```js
+await bus.push("observer:observer:-:tree:obs_factor", "action",
+  { path: "proc/0.284.0/gc", params: {}, by: "dave (floor)" });
+// → {"ok": true, "action": "gc", "pid": "0.284.0", "memory_before": 2864, "memory_after": 2864, "node": ..., "took_ms": 0.04}
+```
+
+`path` is an engine action path, `params` its JSON body (`reason`,
+`supervisor`/`child_id`, `level`; `by` in it is dropped), `by` who is acting
+(required; non-printing characters removed, cut at 80). Node and member are
+the topic's. It is exactly `POST /api/nodes/:id/observer/<path>[?member=]`:
+forwarded with `OBSERVER_ACTIONS_TOKEN`, `content-type: application/json`
+and `x-factory-by: <by>`, logged (LogRing warning, `source: "actions"`) and
+broadcast as `{:action, map}` on `actions`, done or refused. The reply is the
+engine's 2xx body, else `{error, status}` (bus.js rejects with `Error(error)`):
+`{error: "actions are off: OBSERVER_ACTIONS_TOKEN is not set on the observer", status: 403}`,
+`{error: "say who is acting: ...", status: 400}`,
+`{error: "action needs {path, params, by}, ...", status: 400}`. Any other event
+is `{error: "\"x\" is not an event of <topic>"}`.
+
+After an action that answered 2xx, 500 or 504 (by push or by POST), every
+running feed of that node and member (`observer:<node>:<member>:`, from
+`ObserverProxy.topic_prefix/2`) is refetched at once, so the tree, the procs
+and the process show the effect without waiting for their period.
+

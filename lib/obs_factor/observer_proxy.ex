@@ -43,9 +43,59 @@ defmodule ObsFactor.ObserverProxy do
         route(method, id, path, params, opts)
       end
 
-    if method == "POST", do: record_action(id, path, params, opts, result)
+    if method == "POST" do
+      record_action(id, path, params, opts, result)
+      refetch_after(id, opts[:member], result)
+    end
+
     result
   end
+
+  @doc """
+  Whether `id` (and `member`, an address or nil) is something the
+  pass-through would reach: `:ok` or `{status, %{"error" => ...}}`, the same
+  answer a request would get. The node must be `"observer"` or a topology
+  node with a `report` URL; the member is checked against the members the
+  reports collector read last (what the snapshot's `inside.members` shows).
+  No request is made.
+  """
+  def check_target(id, member) do
+    with :ok <- check_member(id, member) do
+      if id == self_id() do
+        :ok
+      else
+        with {:ok, node} <- topology_node(id),
+             {:ok, _base} <- base(node, member),
+             do: :ok
+      end
+    end
+  end
+
+  @doc """
+  Who is acting, as the pass-through accepts it: non-printing characters
+  removed, cut at 80 characters; nil for anything that is not a string.
+  """
+  def clean_by(by) when is_binary(by),
+    do: by |> String.replace(~r/[^[:print:]]/u, "") |> String.slice(0, 80)
+
+  def clean_by(_), do: nil
+
+  @doc """
+  The prefix of every feed topic of `id` / `member`
+  (`observer:<id>:<member or ->:`), the ones refetched after an action there.
+  """
+  def topic_prefix(id, member) do
+    m = if is_binary(member) and member != "", do: member, else: "-"
+    "observer:#{id}:#{m}:"
+  end
+
+  # An action that reached the engine (done, or a supervisor call that failed
+  # or timed out half way) may have changed what the feeds show: fetch
+  # them now rather than at their next period.
+  defp refetch_after(id, member, {status, _}) when status in 200..299 or status in [500, 504],
+    do: ObsFactor.Feeds.refetch_prefix(topic_prefix(id, member))
+
+  defp refetch_after(_, _, _), do: :ok
 
   @doc """
   The PubSub topic every action is broadcast on, as

@@ -23,7 +23,7 @@ defmodule ObsFactorWeb.ObserverController do
         _ -> if is_binary(body["by"]), do: body["by"]
       end
 
-    by = if is_binary(by), do: by |> String.replace(~r/[^[:print:]]/u, "") |> String.slice(0, 80)
+    by = ObserverProxy.clean_by(by)
     answer(conn, ObserverProxy.call("POST", id, path(params), Map.delete(body, "by"), member: member(conn), by: by))
   end
 
