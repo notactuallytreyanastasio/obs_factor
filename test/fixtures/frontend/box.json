@@ -31,6 +31,16 @@
    "ok": true,
    "at": "2026-11-18T22:34:47Z",
    "error": null
+  },
+  "reports": {
+   "ok": true,
+   "at": "2026-11-18T22:34:47Z",
+   "error": null
+  },
+  "access": {
+   "ok": true,
+   "at": "2026-11-18T22:34:47Z",
+   "error": null
   }
  },
  "host": {
@@ -62,9 +72,12 @@
  ],
  "nodes": [
   {
+   "routes": [],
+   "latency": null,
    "id": "caddy",
    "label": "Caddy",
    "kind": "proxy",
+   "style": null,
    "platform": "main",
    "pos": [
     0,
@@ -102,12 +115,71 @@
      "label": "sites",
      "value": "21 site blocks, 2.10.2"
     }
-   ]
+   ],
+   "inside": null
   },
   {
+   "routes": [
+    {
+     "path": "/",
+     "count": 412,
+     "rps": 1.373,
+     "errors": 0,
+     "p95_ms": 14.2
+    },
+    {
+     "path": "/post/the-factory-must-grow",
+     "count": 138,
+     "rps": 0.46,
+     "errors": 0,
+     "p95_ms": 11
+    },
+    {
+     "path": "/feed.xml",
+     "count": 96,
+     "rps": 0.32,
+     "errors": 0,
+     "p95_ms": 6.1
+    },
+    {
+     "path": "/pinball",
+     "count": 71,
+     "rps": 0.237,
+     "errors": 0,
+     "p95_ms": 9.4
+    },
+    {
+     "path": "/static/app.css",
+     "count": 64,
+     "rps": 0.213,
+     "errors": 0,
+     "p95_ms": 1.2
+    },
+    {
+     "path": "/gallery",
+     "count": 40,
+     "rps": 0.133,
+     "errors": 0,
+     "p95_ms": 88
+    },
+    {
+     "path": "/__nope",
+     "count": 9,
+     "rps": 0.03,
+     "errors": 0,
+     "p95_ms": 0.9
+    }
+   ],
+   "latency": {
+    "p50_ms": 10.56,
+    "p95_ms": 88,
+    "p99_ms": 202.4,
+    "count": 830
+   },
    "id": "blimp-blog",
    "label": "Blimp blog",
    "kind": "app",
+   "style": "press",
    "platform": "main",
    "pos": [
     1,
@@ -142,13 +214,33 @@
      "host": "bobbby.online",
      "rps": 3.2,
      "err_rps": 0,
-     "avg_ms": 8.1
+     "avg_ms": 8.1,
+     "codes": {
+      "2xx": 2.88,
+      "3xx": 0.192,
+      "4xx": 0.096,
+      "5xx": 0,
+      "other": 0.032
+     },
+     "in_bps": 1344,
+     "out_bps": 48000,
+     "in_flight": 2
     },
     {
      "host": "www.bobbby.online",
      "rps": 0.1,
      "err_rps": 0,
-     "avg_ms": 2
+     "avg_ms": 2,
+     "codes": {
+      "2xx": 0.094,
+      "3xx": 0.003,
+      "4xx": 0.003,
+      "5xx": 0,
+      "other": 0
+     },
+     "in_bps": 42,
+     "out_bps": 500,
+     "in_flight": 0
     }
    ],
    "via": [],
@@ -158,12 +250,51 @@
      "label": "memory",
      "value": "345 MB of 1.5 GB"
     }
-   ]
+   ],
+   "inside": null
   },
   {
+   "routes": [
+    {
+     "path": "/hotel-carbon",
+     "count": 14,
+     "rps": 0.047,
+     "errors": 0,
+     "p95_ms": 31
+    },
+    {
+     "path": "/",
+     "count": 9,
+     "rps": 0.03,
+     "errors": 0,
+     "p95_ms": 240
+    },
+    {
+     "path": "/tennis-potatoes",
+     "count": 4,
+     "rps": 0.013,
+     "errors": 0,
+     "p95_ms": 44
+    }
+   ],
+   "latency": {
+    "p50_ms": 28.8,
+    "p95_ms": 240,
+    "p99_ms": 552,
+    "count": 27
+   },
+   "via_rps": 0.09,
+   "via_codes": {
+    "2xx": 0.087,
+    "3xx": 0,
+    "4xx": 0.003,
+    "5xx": 0,
+    "other": 0
+   },
    "id": "app",
    "label": "Phoenix blog",
    "kind": "app",
+   "style": "foundry",
    "platform": "main",
    "pos": [
     1,
@@ -198,7 +329,17 @@
      "host": "old.bobbby.online",
      "rps": 0.08,
      "err_rps": 0,
-     "avg_ms": 21
+     "avg_ms": 21,
+     "codes": {
+      "2xx": 0.06,
+      "3xx": 0.016,
+      "4xx": 0.004,
+      "5xx": 0,
+      "other": 0
+     },
+     "in_bps": 33.6,
+     "out_bps": 720,
+     "in_flight": 0
     }
    ],
    "via": [
@@ -215,12 +356,350 @@
      "label": "routes",
      "value": "bobbby.online/hotel-carbon*, bobbby.online/tennis-potatoes*"
     }
-   ]
+   ],
+   "inside": {
+    "ok": true,
+    "error": null,
+    "at": "2026-11-18T22:34:47Z",
+    "runtime": {
+     "kind": "beam",
+     "versions": {
+      "otp": "28",
+      "elixir": "1.19.5",
+      "phoenix": "1.7.19",
+      "phoenix_live_view": "1.0.3",
+      "app": "0.1.0"
+     },
+     "uptime_s": 777600,
+     "gauges": {
+      "memory.total": 222298112,
+      "memory.processes": 75581358,
+      "memory.binary": 40013660,
+      "memory.ets": 20006830,
+      "memory.code": 66689434,
+      "memory.atom": 4445962,
+      "process.count": 1420,
+      "process.limit": 1048576,
+      "port.count": 18,
+      "atom.count": 31240,
+      "atom.limit": 1048576,
+      "ets.count": 61,
+      "run_queue": 0,
+      "schedulers.online": 4,
+      "scheduler.utilization": 0.012
+     },
+     "rates": {
+      "reductions": 48211.4,
+      "gc.count": 3.2,
+      "io.in_bytes": 5120,
+      "io.out_bytes": 20480,
+      "context_switches": 310.5
+     }
+    },
+    "units": [
+     {
+      "kind": "liveview",
+      "name": "BlogWeb.HotelCarbonLive",
+      "route": "/hotel-carbon",
+      "count": 2,
+      "gauges": {
+       "memory": 820000,
+       "message_queue": 0
+      },
+      "members": [
+       {
+        "id": "170a42",
+        "label": "/hotel-carbon",
+        "since": "2026-11-18T21:52:47Z",
+        "gauges": {
+         "memory": 533000,
+         "message_queue": 0
+        },
+        "counters": {
+         "events": 310
+        }
+       },
+       {
+        "id": "171a3",
+        "label": "/hotel-carbon",
+        "since": "2026-11-18T22:31:47Z",
+        "gauges": {
+         "memory": 451000,
+         "message_queue": 0
+        },
+        "counters": {
+         "events": 12
+        }
+       }
+      ]
+     },
+     {
+      "kind": "liveview",
+      "name": "BlogWeb.TennisPotatoesLive",
+      "route": "/tennis-potatoes",
+      "count": 1,
+      "gauges": {
+       "memory": 620000,
+       "message_queue": 0
+      },
+      "members": [
+       {
+        "id": "1a0a8",
+        "label": "/tennis-potatoes",
+        "since": "2026-11-18T22:26:47Z",
+        "gauges": {
+         "memory": 806000,
+         "message_queue": 0
+        },
+        "counters": {
+         "events": 55
+        }
+       }
+      ]
+     },
+     {
+      "kind": "liveview",
+      "name": "BlogWeb.PostLive.Show",
+      "route": "/post/:slug",
+      "count": 3,
+      "gauges": {
+       "memory": 540000,
+       "message_queue": 0
+      },
+      "members": [
+       {
+        "id": "150a1",
+        "label": "/post/the-factory-must-grow",
+        "since": "2026-11-18T22:33:47Z",
+        "gauges": {
+         "memory": 234000,
+         "message_queue": 0
+        },
+        "counters": {
+         "events": 2
+        }
+       },
+       {
+        "id": "151a17",
+        "label": "/post/pinball",
+        "since": "2026-11-18T22:17:47Z",
+        "gauges": {
+         "memory": 198000,
+         "message_queue": 0
+        },
+        "counters": {
+         "events": 4
+        }
+       },
+       {
+        "id": "152a60",
+        "label": "/post/blimp",
+        "since": "2026-11-18T21:34:47Z",
+        "gauges": {
+         "memory": 162000,
+         "message_queue": 0
+        },
+        "counters": {
+         "events": 1
+        }
+       }
+      ]
+     },
+     {
+      "kind": "liveview",
+      "name": "BlogWeb.CursorTrackerLive",
+      "route": "/cursor-tracker",
+      "count": 1,
+      "gauges": {
+       "memory": 240000,
+       "message_queue": 0
+      },
+      "members": [
+       {
+        "id": "190a5",
+        "label": "/cursor-tracker",
+        "since": "2026-11-18T22:29:47Z",
+        "gauges": {
+         "memory": 312000,
+         "message_queue": 0
+        },
+        "counters": {
+         "events": 940
+        }
+       }
+      ]
+     }
+    ],
+    "streams": [
+     {
+      "kind": "liveview.event",
+      "name": "BlogWeb.CursorTrackerLive#move",
+      "count": 88120,
+      "rate": 3.1,
+      "err_rate": 0,
+      "avg_ms": 0.4,
+      "by": null
+     },
+     {
+      "kind": "db.query",
+      "name": "Blog.Repo",
+      "count": 991200,
+      "rate": 2.1,
+      "err_rate": 0,
+      "avg_ms": 1.8,
+      "by": null
+     },
+     {
+      "kind": "db.query",
+      "name": "Blog.Repo",
+      "count": 412000,
+      "rate": 1.2,
+      "err_rate": 0,
+      "avg_ms": 1.4,
+      "by": {
+       "kind": "liveview",
+       "name": "BlogWeb.HotelCarbonLive"
+      }
+     },
+     {
+      "kind": "db.query",
+      "name": "Blog.Repo",
+      "count": 201000,
+      "rate": 0.6,
+      "err_rate": 0,
+      "avg_ms": 2.6,
+      "by": {
+       "kind": "liveview",
+       "name": "BlogWeb.PostLive.Show"
+      }
+     },
+     {
+      "kind": "outbound.http",
+      "name": "api.deepseek.com",
+      "count": 400,
+      "rate": 0.01,
+      "err_rate": 0.002,
+      "avg_ms": 1840,
+      "by": {
+       "kind": "liveview",
+       "name": "BlogWeb.TennisPotatoesLive"
+      }
+     },
+     {
+      "kind": "log",
+      "name": "warning",
+      "count": 310,
+      "rate": 0.002,
+      "err_rate": 0,
+      "avg_ms": null,
+      "by": null
+     },
+     {
+      "kind": "log",
+      "name": "error",
+      "count": 12,
+      "rate": 0,
+      "err_rate": 0,
+      "avg_ms": null,
+      "by": null
+     },
+     {
+      "kind": "http.route",
+      "name": "GET /hotel-carbon",
+      "count": 4410,
+      "rate": 0.05,
+      "err_rate": 0,
+      "avg_ms": 31,
+      "by": null
+     },
+     {
+      "kind": "liveview.event",
+      "name": "BlogWeb.HotelCarbonLive#place",
+      "count": 3120,
+      "rate": 0.04,
+      "err_rate": 0,
+      "avg_ms": 6.2,
+      "by": null
+     },
+     {
+      "kind": "outbound.http",
+      "name": "api.deepseek.com",
+      "count": 412,
+      "rate": 0.01,
+      "err_rate": 0.002,
+      "avg_ms": 1840,
+      "by": null
+     },
+     {
+      "kind": "outbound.http",
+      "name": "api.github.com",
+      "count": 2880,
+      "rate": 0.003,
+      "err_rate": 0,
+      "avg_ms": 210,
+      "by": null
+     },
+     {
+      "kind": "liveview.mount",
+      "name": "BlogWeb.PostLive.Show",
+      "count": 9120,
+      "rate": 0.02,
+      "err_rate": 0,
+      "avg_ms": 12,
+      "by": null
+     },
+     {
+      "kind": "channel.join",
+      "name": "room:*",
+      "count": 120,
+      "rate": 0,
+      "err_rate": 0,
+      "avg_ms": null,
+      "by": null
+     },
+     {
+      "kind": "custom",
+      "name": "work_log.poll",
+      "count": 2880,
+      "rate": 0.003,
+      "err_rate": 0,
+      "avg_ms": 220,
+      "by": null
+     }
+    ],
+    "events": [
+     {
+      "at": "2026-11-18T22:34:07.000Z",
+      "level": "warning",
+      "name": "Blog.GitHub.WorkLogPoller",
+      "message": "poll failed: GitHub answered 403 (rate limited), next try in 300 s",
+      "by": null
+     },
+     {
+      "at": "2026-11-18T22:31:37.000Z",
+      "level": "error",
+      "name": "BlogWeb.TennisPotatoesLive",
+      "message": "DeepSeek request failed: timeout after 15000 ms",
+      "by": {
+       "kind": "liveview",
+       "name": "BlogWeb.TennisPotatoesLive"
+      }
+     }
+    ],
+    "truncated": {
+     "units": 0,
+     "members": 0,
+     "streams": 0
+    }
+   }
   },
   {
+   "routes": [],
+   "latency": null,
    "id": "blinks",
    "label": "Blinks",
    "kind": "app",
+   "style": "switchyard",
    "platform": "main",
    "pos": [
     1,
@@ -255,19 +734,49 @@
      "host": "links.bobbby.online",
      "rps": 0.4,
      "err_rps": 0,
-     "avg_ms": 14.2
+     "avg_ms": 14.2,
+     "codes": {
+      "2xx": 0.184,
+      "3xx": 0.2,
+      "4xx": 0.016,
+      "5xx": 0,
+      "other": 0
+     },
+     "in_bps": 168,
+     "out_bps": 240,
+     "in_flight": 0
     },
     {
      "host": "bobbbys.link",
      "rps": 0.2,
      "err_rps": 0,
-     "avg_ms": 11.8
+     "avg_ms": 11.8,
+     "codes": {
+      "2xx": 0.01,
+      "3xx": 0.18,
+      "4xx": 0.01,
+      "5xx": 0,
+      "other": 0
+     },
+     "in_bps": 84,
+     "out_bps": 60,
+     "in_flight": 0
     },
     {
      "host": "www.bobbbys.link",
      "rps": 0.01,
      "err_rps": 0,
-     "avg_ms": 3
+     "avg_ms": 3,
+     "codes": {
+      "2xx": 0.009,
+      "3xx": 0,
+      "4xx": 0,
+      "5xx": 0,
+      "other": 0
+     },
+     "in_bps": 4.2,
+     "out_bps": 50,
+     "in_flight": 0
     }
    ],
    "via": [],
@@ -277,12 +786,109 @@
      "label": "memory",
      "value": "212 MB, no limit"
     }
-   ]
+   ],
+   "inside": {
+    "ok": true,
+    "error": null,
+    "at": "2026-11-18T22:34:47Z",
+    "runtime": {
+     "kind": "beam",
+     "versions": {
+      "otp": "28",
+      "elixir": "1.19.5",
+      "phoenix": "1.8.9",
+      "phoenix_live_view": "1.2.7",
+      "app": "0.1.0"
+     },
+     "uptime_s": 7776000,
+     "gauges": {
+      "memory.total": 100663296,
+      "memory.processes": 34225521,
+      "memory.binary": 18119393,
+      "memory.ets": 9059697,
+      "memory.code": 30198989,
+      "memory.atom": 2013266,
+      "process.count": 610,
+      "process.limit": 1048576,
+      "port.count": 14,
+      "atom.count": 31240,
+      "atom.limit": 1048576,
+      "ets.count": 61,
+      "run_queue": 0,
+      "schedulers.online": 4,
+      "scheduler.utilization": 0.012
+     },
+     "rates": {
+      "reductions": 48211.4,
+      "gc.count": 3.2,
+      "io.in_bytes": 5120,
+      "io.out_bytes": 20480,
+      "context_switches": 310.5
+     }
+    },
+    "units": [],
+    "streams": [
+     {
+      "kind": "http.route",
+      "name": "GET /",
+      "count": 44100,
+      "rate": 0.4,
+      "err_rate": 0,
+      "avg_ms": 14,
+      "by": null
+     },
+     {
+      "kind": "db.query",
+      "name": "BlinksBackend.Repo",
+      "count": 120400,
+      "rate": 0.1,
+      "err_rate": 0,
+      "avg_ms": 1.1,
+      "by": null
+     }
+    ],
+    "events": [],
+    "truncated": {
+     "units": 0,
+     "members": 0,
+     "streams": 0
+    }
+   }
   },
   {
+   "routes": [
+    {
+     "path": "/",
+     "count": 48,
+     "rps": 0.16,
+     "errors": 0,
+     "p95_ms": 30.1
+    },
+    {
+     "path": "/cases",
+     "count": 22,
+     "rps": 0.073,
+     "errors": 3,
+     "p95_ms": 410
+    },
+    {
+     "path": "/assets/app.js",
+     "count": 20,
+     "rps": 0.067,
+     "errors": 0,
+     "p95_ms": 2.2
+    }
+   ],
+   "latency": {
+    "p50_ms": 49.2,
+    "p95_ms": 410,
+    "p99_ms": 943,
+    "count": 90
+   },
    "id": "marginalia",
    "label": "Marginalia",
    "kind": "app",
+   "style": "library",
    "platform": "main",
    "pos": [
     2,
@@ -317,7 +923,17 @@
      "host": "marginalia.bobbby.online",
      "rps": 0.3,
      "err_rps": 0,
-     "avg_ms": 33
+     "avg_ms": 33,
+     "codes": {
+      "2xx": 0.267,
+      "3xx": 0.015,
+      "4xx": 0.006,
+      "5xx": 0,
+      "other": 0.012
+     },
+     "in_bps": 126,
+     "out_bps": 3300,
+     "in_flight": 3
     }
    ],
    "via": [],
@@ -327,12 +943,161 @@
      "label": "memory",
      "value": "251 MB, no limit"
     }
-   ]
+   ],
+   "inside": {
+    "ok": true,
+    "error": null,
+    "at": "2026-11-18T22:34:47Z",
+    "runtime": {
+     "kind": "beam",
+     "versions": {
+      "otp": "28",
+      "elixir": "1.19.5",
+      "phoenix": "1.8.14",
+      "phoenix_live_view": "1.2.11",
+      "app": "0.1.0"
+     },
+     "uptime_s": 4838400,
+     "gauges": {
+      "memory.total": 176160768,
+      "memory.processes": 59894661,
+      "memory.binary": 31708938,
+      "memory.ets": 15854469,
+      "memory.code": 52848230,
+      "memory.atom": 3523215,
+      "process.count": 980,
+      "process.limit": 1048576,
+      "port.count": 16,
+      "atom.count": 31240,
+      "atom.limit": 1048576,
+      "ets.count": 61,
+      "run_queue": 0,
+      "schedulers.online": 4,
+      "scheduler.utilization": 0.012
+     },
+     "rates": {
+      "reductions": 48211.4,
+      "gc.count": 3.2,
+      "io.in_bytes": 5120,
+      "io.out_bytes": 20480,
+      "context_switches": 310.5
+     }
+    },
+    "units": [
+     {
+      "kind": "liveview",
+      "name": "MarginaliaWeb.CaseLive.Show",
+      "route": "/cases/:id",
+      "count": 2,
+      "gauges": {
+       "memory": 1040000,
+       "message_queue": 0
+      },
+      "members": [
+       {
+        "id": "1b0a12",
+        "label": "/cases/41",
+        "since": "2026-11-18T22:22:47Z",
+        "gauges": {
+         "memory": 676000,
+         "message_queue": 0
+        },
+        "counters": {
+         "events": 31
+        }
+       },
+       {
+        "id": "1b1a2",
+        "label": "/cases/7",
+        "since": "2026-11-18T22:32:47Z",
+        "gauges": {
+         "memory": 572000,
+         "message_queue": 0
+        },
+        "counters": {
+         "events": 3
+        }
+       }
+      ]
+     },
+     {
+      "kind": "liveview",
+      "name": "MarginaliaWeb.StackLive",
+      "route": "/stacks",
+      "count": 1,
+      "gauges": {
+       "memory": 330000,
+       "message_queue": 0
+      },
+      "members": [
+       {
+        "id": "170a30",
+        "label": "/stacks",
+        "since": "2026-11-18T22:04:47Z",
+        "gauges": {
+         "memory": 429000,
+         "message_queue": 0
+        },
+        "counters": {
+         "events": 88
+        }
+       }
+      ]
+     }
+    ],
+    "streams": [
+     {
+      "kind": "db.query",
+      "name": "Marginalia.Repo",
+      "count": 2412000,
+      "rate": 5.4,
+      "err_rate": 0,
+      "avg_ms": 2.4,
+      "by": null
+     },
+     {
+      "kind": "http.route",
+      "name": "GET /cases",
+      "count": 9120,
+      "rate": 0.07,
+      "err_rate": 0.01,
+      "avg_ms": 410,
+      "by": null
+     },
+     {
+      "kind": "outbound.http",
+      "name": "api.deepseek.com",
+      "count": 1210,
+      "rate": 0.02,
+      "err_rate": 0,
+      "avg_ms": 2210,
+      "by": null
+     },
+     {
+      "kind": "liveview.event",
+      "name": "MarginaliaWeb.CaseLive.Show#annotate",
+      "count": 4410,
+      "rate": 0.03,
+      "err_rate": 0,
+      "avg_ms": 9.1,
+      "by": null
+     }
+    ],
+    "events": [],
+    "truncated": {
+     "units": 0,
+     "members": 0,
+     "streams": 0
+    }
+   }
   },
   {
+   "routes": [],
+   "latency": null,
    "id": "tyler",
    "label": "Tyler",
    "kind": "app",
+   "style": null,
    "platform": "main",
    "pos": [
     2,
@@ -367,7 +1132,17 @@
      "host": "tyler.bobbby.online",
      "rps": 0.05,
      "err_rps": 0,
-     "avg_ms": 18
+     "avg_ms": 18,
+     "codes": {
+      "2xx": 0.047,
+      "3xx": 0.002,
+      "4xx": 0.002,
+      "5xx": 0,
+      "other": 0
+     },
+     "in_bps": 21,
+     "out_bps": 250,
+     "in_flight": 0
     }
    ],
    "via": [],
@@ -377,12 +1152,16 @@
      "label": "memory",
      "value": "148 MB, no limit"
     }
-   ]
+   ],
+   "inside": null
   },
   {
+   "routes": [],
+   "latency": null,
    "id": "dave",
    "label": "Dave",
    "kind": "app",
+   "style": "conservatory",
    "platform": "main",
    "pos": [
     2,
@@ -417,7 +1196,17 @@
      "host": "dave.bobbby.online",
      "rps": 0.02,
      "err_rps": 0,
-     "avg_ms": 25
+     "avg_ms": 25,
+     "codes": {
+      "2xx": 0.019,
+      "3xx": 0.001,
+      "4xx": 0.001,
+      "5xx": 0,
+      "other": 0
+     },
+     "in_bps": 8.4,
+     "out_bps": 100,
+     "in_flight": 0
     }
    ],
    "via": [],
@@ -427,12 +1216,52 @@
      "label": "memory",
      "value": "139 MB, no limit"
     }
-   ]
+   ],
+   "inside": {
+    "ok": false,
+    "error": "connect ECONNREFUSED dave:9568",
+    "at": null,
+    "runtime": null,
+    "units": null,
+    "streams": null,
+    "truncated": null,
+    "events": null
+   }
   },
   {
+   "routes": [
+    {
+     "path": "/gifs",
+     "count": 120,
+     "rps": 0.4,
+     "errors": 4,
+     "p95_ms": 180
+    },
+    {
+     "path": "/",
+     "count": 44,
+     "rps": 0.147,
+     "errors": 0,
+     "p95_ms": 61
+    },
+    {
+     "path": "/robots.txt",
+     "count": 16,
+     "rps": 0.053,
+     "errors": 2,
+     "p95_ms": 1
+    }
+   ],
+   "latency": {
+    "p50_ms": 21.6,
+    "p95_ms": 180,
+    "p99_ms": 414,
+    "count": 180
+   },
    "id": "nathan",
    "label": "Gifmaker",
    "kind": "app",
+   "style": "studio",
    "platform": "main",
    "pos": [
     2,
@@ -467,7 +1296,17 @@
      "host": "gifmaker.bobbby.online",
      "rps": 0.6,
      "err_rps": 0.02,
-     "avg_ms": 140
+     "avg_ms": 140,
+     "codes": {
+      "2xx": 0.539,
+      "3xx": 0.012,
+      "4xx": 0.012,
+      "5xx": 0.02,
+      "other": 0.017
+     },
+     "in_bps": 252,
+     "out_bps": 132000,
+     "in_flight": 1
     }
    ],
    "via": [],
@@ -477,12 +1316,144 @@
      "label": "memory",
      "value": "302 MB, no limit"
     }
-   ]
+   ],
+   "inside": {
+    "ok": true,
+    "error": null,
+    "at": "2026-11-18T22:34:47Z",
+    "runtime": {
+     "kind": "beam",
+     "versions": {
+      "otp": "28",
+      "elixir": "1.19.5",
+      "phoenix": "1.7.21",
+      "phoenix_live_view": "1.0.17",
+      "app": "0.1.0"
+     },
+     "uptime_s": 7948800,
+     "gauges": {
+      "memory.total": 255852544,
+      "memory.processes": 86989865,
+      "memory.binary": 46053458,
+      "memory.ets": 23026729,
+      "memory.code": 76755763,
+      "memory.atom": 5117051,
+      "process.count": 1105,
+      "process.limit": 1048576,
+      "port.count": 15,
+      "atom.count": 31240,
+      "atom.limit": 1048576,
+      "ets.count": 61,
+      "run_queue": 0,
+      "schedulers.online": 4,
+      "scheduler.utilization": 0.012
+     },
+     "rates": {
+      "reductions": 48211.4,
+      "gc.count": 3.2,
+      "io.in_bytes": 5120,
+      "io.out_bytes": 20480,
+      "context_switches": 310.5
+     }
+    },
+    "units": [
+     {
+      "kind": "liveview",
+      "name": "NathanForUsWeb.GifLive",
+      "route": "/gifs/:id",
+      "count": 1,
+      "gauges": {
+       "memory": 2100000,
+       "message_queue": 0
+      },
+      "members": [
+       {
+        "id": "160a1",
+        "label": "/gifs/8812",
+        "since": "2026-11-18T22:33:47Z",
+        "gauges": {
+         "memory": 2730000,
+         "message_queue": 0
+        },
+        "counters": {
+         "events": 6
+        }
+       }
+      ]
+     }
+    ],
+    "streams": [
+     {
+      "kind": "http.route",
+      "name": "GET /gifs",
+      "count": 88120,
+      "rate": 0.4,
+      "err_rate": 0.013,
+      "avg_ms": 180,
+      "by": null
+     },
+     {
+      "kind": "db.query",
+      "name": "NathanForUs.Repo",
+      "count": 412000,
+      "rate": 0.4,
+      "err_rate": 0,
+      "avg_ms": 12,
+      "by": null
+     },
+     {
+      "kind": "custom",
+      "name": "gif.rendered",
+      "count": 5120,
+      "rate": 0.02,
+      "err_rate": 0.001,
+      "avg_ms": 3400,
+      "by": null
+     }
+    ],
+    "events": [],
+    "truncated": {
+     "units": 0,
+     "members": 0,
+     "streams": 0
+    }
+   }
   },
   {
+   "routes": [
+    {
+     "path": "/deciduous-mcp/health",
+     "count": 30,
+     "rps": 0.1,
+     "errors": 0,
+     "p95_ms": 2
+    },
+    {
+     "path": "/deciduous-mcp/mcp",
+     "count": 18,
+     "rps": 0.06,
+     "errors": 0,
+     "p95_ms": 620
+    }
+   ],
+   "latency": {
+    "p50_ms": 74.4,
+    "p95_ms": 620,
+    "p99_ms": 1426,
+    "count": 48
+   },
+   "via_rps": 0.16,
+   "via_codes": {
+    "2xx": 0.155,
+    "3xx": 0,
+    "4xx": 0.005,
+    "5xx": 0,
+    "other": 0
+   },
    "id": "deciduous-mcp",
    "label": "deciduous MCP",
    "kind": "app",
+   "style": "greenhouse",
    "platform": "main",
    "pos": [
     1,
@@ -491,8 +1462,8 @@
    "status": "working",
    "reason": null,
    "headline": {
-    "value": 0.006,
-    "unit": "cores"
+    "value": 0.16,
+    "unit": "req/s"
    },
    "container": {
     "name": "blog-deciduous-mcp-1",
@@ -526,12 +1497,36 @@
      "label": "routes",
      "value": "bobbby.online/deciduous-mcp/*"
     }
-   ]
+   ],
+   "inside": null
   },
   {
+   "routes": [
+    {
+     "path": "/xrpc/app.bsky.feed.getFeedSkeleton",
+     "count": 510,
+     "rps": 1.7,
+     "errors": 0,
+     "p95_ms": 52
+    },
+    {
+     "path": "/",
+     "count": 28,
+     "rps": 0.093,
+     "errors": 0,
+     "p95_ms": 9
+    }
+   ],
+   "latency": {
+    "p50_ms": 6.24,
+    "p95_ms": 52,
+    "p99_ms": 119.6,
+    "count": 538
+   },
    "id": "skyfeed",
    "label": "Sky feeds",
    "kind": "app",
+   "style": "observatory",
    "platform": "main",
    "pos": [
     1,
@@ -566,7 +1561,17 @@
      "host": "bskymapfeeds.bobbby.online",
      "rps": 1.8,
      "err_rps": 0,
-     "avg_ms": 46
+     "avg_ms": 46,
+     "codes": {
+      "2xx": 1.782,
+      "3xx": 0,
+      "4xx": 0.018,
+      "5xx": 0,
+      "other": 0
+     },
+     "in_bps": 756,
+     "out_bps": 7560,
+     "in_flight": 1
     }
    ],
    "via": [],
@@ -576,12 +1581,37 @@
      "label": "memory",
      "value": "176 MB, no limit"
     }
-   ]
+   ],
+   "inside": null
   },
   {
+   "routes": [
+    {
+     "path": "/dtree-ai/health",
+     "count": 12,
+     "rps": 0.04,
+     "errors": 0,
+     "p95_ms": 1.4
+    }
+   ],
+   "latency": {
+    "p50_ms": 0.168,
+    "p95_ms": 1.4,
+    "p99_ms": 3.22,
+    "count": 12
+   },
+   "via_rps": 0.04,
+   "via_codes": {
+    "2xx": 0.039,
+    "3xx": 0,
+    "4xx": 0.001,
+    "5xx": 0,
+    "other": 0
+   },
    "id": "dtree-ai",
    "label": "dtree AI",
    "kind": "app",
+   "style": "lab",
    "platform": "main",
    "pos": [
     3,
@@ -590,8 +1620,8 @@
    "status": "idle",
    "reason": null,
    "headline": {
-    "value": 0,
-    "unit": "cores"
+    "value": 0.04,
+    "unit": "req/s"
    },
    "container": {
     "name": "blog-dtree-ai-1",
@@ -625,12 +1655,44 @@
      "label": "routes",
      "value": "bobbby.online/dtree-ai/*"
     }
-   ]
+   ],
+   "inside": null
   },
   {
+   "routes": [
+    {
+     "path": "/arena/",
+     "count": 66,
+     "rps": 0.22,
+     "errors": 0,
+     "p95_ms": 4
+    },
+    {
+     "path": "/arena/state.json",
+     "count": 240,
+     "rps": 0.8,
+     "errors": 0,
+     "p95_ms": 2.1
+    }
+   ],
+   "latency": {
+    "p50_ms": 0.48,
+    "p95_ms": 4,
+    "p99_ms": 9.2,
+    "count": 306
+   },
+   "via_rps": 1.02,
+   "via_codes": {
+    "2xx": 0.989,
+    "3xx": 0,
+    "4xx": 0.031,
+    "5xx": 0,
+    "other": 0
+   },
    "id": "soldat",
    "label": "Arena",
    "kind": "app",
+   "style": "arena",
    "platform": "main",
    "pos": [
     3,
@@ -639,8 +1701,8 @@
    "status": "working",
    "reason": null,
    "headline": {
-    "value": 0.031,
-    "unit": "cores"
+    "value": 1.02,
+    "unit": "req/s"
    },
    "container": {
     "name": "blog-soldat-1",
@@ -674,12 +1736,24 @@
      "label": "routes",
      "value": "bobbby.online/arena/*"
     }
-   ]
+   ],
+   "inside": null
   },
   {
+   "routes": [],
+   "latency": null,
+   "via_rps": 0,
+   "via_codes": {
+    "2xx": 0,
+    "3xx": 0,
+    "4xx": 0,
+    "5xx": 0,
+    "other": 0
+   },
    "id": "slides-relay",
    "label": "Slides relay",
    "kind": "relay",
+   "style": "stage",
    "platform": "main",
    "pos": [
     3,
@@ -689,7 +1763,7 @@
    "reason": null,
    "headline": {
     "value": 0,
-    "unit": "cores"
+    "unit": "req/s"
    },
    "container": {
     "name": "blog-slides-relay-1",
@@ -719,12 +1793,37 @@
      "label": "routes",
      "value": "slides.bobbby.online/relay"
     }
-   ]
+   ],
+   "inside": null
   },
   {
+   "routes": [
+    {
+     "path": "/skee-host/health",
+     "count": 6,
+     "rps": 0.02,
+     "errors": 0,
+     "p95_ms": 1.1
+    }
+   ],
+   "latency": {
+    "p50_ms": 0.132,
+    "p95_ms": 1.1,
+    "p99_ms": 2.53,
+    "count": 6
+   },
+   "via_rps": 0.02,
+   "via_codes": {
+    "2xx": 0.019,
+    "3xx": 0,
+    "4xx": 0.001,
+    "5xx": 0,
+    "other": 0
+   },
    "id": "skee-relay",
    "label": "Skee relay",
    "kind": "relay",
+   "style": "arcade",
    "platform": "main",
    "pos": [
     3,
@@ -733,8 +1832,8 @@
    "status": "idle",
    "reason": null,
    "headline": {
-    "value": 0,
-    "unit": "cores"
+    "value": 0.02,
+    "unit": "req/s"
    },
    "container": {
     "name": "blog-skee-relay-1",
@@ -764,12 +1863,24 @@
      "label": "routes",
      "value": "bobbby.online/skee-host/*"
     }
-   ]
+   ],
+   "inside": null
   },
   {
+   "routes": [],
+   "latency": null,
+   "via_rps": 0,
+   "via_codes": {
+    "2xx": 0,
+    "3xx": 0,
+    "4xx": 0,
+    "5xx": 0,
+    "other": 0
+   },
    "id": "lumines",
    "label": "Lumines relay",
    "kind": "relay",
+   "style": "arcade",
    "platform": "main",
    "pos": [
     2,
@@ -779,7 +1890,7 @@
    "reason": null,
    "headline": {
     "value": 0,
-    "unit": "cores"
+    "unit": "req/s"
    },
    "container": {
     "name": "blog-lumines-1",
@@ -809,12 +1920,16 @@
      "label": "routes",
      "value": "lumines.bobbby.online/ws"
     }
-   ]
+   ],
+   "inside": null
   },
   {
+   "routes": [],
+   "latency": null,
    "id": "db",
    "label": "Postgres",
    "kind": "db",
+   "style": null,
    "platform": "main",
    "pos": [
     3,
@@ -897,12 +2012,43 @@
      "label": "version",
      "value": "PostgreSQL 17"
     }
-   ]
+   ],
+   "inside": null
   },
   {
+   "routes": [
+    {
+     "path": "/",
+     "count": 90,
+     "rps": 0.3,
+     "errors": 0,
+     "p95_ms": 1.3
+    },
+    {
+     "path": "/docs/",
+     "count": 30,
+     "rps": 0.1,
+     "errors": 0,
+     "p95_ms": 1.1
+    },
+    {
+     "path": "/nope",
+     "count": 12,
+     "rps": 0.04,
+     "errors": 0,
+     "p95_ms": 0.8
+    }
+   ],
+   "latency": {
+    "p50_ms": 0.156,
+    "p95_ms": 1.3,
+    "p99_ms": 2.99,
+    "count": 132
+   },
    "id": "site-deciduous",
    "label": "deciduous.dev",
    "kind": "static",
+   "style": "greenhouse",
    "platform": "static",
    "pos": [
     0,
@@ -921,13 +2067,33 @@
      "host": "deciduous.dev",
      "rps": 0.4,
      "err_rps": 0,
-     "avg_ms": 1.2
+     "avg_ms": 1.2,
+     "codes": {
+      "2xx": 0.348,
+      "3xx": 0.012,
+      "4xx": 0.04,
+      "5xx": 0,
+      "other": 0
+     },
+     "in_bps": 168,
+     "out_bps": 7200,
+     "in_flight": 0
     },
     {
      "host": "www.deciduous.dev",
      "rps": 0.02,
      "err_rps": 0,
-     "avg_ms": 1
+     "avg_ms": 1,
+     "codes": {
+      "2xx": 0.019,
+      "3xx": 0.001,
+      "4xx": 0.001,
+      "5xx": 0,
+      "other": 0
+     },
+     "in_bps": 8.4,
+     "out_bps": 100,
+     "in_flight": 0
     }
    ],
    "via": [],
@@ -946,12 +2112,16 @@
      "label": "size",
      "value": "48 MB"
     }
-   ]
+   ],
+   "inside": null
   },
   {
+   "routes": [],
+   "latency": null,
    "id": "site-soldat",
    "label": "Soldat landing",
    "kind": "static",
+   "style": "arena",
    "platform": "static",
    "pos": [
     1,
@@ -970,7 +2140,17 @@
      "host": "soldat.bobbby.online",
      "rps": 0.05,
      "err_rps": 0,
-     "avg_ms": 1.1
+     "avg_ms": 1.1,
+     "codes": {
+      "2xx": 0.047,
+      "3xx": 0.002,
+      "4xx": 0.002,
+      "5xx": 0,
+      "other": 0
+     },
+     "in_bps": 21,
+     "out_bps": 250,
+     "in_flight": 0
     }
    ],
    "via": [],
@@ -989,12 +2169,16 @@
      "label": "size",
      "value": "6.0 MB"
     }
-   ]
+   ],
+   "inside": null
   },
   {
+   "routes": [],
+   "latency": null,
    "id": "site-downloader",
    "label": "Downloader",
    "kind": "static",
+   "style": null,
    "platform": "static",
    "pos": [
     2,
@@ -1013,7 +2197,17 @@
      "host": "downloader.bobbby.online",
      "rps": 0,
      "err_rps": 0,
-     "avg_ms": null
+     "avg_ms": null,
+     "codes": {
+      "2xx": 0,
+      "3xx": 0,
+      "4xx": 0,
+      "5xx": 0,
+      "other": 0
+     },
+     "in_bps": 0,
+     "out_bps": 0,
+     "in_flight": 0
     }
    ],
    "via": [],
@@ -1032,12 +2226,16 @@
      "label": "size",
      "value": "2.0 MB"
     }
-   ]
+   ],
+   "inside": null
   },
   {
+   "routes": [],
+   "latency": null,
    "id": "site-donny",
    "label": "Donny",
    "kind": "static",
+   "style": null,
    "platform": "static",
    "pos": [
     0,
@@ -1056,7 +2254,17 @@
      "host": "donny.bobbby.online",
      "rps": 0.01,
      "err_rps": 0,
-     "avg_ms": 0.9
+     "avg_ms": 0.9,
+     "codes": {
+      "2xx": 0.009,
+      "3xx": 0,
+      "4xx": 0,
+      "5xx": 0,
+      "other": 0
+     },
+     "in_bps": 4.2,
+     "out_bps": 50,
+     "in_flight": 0
     }
    ],
    "via": [],
@@ -1075,12 +2283,16 @@
      "label": "size",
      "value": "31 MB"
     }
-   ]
+   ],
+   "inside": null
   },
   {
+   "routes": [],
+   "latency": null,
    "id": "site-blimp",
    "label": "Blimp docs",
    "kind": "static",
+   "style": "press",
    "platform": "static",
    "pos": [
     1,
@@ -1099,7 +2311,17 @@
      "host": "blimp.bobbby.online",
      "rps": 0.1,
      "err_rps": 0,
-     "avg_ms": 1.3
+     "avg_ms": 1.3,
+     "codes": {
+      "2xx": 0.094,
+      "3xx": 0.003,
+      "4xx": 0.003,
+      "5xx": 0,
+      "other": 0
+     },
+     "in_bps": 42,
+     "out_bps": 500,
+     "in_flight": 0
     }
    ],
    "via": [],
@@ -1118,12 +2340,16 @@
      "label": "size",
      "value": "12 MB"
     }
-   ]
+   ],
+   "inside": null
   },
   {
+   "routes": [],
+   "latency": null,
    "id": "site-gaming",
    "label": "Gaming",
    "kind": "static",
+   "style": "arcade",
    "platform": "static",
    "pos": [
     2,
@@ -1142,7 +2368,17 @@
      "host": "gaming.bobbby.online",
      "rps": 0.03,
      "err_rps": 0,
-     "avg_ms": 1
+     "avg_ms": 1,
+     "codes": {
+      "2xx": 0.028,
+      "3xx": 0.001,
+      "4xx": 0.001,
+      "5xx": 0,
+      "other": 0
+     },
+     "in_bps": 12.6,
+     "out_bps": 150,
+     "in_flight": 0
     }
    ],
    "via": [],
@@ -1161,12 +2397,16 @@
      "label": "size",
      "value": "410 MB"
     }
-   ]
+   ],
+   "inside": null
   },
   {
+   "routes": [],
+   "latency": null,
    "id": "site-slides",
    "label": "Slides",
    "kind": "static",
+   "style": "stage",
    "platform": "static",
    "pos": [
     0,
@@ -1185,7 +2425,17 @@
      "host": "slides.bobbby.online",
      "rps": 0.02,
      "err_rps": 0,
-     "avg_ms": 1.4
+     "avg_ms": 1.4,
+     "codes": {
+      "2xx": 0.019,
+      "3xx": 0.001,
+      "4xx": 0.001,
+      "5xx": 0,
+      "other": 0
+     },
+     "in_bps": 8.4,
+     "out_bps": 100,
+     "in_flight": 0
     }
    ],
    "via": [],
@@ -1204,12 +2454,16 @@
      "label": "size",
      "value": "88 MB"
     }
-   ]
+   ],
+   "inside": null
   },
   {
+   "routes": [],
+   "latency": null,
    "id": "site-lumines",
    "label": "Lumines",
    "kind": "static",
+   "style": "arcade",
    "platform": "static",
    "pos": [
     1,
@@ -1228,7 +2482,17 @@
      "host": "lumines.bobbby.online",
      "rps": 0.04,
      "err_rps": 0,
-     "avg_ms": 1.2
+     "avg_ms": 1.2,
+     "codes": {
+      "2xx": 0.038,
+      "3xx": 0.001,
+      "4xx": 0.001,
+      "5xx": 0,
+      "other": 0
+     },
+     "in_bps": 16.8,
+     "out_bps": 200,
+     "in_flight": 0
     }
    ],
    "via": [],
@@ -1247,12 +2511,36 @@
      "label": "size",
      "value": "23 MB"
     }
-   ]
+   ],
+   "inside": null
   },
   {
+   "routes": [
+    {
+     "path": "/",
+     "count": 150,
+     "rps": 0.5,
+     "errors": 0,
+     "p95_ms": 2.4
+    },
+    {
+     "path": "/assets/index.js",
+     "count": 60,
+     "rps": 0.2,
+     "errors": 0,
+     "p95_ms": 3
+    }
+   ],
+   "latency": {
+    "p50_ms": 0.36,
+    "p95_ms": 3,
+    "p99_ms": 6.9,
+    "count": 210
+   },
    "id": "site-phstats",
    "label": "Phish jam explorer",
    "kind": "static",
+   "style": "conservatory",
    "platform": "static",
    "pos": [
     2,
@@ -1271,13 +2559,33 @@
      "host": "phishjamexplorer.com",
      "rps": 0.7,
      "err_rps": 0,
-     "avg_ms": 2.2
+     "avg_ms": 2.2,
+     "codes": {
+      "2xx": 0.63,
+      "3xx": 0.014,
+      "4xx": 0.056,
+      "5xx": 0,
+      "other": 0
+     },
+     "in_bps": 294,
+     "out_bps": 44800,
+     "in_flight": 0
     },
     {
      "host": "www.phishjamexplorer.com",
      "rps": 0.02,
      "err_rps": 0,
-     "avg_ms": 1
+     "avg_ms": 1,
+     "codes": {
+      "2xx": 0.019,
+      "3xx": 0.001,
+      "4xx": 0.001,
+      "5xx": 0,
+      "other": 0
+     },
+     "in_bps": 8.4,
+     "out_bps": 100,
+     "in_flight": 0
     }
    ],
    "via": [],
@@ -1296,12 +2604,16 @@
      "label": "size",
      "value": "1.4 GB"
     }
-   ]
+   ],
+   "inside": null
   },
   {
+   "routes": [],
+   "latency": null,
    "id": "site-padmac",
    "label": "padmac",
    "kind": "static",
+   "style": null,
    "platform": "static",
    "pos": [
     0,
@@ -1320,7 +2632,17 @@
      "host": "padmac.bobbby.online",
      "rps": 0,
      "err_rps": 0,
-     "avg_ms": null
+     "avg_ms": null,
+     "codes": {
+      "2xx": 0,
+      "3xx": 0,
+      "4xx": 0,
+      "5xx": 0,
+      "other": 0
+     },
+     "in_bps": 0,
+     "out_bps": 0,
+     "in_flight": 0
     }
    ],
    "via": [],
@@ -1339,12 +2661,14 @@
      "label": "size",
      "value": "3.0 MB"
     }
-   ]
+   ],
+   "inside": null
   },
   {
    "id": "host-cpu",
    "label": "CPU",
    "kind": "resource",
+   "style": null,
    "platform": "host",
    "pos": [
     0,
@@ -1370,12 +2694,16 @@
      "label": "load 1m",
      "value": "0.04"
     }
-   ]
+   ],
+   "inside": null,
+   "routes": [],
+   "latency": null
   },
   {
    "id": "host-mem",
    "label": "Memory",
    "kind": "resource",
+   "style": null,
    "platform": "host",
    "pos": [
     1,
@@ -1401,12 +2729,16 @@
      "label": "total",
      "value": "15 GB"
     }
-   ]
+   ],
+   "inside": null,
+   "routes": [],
+   "latency": null
   },
   {
    "id": "host-disk",
    "label": "Disk",
    "kind": "resource",
+   "style": null,
    "platform": "host",
    "pos": [
     2,
@@ -1441,12 +2773,16 @@
      "label": "size",
      "value": "150 GB"
     }
-   ]
+   ],
+   "inside": null,
+   "routes": [],
+   "latency": null
   },
   {
    "id": "internet",
    "label": "Internet",
    "kind": "source",
+   "style": null,
    "platform": "outside",
    "pos": [
     0,
@@ -1463,12 +2799,51 @@
    "hosts": [],
    "via": [],
    "holds": [],
-   "facts": []
+   "facts": [],
+   "inside": null,
+   "routes": [],
+   "latency": null,
+   "clients": {
+    "classes": {
+     "browser": 1480,
+     "bot": 610,
+     "tool": 240,
+     "other": 75
+    },
+    "countries": [
+     {
+      "code": "US",
+      "count": 1210
+     },
+     {
+      "code": "DE",
+      "count": 310
+     },
+     {
+      "code": "GB",
+      "count": 190
+     },
+     {
+      "code": "??",
+      "count": 180
+     },
+     {
+      "code": "JP",
+      "count": 140
+     },
+     {
+      "code": "BR",
+      "count": 95
+     }
+    ],
+    "window_s": 300
+   }
   },
   {
    "id": "deepseek",
    "label": "DeepSeek",
    "kind": "external",
+   "style": null,
    "platform": "outside",
    "pos": [
     0,
@@ -1490,12 +2865,16 @@
      "label": "api",
      "value": "api.deepseek.com"
     }
-   ]
+   ],
+   "inside": null,
+   "routes": [],
+   "latency": null
   },
   {
    "id": "classifier",
    "label": "classifier",
    "kind": "unplaced",
+   "style": null,
    "platform": null,
    "pos": null,
    "status": "working",
@@ -1526,12 +2905,16 @@
      "label": "topology",
      "value": "not in the topology file"
     }
-   ]
+   ],
+   "inside": null,
+   "routes": [],
+   "latency": null
   },
   {
    "id": "icecast",
    "label": "icecast",
    "kind": "unplaced",
+   "style": null,
    "platform": null,
    "pos": null,
    "status": "idle",
@@ -1562,12 +2945,16 @@
      "label": "topology",
      "value": "not in the topology file"
     }
-   ]
+   ],
+   "inside": null,
+   "routes": [],
+   "latency": null
   },
   {
    "id": "temper-link",
    "label": "temper-link",
    "kind": "unplaced",
+   "style": null,
    "platform": null,
    "pos": null,
    "status": "idle",
@@ -1598,7 +2985,10 @@
      "label": "topology",
      "value": "not in the topology file"
     }
-   ]
+   ],
+   "inside": null,
+   "routes": [],
+   "latency": null
   }
  ],
  "edges": [
@@ -1610,7 +3000,14 @@
    "rate": 8.15,
    "unit": "req/s",
    "metered": true,
-   "label": "all hosts"
+   "label": "all hosts",
+   "codes": {
+    "2xx": 7.142,
+    "3xx": 0.657,
+    "4xx": 0.274,
+    "5xx": 0.02,
+    "other": 0.061
+   }
   },
   {
    "id": "caddy>blimp-blog",
@@ -1620,7 +3017,14 @@
    "rate": 3.3,
    "unit": "req/s",
    "metered": true,
-   "label": "bobbby.online"
+   "label": "bobbby.online",
+   "codes": {
+    "2xx": 2.974,
+    "3xx": 0.195,
+    "4xx": 0.099,
+    "5xx": 0,
+    "other": 0.032
+   }
   },
   {
    "id": "blimp-blog>db",
@@ -1630,7 +3034,8 @@
    "rate": 1.05,
    "unit": "commit/s",
    "metered": true,
-   "label": "blog_prod"
+   "label": "blog_prod",
+   "codes": null
   },
   {
    "id": "caddy>app",
@@ -1640,7 +3045,14 @@
    "rate": 0.08,
    "unit": "req/s",
    "metered": true,
-   "label": "old.bobbby.online"
+   "label": "old.bobbby.online",
+   "codes": {
+    "2xx": 0.06,
+    "3xx": 0.016,
+    "4xx": 0.004,
+    "5xx": 0,
+    "other": 0
+   }
   },
   {
    "id": "app>db",
@@ -1650,7 +3062,8 @@
    "rate": 1.05,
    "unit": "commit/s",
    "metered": true,
-   "label": "blog_prod"
+   "label": "blog_prod",
+   "codes": null
   },
   {
    "id": "caddy>blinks",
@@ -1660,7 +3073,14 @@
    "rate": 0.61,
    "unit": "req/s",
    "metered": true,
-   "label": "links.bobbby.online"
+   "label": "links.bobbby.online",
+   "codes": {
+    "2xx": 0.203,
+    "3xx": 0.38,
+    "4xx": 0.026,
+    "5xx": 0,
+    "other": 0
+   }
   },
   {
    "id": "blinks>db",
@@ -1670,7 +3090,8 @@
    "rate": 0.1,
    "unit": "commit/s",
    "metered": true,
-   "label": "blinks_backend_prod"
+   "label": "blinks_backend_prod",
+   "codes": null
   },
   {
    "id": "caddy>marginalia",
@@ -1680,7 +3101,14 @@
    "rate": 0.3,
    "unit": "req/s",
    "metered": true,
-   "label": "marginalia.bobbby.online"
+   "label": "marginalia.bobbby.online",
+   "codes": {
+    "2xx": 0.267,
+    "3xx": 0.015,
+    "4xx": 0.006,
+    "5xx": 0,
+    "other": 0.012
+   }
   },
   {
    "id": "marginalia>db",
@@ -1690,7 +3118,8 @@
    "rate": 5.4,
    "unit": "commit/s",
    "metered": true,
-   "label": "marginalia_prod"
+   "label": "marginalia_prod",
+   "codes": null
   },
   {
    "id": "caddy>tyler",
@@ -1700,7 +3129,14 @@
    "rate": 0.05,
    "unit": "req/s",
    "metered": true,
-   "label": "tyler.bobbby.online"
+   "label": "tyler.bobbby.online",
+   "codes": {
+    "2xx": 0.047,
+    "3xx": 0.002,
+    "4xx": 0.002,
+    "5xx": 0,
+    "other": 0
+   }
   },
   {
    "id": "tyler>db",
@@ -1710,7 +3146,8 @@
    "rate": 0.08,
    "unit": "commit/s",
    "metered": true,
-   "label": "tyler_prod"
+   "label": "tyler_prod",
+   "codes": null
   },
   {
    "id": "caddy>dave",
@@ -1720,7 +3157,14 @@
    "rate": 0.02,
    "unit": "req/s",
    "metered": true,
-   "label": "dave.bobbby.online"
+   "label": "dave.bobbby.online",
+   "codes": {
+    "2xx": 0.019,
+    "3xx": 0.001,
+    "4xx": 0.001,
+    "5xx": 0,
+    "other": 0
+   }
   },
   {
    "id": "dave>db",
@@ -1730,7 +3174,8 @@
    "rate": 0.03,
    "unit": "commit/s",
    "metered": true,
-   "label": "dave_prod"
+   "label": "dave_prod",
+   "codes": null
   },
   {
    "id": "caddy>nathan",
@@ -1740,7 +3185,14 @@
    "rate": 0.6,
    "unit": "req/s",
    "metered": true,
-   "label": "gifmaker.bobbby.online"
+   "label": "gifmaker.bobbby.online",
+   "codes": {
+    "2xx": 0.539,
+    "3xx": 0.012,
+    "4xx": 0.012,
+    "5xx": 0.02,
+    "other": 0.017
+   }
   },
   {
    "id": "nathan>db",
@@ -1750,17 +3202,25 @@
    "rate": 0.4,
    "unit": "commit/s",
    "metered": true,
-   "label": "nathan_for_us_prod"
+   "label": "nathan_for_us_prod",
+   "codes": null
   },
   {
    "id": "caddy>deciduous-mcp",
    "from": "caddy",
    "to": "deciduous-mcp",
    "item": "requests",
-   "rate": null,
+   "rate": 0.16,
    "unit": "req/s",
-   "metered": false,
-   "label": "bobbby.online/deciduous-mcp/*"
+   "metered": true,
+   "label": "bobbby.online/deciduous-mcp/*",
+   "codes": {
+    "2xx": 0.155,
+    "3xx": 0,
+    "4xx": 0.005,
+    "5xx": 0,
+    "other": 0
+   }
   },
   {
    "id": "deciduous-mcp>db",
@@ -1770,7 +3230,8 @@
    "rate": 1.2,
    "unit": "commit/s",
    "metered": true,
-   "label": "deciduous_mcp_prod"
+   "label": "deciduous_mcp_prod",
+   "codes": null
   },
   {
    "id": "caddy>skyfeed",
@@ -1780,57 +3241,99 @@
    "rate": 1.8,
    "unit": "req/s",
    "metered": true,
-   "label": "bskymapfeeds.bobbby.online"
+   "label": "bskymapfeeds.bobbby.online",
+   "codes": {
+    "2xx": 1.782,
+    "3xx": 0,
+    "4xx": 0.018,
+    "5xx": 0,
+    "other": 0
+   }
   },
   {
    "id": "caddy>dtree-ai",
    "from": "caddy",
    "to": "dtree-ai",
    "item": "requests",
-   "rate": null,
+   "rate": 0.04,
    "unit": "req/s",
-   "metered": false,
-   "label": "bobbby.online/dtree-ai/*"
+   "metered": true,
+   "label": "bobbby.online/dtree-ai/*",
+   "codes": {
+    "2xx": 0.039,
+    "3xx": 0,
+    "4xx": 0.001,
+    "5xx": 0,
+    "other": 0
+   }
   },
   {
    "id": "caddy>soldat",
    "from": "caddy",
    "to": "soldat",
    "item": "requests",
-   "rate": null,
+   "rate": 1.02,
    "unit": "req/s",
-   "metered": false,
-   "label": "bobbby.online/arena/*"
+   "metered": true,
+   "label": "bobbby.online/arena/*",
+   "codes": {
+    "2xx": 0.989,
+    "3xx": 0,
+    "4xx": 0.031,
+    "5xx": 0,
+    "other": 0
+   }
   },
   {
    "id": "caddy>slides-relay",
    "from": "caddy",
    "to": "slides-relay",
    "item": "requests",
-   "rate": null,
+   "rate": 0,
    "unit": "req/s",
-   "metered": false,
-   "label": "slides.bobbby.online/relay"
+   "metered": true,
+   "label": "slides.bobbby.online/relay",
+   "codes": {
+    "2xx": 0,
+    "3xx": 0,
+    "4xx": 0,
+    "5xx": 0,
+    "other": 0
+   }
   },
   {
    "id": "caddy>skee-relay",
    "from": "caddy",
    "to": "skee-relay",
    "item": "requests",
-   "rate": null,
+   "rate": 0.02,
    "unit": "req/s",
-   "metered": false,
-   "label": "bobbby.online/skee-host/*"
+   "metered": true,
+   "label": "bobbby.online/skee-host/*",
+   "codes": {
+    "2xx": 0.019,
+    "3xx": 0,
+    "4xx": 0.001,
+    "5xx": 0,
+    "other": 0
+   }
   },
   {
    "id": "caddy>lumines",
    "from": "caddy",
    "to": "lumines",
    "item": "requests",
-   "rate": null,
+   "rate": 0,
    "unit": "req/s",
-   "metered": false,
-   "label": "lumines.bobbby.online/ws"
+   "metered": true,
+   "label": "lumines.bobbby.online/ws",
+   "codes": {
+    "2xx": 0,
+    "3xx": 0,
+    "4xx": 0,
+    "5xx": 0,
+    "other": 0
+   }
   },
   {
    "id": "blimp-blog>deepseek",
@@ -1840,7 +3343,8 @@
    "rate": null,
    "unit": null,
    "metered": false,
-   "label": "prompts"
+   "label": "prompts",
+   "codes": null
   },
   {
    "id": "caddy>site-deciduous",
@@ -1850,7 +3354,14 @@
    "rate": 0.42,
    "unit": "req/s",
    "metered": true,
-   "label": "deciduous.dev"
+   "label": "deciduous.dev",
+   "codes": {
+    "2xx": 0.367,
+    "3xx": 0.013,
+    "4xx": 0.041,
+    "5xx": 0,
+    "other": 0
+   }
   },
   {
    "id": "caddy>site-soldat",
@@ -1860,7 +3371,14 @@
    "rate": 0.05,
    "unit": "req/s",
    "metered": true,
-   "label": "soldat.bobbby.online"
+   "label": "soldat.bobbby.online",
+   "codes": {
+    "2xx": 0.047,
+    "3xx": 0.002,
+    "4xx": 0.002,
+    "5xx": 0,
+    "other": 0
+   }
   },
   {
    "id": "caddy>site-downloader",
@@ -1870,7 +3388,14 @@
    "rate": 0,
    "unit": "req/s",
    "metered": true,
-   "label": "downloader.bobbby.online"
+   "label": "downloader.bobbby.online",
+   "codes": {
+    "2xx": 0,
+    "3xx": 0,
+    "4xx": 0,
+    "5xx": 0,
+    "other": 0
+   }
   },
   {
    "id": "caddy>site-donny",
@@ -1880,7 +3405,14 @@
    "rate": 0.01,
    "unit": "req/s",
    "metered": true,
-   "label": "donny.bobbby.online"
+   "label": "donny.bobbby.online",
+   "codes": {
+    "2xx": 0.009,
+    "3xx": 0,
+    "4xx": 0,
+    "5xx": 0,
+    "other": 0
+   }
   },
   {
    "id": "caddy>site-blimp",
@@ -1890,7 +3422,14 @@
    "rate": 0.1,
    "unit": "req/s",
    "metered": true,
-   "label": "blimp.bobbby.online"
+   "label": "blimp.bobbby.online",
+   "codes": {
+    "2xx": 0.094,
+    "3xx": 0.003,
+    "4xx": 0.003,
+    "5xx": 0,
+    "other": 0
+   }
   },
   {
    "id": "caddy>site-gaming",
@@ -1900,7 +3439,14 @@
    "rate": 0.03,
    "unit": "req/s",
    "metered": true,
-   "label": "gaming.bobbby.online"
+   "label": "gaming.bobbby.online",
+   "codes": {
+    "2xx": 0.028,
+    "3xx": 0.001,
+    "4xx": 0.001,
+    "5xx": 0,
+    "other": 0
+   }
   },
   {
    "id": "caddy>site-slides",
@@ -1910,7 +3456,14 @@
    "rate": 0.02,
    "unit": "req/s",
    "metered": true,
-   "label": "slides.bobbby.online"
+   "label": "slides.bobbby.online",
+   "codes": {
+    "2xx": 0.019,
+    "3xx": 0.001,
+    "4xx": 0.001,
+    "5xx": 0,
+    "other": 0
+   }
   },
   {
    "id": "caddy>site-lumines",
@@ -1920,7 +3473,14 @@
    "rate": 0.04,
    "unit": "req/s",
    "metered": true,
-   "label": "lumines.bobbby.online"
+   "label": "lumines.bobbby.online",
+   "codes": {
+    "2xx": 0.038,
+    "3xx": 0.001,
+    "4xx": 0.001,
+    "5xx": 0,
+    "other": 0
+   }
   },
   {
    "id": "caddy>site-phstats",
@@ -1930,7 +3490,14 @@
    "rate": 0.72,
    "unit": "req/s",
    "metered": true,
-   "label": "phishjamexplorer.com"
+   "label": "phishjamexplorer.com",
+   "codes": {
+    "2xx": 0.649,
+    "3xx": 0.015,
+    "4xx": 0.057,
+    "5xx": 0,
+    "other": 0
+   }
   },
   {
    "id": "caddy>site-padmac",
@@ -1940,7 +3507,14 @@
    "rate": 0,
    "unit": "req/s",
    "metered": true,
-   "label": "padmac.bobbby.online"
+   "label": "padmac.bobbby.online",
+   "codes": {
+    "2xx": 0,
+    "3xx": 0,
+    "4xx": 0,
+    "5xx": 0,
+    "other": 0
+   }
   }
  ],
  "attention": [
@@ -1953,6 +3527,11 @@
    "node": "host-disk",
    "severity": "warn",
    "text": "Disk 87% full"
+  },
+  {
+   "node": "dave",
+   "severity": "warn",
+   "text": "Dave report failing: connect ECONNREFUSED dave:9568"
   }
  ]
 }

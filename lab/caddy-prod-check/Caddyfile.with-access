@@ -1,0 +1,706 @@
+{
+	servers {
+		protocols h1 h2
+		trusted_proxies static 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 104.16.0.0/13 104.24.0.0/14 108.162.192.0/18 131.0.72.0/22 141.101.64.0/18 162.158.0.0/15 172.64.0.0/13 173.245.48.0/20 188.114.96.0/20 190.93.240.0/20 197.234.240.0/22 198.41.128.0/17 2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
+		# Read X-Forwarded-For from the right. Cloudflare appends the real
+		# client, so the leftmost entry is whatever the client typed.
+		trusted_proxies_strict
+	}
+	# obs_factor: one request series per host (caddy_http_requests_total{host=...}).
+	# Without per_host every site's requests land in one series.
+	metrics {
+		per_host
+	}
+}
+
+# The access log the factory tails (obs_factor: deploy/Caddyfile.access).
+(access) {
+	log_append ua {header.User-Agent}
+	log_append country {header.Cf-Ipcountry}
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 50MiB
+			roll_keep 2
+			mode 0644
+		}
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp "\?.*" ""
+				request>headers delete
+				request>remote_ip delete
+				request>remote_port delete
+				request>client_ip delete
+				request>tls delete
+				resp_headers delete
+				user_id delete
+			}
+		}
+	}
+}
+
+# obs_factor: Prometheus metrics for the observer, plain HTTP on :9180.
+# Reachable only on the compose network: docker-compose.yml publishes
+# 80 and 443 for caddy, not 9180.
+http://:9180 {
+	metrics
+}
+
+bobbby.online, www.bobbby.online {
+	import access
+	encode gzip zstd
+
+	header {
+		# WebSocket support (LiveView)
+		X-Forwarded-Proto {scheme}
+		# Disable HTTP/3 advertisement — clears Safari's cached alt-svc
+		alt-svc "clear"
+	}
+
+	# The Claude Arena — LIVE. /arena/play/* stays a static snapshot (the
+	# in-browser replay client, kept fresh by the soldat repo's
+	# arena-live/publish.mjs -> /opt/arena/play, mounted at /srv/arena);
+	# everything else under /arena/* proxies to the live watcher daemon in
+	# the `soldat` container (handle_path strips the /arena prefix —
+	# watch.mjs serves the site at /). The watcher sends no-store itself;
+	# no cache headers here so the dashboards' 5s polls stay fresh.
+	redir /arena /arena/ 308
+	redir /arena/play /arena/play/ 308
+	# Online 1v1 game server (soldat repo packages/server, supervised inside
+	# the soldat container on :8902). Plain `handle` (no path strip) BEFORE
+	# the /arena/* handlers; the WebSocket upgrade passes through natively.
+	handle /arena/ws {
+		reverse_proxy soldat:8902
+	}
+	handle_path /arena/play/* {
+		root * /srv/arena/play
+		file_server
+		header Cache-Control "public, max-age=60"
+	}
+	handle_path /arena/* {
+		reverse_proxy soldat:8901
+	}
+
+	# DeepSeek proxy for the MBA-or-DJ classroom site (dtree-ai service).
+	# handle_path strips the prefix: the app serves /edit, /explain, /health.
+	handle_path /dtree-ai/* {
+		reverse_proxy dtree-ai:8080
+	}
+
+	# Skee Skee Skee's casino host relay (skee-relay service). X-Real-IP is
+	# the resolved client, set here so the client can't choose it: behind
+	# Cloudflare, X-Forwarded-For ends in the edge, not the player.
+	handle_path /skee-host/* {
+		reverse_proxy skee-relay:8788 {
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
+	# Shared decision graph MCP server. handle_path strips the prefix, so the
+	# app sees /mcp, /import, /blob/:hash and /documents/:id at its own root.
+	# Placed before the catch-all below, which sends everything to Phoenix.
+	handle_path /deciduous-mcp/* {
+		reverse_proxy deciduous-mcp:4000 {
+			# MCP streams responses over SSE. Without this Caddy buffers them
+			# and the client waits for a response already written.
+			flush_interval -1
+		}
+	}
+
+	# /admin/museum and /admin/finder (src/99_admin.blimp), every method:
+	# the pages and their files by GET, the login and every write by POST,
+	# PATCH or DELETE. No handle_response fallback to Phoenix, which could
+	# not carry a write's body anyway, and a 404 here is Blimp's (no such
+	# row). This sits above any method-routed block (#111's @phoenix_write
+	# sends every other non-GET to Phoenix), and Caddy tries handle blocks in
+	# file order, so these paths reach Blimp whatever the method.
+	# request_buffers: the whole body first, so a slow client does not hold
+	# Blimp's one thread (see #111).
+	@blimp_admin path /admin/museum /admin/museum/* /admin/museum.blimp /admin/finder /admin/finder/* /admin/finder.blimp /admin/admin.js /admin/login /admin/logout /assets/admin-museum.css /assets/admin-finder.css /curate /curate/* /curate.blimp /assets/curate.css
+	handle @blimp_admin {
+		reverse_proxy blimp-blog:4100 {
+			request_buffers 1MB
+			lb_try_duration 20s
+			lb_try_interval 250ms
+		}
+	}
+
+
+	# Fill The Sky's points (4.8 MB) from Blimp, read whole into Caddy first.
+	# The Blimp server is one thread: a slow reader holds its write, and so
+	# every other request, for up to 10 s. Buffered, Blimp writes at loopback
+	# speed and Caddy feeds the reader.
+	@sky_points path /sky/points.json.gz
+	handle @sky_points {
+		reverse_proxy blimp-blog:4100 {
+			response_buffers 16MB
+			lb_try_duration 20s
+			lb_try_interval 250ms
+		}
+	}
+
+	# Phish Lab's datasets (1 MB and 2.5 MB), buffered for the same reason.
+	@phish_lab_data path /phish_lab/lab.json /phish_lab/perfs.json
+	handle @phish_lab_data {
+		reverse_proxy blimp-blog:4100 {
+			response_buffers 8MB
+			lb_try_duration 20s
+			lb_try_interval 250ms
+		}
+	}
+
+	# /piet's three programs (590 KB gzipped), buffered for the same reason.
+	@piet_data path /piet/data.json.gz
+	handle @piet_data {
+		reverse_proxy blimp-blog:4100 {
+			response_buffers 2MB
+			lb_try_duration 20s
+			lb_try_interval 250ms
+		}
+	}
+
+	# A comment on a guest post (src/99_guest_posts.blimp), a form POST to
+	# Blimp. Its own matcher, above everything that routes by method, so
+	# it reaches Blimp with or without #111's @phoenix_write. No 404
+	# fallback: a POST's body cannot be re-sent to Phoenix (see #111), and
+	# Phoenix has no such route anyway. request_buffers so a slow client
+	# does not hold Blimp's one thread while it types.
+	@blimp_post_comment {
+		method POST
+		path /post/*/comments
+	}
+	handle @blimp_post_comment {
+		reverse_proxy blimp-blog:4100 {
+			request_buffers 1MB
+			lb_try_duration 20s
+			lb_try_interval 250ms
+		}
+	}
+
+	# /blinks (chapter 74). Blimp answers every /blinks path, except the
+	# writes that must stay on Phoenix while the iOS app does: those come
+	# first, because named matchers keep their order and the first handle
+	# that matches wins.
+	#
+	# Creating a link is Blinks.save_blink/1, and only it starts Phoenix's
+	# Notifier (APNs to the iOS app, which needs HTTP/2 and so cannot come
+	# from Blimp, and Web Push to the PWA) and its Enricher. The Safari
+	# extension, the iOS share sheet and the review queue's upvote all create
+	# through it. OPTIONS goes with the POST so the preflight and the write
+	# get their CORS headers from one server.
+	@phoenix_blink_create {
+		method POST OPTIONS
+		path /api/blinks
+	}
+	handle @phoenix_blink_create {
+		redir https://old.bobbby.online{uri} 308
+	}
+	# Every comment write broadcasts on blink_comments:<id>, the Phoenix
+	# channel the iOS app's comment view listens to on /socket/websocket,
+	# which stays on Phoenix: new_comment (POST comments), reactions_updated
+	# (react, unreact), comment_hidden (report, at 3), comment_deleted
+	# (DELETE). Written by Blimp they would reach no open iOS view. Reading
+	# comments (GET) is Blimp's; a middle * matches one path segment.
+	@phoenix_blink_comments {
+		method POST DELETE OPTIONS
+		path /api/blinks/*/comments /api/blinks/comments/*
+	}
+	handle @phoenix_blink_comments {
+		redir https://old.bobbby.online{uri} 308
+	}
+	# The bookmark review queue: an upvote is save_blink/1 (above), and the
+	# Blimp page (chapter 72) cannot vote. Its LiveView socket is
+	# /live/websocket, which @phoenix_live already sends to Phoenix.
+	@phoenix_blink_review path /blinks/review
+	handle @phoenix_blink_review {
+		redir https://old.bobbby.online{uri} 308
+	}
+
+	# Everything else of /blinks, every method, from Blimp: the pages at
+	# Phoenix's paths (/blinks, /blinks-reader, /blinks/surf, walk, tv,
+	# privacy, stumble, and their programs and JSON under /blinks/), the old
+	# /blinks-next (pages 302 to the new paths, the rest is aliased), the
+	# read API, token edits (PATCH, tags, DELETE, lookup, export, candidates),
+	# saves and suggestions, the RSS feed, the push subscriptions and their
+	# service worker, and the PWA's manifest and icons. /live/blinks (the
+	# page's socket and its per-link chat) is under /live/* in @blimp.
+	#
+	# No 404 fallback to Phoenix here: Blimp owns these paths, and a request
+	# body cannot be re-sent (Caddy has already read it; Phoenix would get
+	# the Content-Length and no bytes). request_buffers reads a body whole
+	# before Blimp, which is one thread, is handed it; Blimp refuses bodies
+	# over 1 MiB with 413 (Phoenix took 8 MB of JSON).
+	@blinks path /blinks /blinks/* /blinks-reader /blinks.rss /blinks-sw.js /blinks-next /blinks-next/* /api/blinks /api/blinks/* /api/push/web /api/push/web/* /static/blinks-pwa/*
+	handle @blinks {
+		reverse_proxy blimp-blog:4100 {
+			# Who the visitor is, as Phoenix is told: saves, reactions and the
+			# rate limits hash the first X-Forwarded-For entry, and Caddy's own
+			# header would start with whatever the client sent.
+			header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+			request_buffers 1MB
+			lb_try_duration 20s
+			lb_try_interval 250ms
+		}
+	}
+
+	# /collage-maker's one write (src/99_collage.blimp): the collage, a JPEG
+	# of up to 10 MB the browser made. Its own block because the rate limit
+	# is per visitor and reads X-Forwarded-For, which @blimp_write does not
+	# set from CF-Connecting-IP (without it every visitor is Cloudflare).
+	@blimp_collage_write {
+		method POST
+		path /collage-maker/collages
+	}
+	handle @blimp_collage_write {
+		reverse_proxy blimp-blog:4100 {
+			header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+			request_buffers 10MB
+			lb_try_duration 20s
+			lb_try_interval 250ms
+		}
+	}
+
+	# Requests with bodies. Caddy's handle_response re-send below cannot
+	# carry one: Blimp's reverse_proxy has already read the body, and the
+	# re-send to Phoenix goes out with Content-Length and no bytes, which is
+	# a 502 ("http: invalid Read on closed Body"; request_buffers does not
+	# change it; checked on caddy 2.11.4). So a POST, PATCH, PUT or DELETE
+	# never relies on the 404 fallback. Blimp gets exactly the method+path
+	# pairs it has routes for (src/41_web.blimp's WEB_ROUTES; every new one
+	# needs a line here, unless a block above already owns its path for
+	# every method: @blimp_admin, @blimp_post_comment, @blinks), and every
+	# other non-GET goes straight to Phoenix, body and all, even on a path
+	# @blimp takes for GET. These two sit below every owned-path block and
+	# above @blimp, because Caddy tries handle blocks in file order.
+	#
+	# request_buffers: Caddy reads the whole body (up to 10MB) from the
+	# client before sending it on, so Blimp's one thread reads it at
+	# loopback speed. Without it a client uploading slowly holds that
+	# thread, and every other request, for up to ~4 s (src/41_web.blimp,
+	# WEB_READ_MS). Measured with a 3 s trickle: 0.00 s upstream with the
+	# buffer, 3.03 s without. Chunked bodies are passed through chunked
+	# even so; Blimp answers them 411. No handle_response: a 404 here is
+	# Blimp's answer (no such receipt), not "not ported".
+	@blimp_write {
+		method POST
+		path /api/receipt_messages/*/printed /api/receipt_messages/*/failed /api/receipt_messages/*/retry
+		# iOS device registration (82): an upsert into apns_devices, which
+		# Phoenix's Notifier still reads to send APNs. Its preflight stays on
+		# Phoenix, whose answer is the same. Caddy ORs repeated path lines.
+		path /api/push/devices
+		# a second path line is ORed with the first (caddy adapt: one list)
+		path /very_direct_message
+	}
+	handle @blimp_write {
+		reverse_proxy blimp-blog:4100 {
+			# /very_direct_message keeps the sender's address, as Phoenix's
+			# RemoteIp plug took it; without this Caddy sends Cloudflare's
+			header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+			request_buffers 10MB
+			lb_try_duration 20s
+			lb_try_interval 250ms
+		}
+	}
+	# The hotel carbon programme (/hotel-carbon, /studio, /storylines, /map,
+	# /library): Phoenix routes (HotelCarbonController serves priv/static pages; the
+	# stylesheet, script and data sit under /static/hotel-carbon/ and D3 at
+	# /static/d3.v7.min.js, which the @blimp list below already routes to
+	# Blimp - same file, either origin). Plain handle before the method-routed
+	# and Blimp blocks so bobbby.online serves it directly instead of
+	# redirecting to old.bobbby.online.
+	handle /hotel-carbon* {
+		reverse_proxy app:4000 {
+			header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+			header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+		}
+	}
+	handle /static/hotel-carbon/* {
+		reverse_proxy app:4000 {
+			header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+			header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+		}
+	}
+
+	# Tennis Potatoes (/tennis-potatoes): TennisPotatoesController serves the
+	# Vite shell from priv/static; hashed assets sit under /static/tennis-potatoes/.
+	# Same arrangement as hotel carbon, so bobbby.online serves it directly.
+	handle /tennis-potatoes* {
+		reverse_proxy app:4000 {
+			header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+			header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+		}
+	}
+	handle /static/tennis-potatoes/* {
+		reverse_proxy app:4000 {
+			header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+			header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+		}
+	}
+
+	@phoenix_write not method GET HEAD
+	handle @phoenix_write {
+		redir https://old.bobbby.online{uri} 308
+	}
+
+	@blimp path / /blog /post/* /tetris /tetris/* /blimp/* /assets/base.css /assets/blog.css /assets/post.css /assets/highlight.css /assets/desktop.css /assets/tetris.css /assets/blimp-window.css /be-elixir /be-elixir/* /be-ruby /be-ruby/* /assets/journal.css /privacy /terms /trees /nathan /knicks /frontier /chess /static/d3.v7.min.js /assets/app-3cfac71d5552d1426de906087a8be2fe.css /pong /pong/* /live/* /assets/pong.css /2048 /2048/* /assets/apps.css /mirror /typewriter /typewriter/* /assets/typewriter.css /markdown-editor /markdown-editor/* /phish /phish/* /moon_phish /moon_phish/* /assets/moon_phish.css /temper-snake /static/temper-snake/* /snake/* /work-log /assets/work_log.css /directory /hacker-news /hacker-news/* /bookmarks /bookmarks/* /blackjack /blackjack/* /wordle /wordle/* /wordle_god /cursor-tracker /cursor-tracker/* /art /art/* /chess-lv /chess-lv/* /map /map/* /nyc_census_and_pluto /nyc_census_and_pluto/* /reddit-links /emoji-skeets /jetstream_comparison /firehose/* /sky /sky/* /assets/sky.css /mta-bus-map /mta-bus-map/* /stack /stack/* /assets/stack.css /phish_lab /phish_lab/* /assets/phish_lab.css /piet /piet/* /assets/piet.css /gallery /gallery/* /ziggy /ziggy/* /who /who/* /aim /aim/* /role-call /role-call/* /assets/role_call.css /stumble /stumble/* /assets/stumble.css /cameras /cameras/* /assets/blinks.css /favicon.ico /robots.txt /images/* /blog/tag/* /static/blinks-og.png /static/knicks-og.png /static/blimp/* /static/home_a_cabinet.html /static/home_b_channel.html /static/home_c_starchart.html /static/home_d_brutal.html /static/scratch.html /very_direct_message /very_direct_message/* /api/receipt_messages/pending /api/receipt_messages/*/image /collage-maker /collage-maker/* /collage/* /api/collage-maker/*
+	handle @blimp {
+		reverse_proxy blimp-blog:4100 {
+			# /live/blinks' chat knows a chatter by the hash of this header's
+			# first entry, as Phoenix's Blog.Chat does by CF-Connecting-IP (74)
+			header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+			# A deploy recreates the container, and it takes ~11s to render
+			# every post before it listens: hold requests until it answers
+			# rather than sending 502s.
+			lb_try_duration 20s
+			lb_try_interval 250ms
+			@missing status 404
+			handle_response @missing {
+				redir https://old.bobbby.online{uri} 308
+			}
+
+		}
+	}
+
+	# Everything else: the Phoenix app.
+	# Everything Blimp does not serve lives on old.bobbby.online (Phoenix).
+	handle {
+		redir https://old.bobbby.online{uri} 308
+	}
+}
+
+old.bobbby.online {
+	import access
+	# The Phoenix app, which bobbby.online no longer proxies: every page and
+	# route Blimp does not serve, and bobbby.online sends each such URL here
+	# with a 308 (method and body kept).
+	encode gzip zstd
+
+	header {
+		X-Forwarded-Proto {scheme}
+		alt-svc "clear"
+	}
+
+	# The game at /skee is served from here, and its casino host posts to the
+	# same origin: the same relay route as on bobbby.online.
+	handle_path /skee-host/* {
+		reverse_proxy skee-relay:8788 {
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
+	handle {
+		reverse_proxy app:4000 {
+			header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+			header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+		}
+	}
+}
+
+links.bobbby.online {
+	import access
+	encode gzip zstd
+
+	header {
+		X-Forwarded-Proto {scheme}
+		alt-svc "clear"
+	}
+
+	reverse_proxy blinks:4000 {
+		header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+		header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+	}
+}
+
+marginalia.bobbby.online {
+	import access
+	encode gzip zstd
+
+	header {
+		X-Forwarded-Proto {scheme}
+		alt-svc "clear"
+	}
+
+	reverse_proxy marginalia:4000 {
+		header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+		header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+	}
+}
+
+tyler.bobbby.online {
+	import access
+	encode gzip zstd
+
+	header {
+		X-Forwarded-Proto {scheme}
+		alt-svc "clear"
+	}
+
+	reverse_proxy tyler:4000 {
+		# the app's rate limit on model calls counts per visitor by this header
+		header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+		header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+	}
+}
+
+# bobbbys.link is the landing page (host-routed inside the blinks app)
+bobbbys.link, www.bobbbys.link {
+	import access
+	encode gzip zstd
+
+	header {
+		X-Forwarded-Proto {scheme}
+	}
+
+	reverse_proxy blinks:4000
+}
+
+gifmaker.bobbby.online {
+	import access
+	reverse_proxy nathan:4001 {
+		header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+		header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+	}
+
+	encode gzip zstd
+
+	header {
+		# WebSocket support (LiveView)
+		X-Forwarded-Proto {scheme}
+	}
+}
+
+deciduous.dev, www.deciduous.dev {
+	import access
+	root * /srv/deciduous
+	file_server
+
+	encode gzip zstd
+
+	header {
+		Cache-Control "public, max-age=3600"
+	}
+}
+
+soldat.bobbby.online {
+	import access
+	root * /srv/soldat-landing
+	file_server
+
+	encode gzip zstd
+
+	header {
+		Cache-Control "public, max-age=300"
+	}
+}
+
+# Framecut Grabber download + setup page (nathan_for_us repo, site/, published
+# to /opt/downloader by blog's deploy.sh).
+downloader.bobbby.online {
+	import access
+	root * /srv/downloader
+	file_server
+
+	encode gzip zstd
+
+	header {
+		Cache-Control "public, max-age=300"
+	}
+}
+
+donny.bobbby.online {
+	import access
+	root * /srv/donny
+	file_server
+
+	encode gzip zstd
+
+	header {
+		Cache-Control "public, max-age=300"
+	}
+}
+
+blimp.bobbby.online {
+	import access
+	root * /srv/blimp
+	file_server
+
+	encode gzip zstd
+
+	header {
+		Cache-Control "public, max-age=300"
+	}
+}
+
+# Pastel Garden Massacre, a three.js hack-and-slash with no build step: ES modules
+# served as-is (whats_going_through_your_mind repo, via its scripts/deploy.sh).
+gaming.bobbby.online {
+	import access
+	root * /srv/gaming
+	file_server
+
+	encode gzip zstd
+
+	# no-cache, not max-age: the game is ES modules importing each other, and a
+	# cached old module next to a fresh one breaks the page after a deploy. ETags
+	# keep the revalidation a 304.
+	header {
+		Cache-Control "no-cache"
+	}
+}
+
+slides.bobbby.online {
+	import access
+	encode gzip zstd
+
+	# Phone-remote WebSocket relay (the slides repo's server/relay.mjs, running
+	# in the slides-relay container). Handled BEFORE the SPA file server so the
+	# /relay WebSocket upgrade isn't swallowed by try_files. The client connects
+	# to wss://slides.bobbby.online/relay?room=...&role=...
+	handle /relay {
+		reverse_proxy slides-relay:8787
+	}
+
+	# RevealSlides — a static Vite/React build (the `slides` repo's dist/),
+	# published to /opt/slides and bind-mounted read-only into Caddy. Refreshed
+	# files go live immediately (no container restart). Deployed by the slides
+	# repo's deploy via blog/deploy-slides.sh.
+	handle {
+		root * /srv/slides
+
+		# Vite emits content-hashed files under /assets — cache them forever.
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		# index.html (and anything else) must always revalidate so deploys show up.
+		@html {
+			not path /assets/*
+		}
+		header @html Cache-Control "no-cache"
+
+		# SPA fallback: unknown paths serve index.html (share links use #/view/...).
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# LUMINES HD — shared-board multiplayer puzzle game (lumines_hd repo).
+# Static Vite build published to /opt/lumines (bind-mounted read-only);
+# the rooms server (matchmaking + shared-board relay) runs in the `lumines`
+# container and gets the /ws WebSocket upgrade, handled BEFORE the file
+# server. Deployed by lumines_hd/scripts/deploy.sh.
+lumines.bobbby.online {
+	import access
+	encode gzip zstd
+
+	header {
+		X-Forwarded-Proto {scheme}
+		alt-svc "clear"
+	}
+
+	handle /ws {
+		reverse_proxy lumines:8903
+	}
+
+	handle {
+		root * /srv/lumines
+
+		# The Lumines Ledger — the bot-league sports page (league.html)
+		rewrite /league /league.html
+
+		# Project slide deck (public/deck/ in the repo → /deck/ on the site);
+		# its assets use relative paths, so force the trailing slash.
+		redir /deck /deck/ 308
+
+		# Vite emits content-hashed files under /assets — cache them forever.
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		@html {
+			not path /assets/*
+		}
+		header @html Cache-Control "no-cache"
+
+		try_files {path} {path}/index.html /index.html
+		file_server
+	}
+}
+
+phishjamexplorer.com, www.phishjamexplorer.com {
+	import access
+	root * /srv/phstats
+	file_server
+
+	encode gzip zstd
+
+	header {
+		Cache-Control "public, max-age=3600"
+	}
+
+	# SPA fallback - serve index.html for all routes
+	try_files {path} /index.html
+}
+
+# Dave — the classroom music viewer (Noteflight import, synced per-instrument
+# views). WebSocket support for Phoenix Channels rides the same upgrade.
+dave.bobbby.online {
+	import access
+	encode gzip zstd
+
+	header {
+		X-Forwarded-Proto {scheme}
+		alt-svc "clear"
+	}
+
+	reverse_proxy dave:4000 {
+		header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+		header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+	}
+}
+
+# skyfeed — Bluesky maps + feed construction (the skyfeed service in docker-compose.yml)
+bskymapfeeds.bobbby.online {
+	import access
+	encode gzip zstd
+
+	header {
+		X-Forwarded-Proto {scheme}
+		alt-svc "clear"
+	}
+
+	reverse_proxy skyfeed:4000 {
+		header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+		header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+	}
+}
+
+# PadMac, the Remote Mac landing page: one static index.html from the padmac
+# repo's site/, shipped to /opt/padmac by that repo's site/deploy.sh.
+padmac.bobbby.online {
+	import access
+	root * /srv/padmac
+	file_server
+
+	encode gzip zstd
+
+	header {
+		Cache-Control "public, max-age=300"
+	}
+}
+
+# obs_factor, the live factory view of this stack (the obs-factor service in
+# docker-compose.yml, source at /opt/obs_factor). Password-protected by the
+# app itself. /api/stream is server-sent events.
+factory.bobbby.online {
+	import access
+	encode gzip zstd
+
+	header {
+		X-Forwarded-Proto {scheme}
+		alt-svc "clear"
+	}
+
+	reverse_proxy obs-factor:4000 {
+		header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+		header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+		# SSE: write each event as the app writes it.
+		flush_interval -1
+	}
+}

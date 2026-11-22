@@ -24,7 +24,8 @@ defmodule ObsFactor.Http do
   @doc """
   GET `url`. Options: `:timeout` (receive and pool checkout, ms, default 2000; connect is
   bounded at 2000 by the pool), `:decode` (default true:
-  JSON bodies are decoded; false returns the raw binary).
+  JSON bodies are decoded; false returns the raw binary), `:headers` (a list
+  of `{name, value}`, default none).
   Returns `{:ok, status, body, ms}` or `{:error, message}`.
   """
   def get(url, opts \\ []) do
@@ -36,6 +37,7 @@ defmodule ObsFactor.Http do
         finch: [name: @finch, pool_timeout: timeout],
         retry: false,
         redirect: false,
+        headers: Keyword.get(opts, :headers, []),
         decode_body: Keyword.get(opts, :decode, true),
         receive_timeout: timeout
       )

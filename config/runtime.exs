@@ -25,7 +25,10 @@ if config_env() != :test do
     pg_url: blank_to_nil.(System.get_env("PG_URL")),
     host_proc: blank_to_nil.(System.get_env("HOST_PROC")),
     host_disk_path: blank_to_nil.(System.get_env("HOST_DISK_PATH")),
-    sites_dir: blank_to_nil.(System.get_env("SITES_DIR"))
+    sites_dir: blank_to_nil.(System.get_env("SITES_DIR")),
+    access_log: blank_to_nil.(System.get_env("ACCESS_LOG")),
+    # Sent as the bearer token to every topology `report` URL when set.
+    report_token: blank_to_nil.(System.get_env("REPORT_TOKEN"))
 
   # Required; ObsFactor.Application refuses to start without it.
   config :obs_factor, topology_path: blank_to_nil.(System.get_env("TOPOLOGY"))

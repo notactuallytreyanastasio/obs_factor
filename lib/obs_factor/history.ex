@@ -18,7 +18,11 @@ defmodule ObsFactor.History do
   @series [
     rps: {"Requests", "req/s"},
     err_rps: {"5xx", "req/s"},
+    rps_4xx: {"4xx", "req/s"},
     avg_ms: {"Latency", "ms"},
+    p95_ms: {"p95", "ms"},
+    out_bps: {"Bytes out", "B/s"},
+    in_flight: {"In flight", "requests"},
     cpu_cores: {"CPU", "cores"},
     mem_bytes: {"Memory", "B"},
     net_rx_bps: {"Network in", "B/s"},
@@ -28,7 +32,11 @@ defmodule ObsFactor.History do
     cpu_used_cores: {"CPU used", "cores"},
     mem_used_bytes: {"Memory used", "B"},
     disk_used_pct: {"Disk used", "%"},
-    bytes: {"Size", "B"}
+    bytes: {"Size", "B"},
+    beam_memory: {"BEAM memory", "B"},
+    process_count: {"Processes", "processes"},
+    run_queue: {"Run queue", "processes"},
+    units: {"Units inside", "units"}
   ]
 
   def start_link(opts \\ []),
@@ -50,7 +58,9 @@ defmodule ObsFactor.History do
         %{}
         |> merge_container(n.container)
         |> merge_hosts(n.hosts)
+        |> merge_access(n)
         |> merge_kind(n, pg)
+        |> merge_inside(Map.get(n, :inside))
 
       {n.id, m}
     end)
@@ -64,14 +74,37 @@ defmodule ObsFactor.History do
   defp merge_hosts(m, []), do: m
 
   defp merge_hosts(m, hosts) do
-    total = fn key ->
-      values = Enum.map(hosts, &Map.get(&1, key))
+    # nil if any part is unknown: a sum with a hole in it is not the total.
+    total = fn read ->
+      values = Enum.map(hosts, read)
       if Enum.any?(values, &is_nil/1), do: nil, else: Enum.sum(values) / 1
     end
 
     latencies = for %{avg_ms: v} <- hosts, is_number(v), do: v
     avg = if latencies == [], do: nil, else: Enum.sum(latencies) / length(latencies)
-    Map.merge(m, %{rps: total.(:rps), err_rps: total.(:err_rps), avg_ms: avg})
+
+    Map.merge(m, %{
+      rps: total.(& &1.rps),
+      err_rps: total.(& &1.err_rps),
+      rps_4xx: total.(&(&1.codes && Map.fetch!(&1.codes, "4xx"))),
+      avg_ms: avg,
+      out_bps: total.(& &1.out_bps),
+      in_flight: total.(& &1.in_flight)
+    })
+  end
+
+  # From the access log: p95 where the node had requests in the window, and
+  # requests/s for a node reached only by path routes (nil while unknown).
+  defp merge_access(m, n) do
+    m =
+      case Map.get(n, :latency) do
+        %{p95_ms: p95} -> Map.put(m, :p95_ms, p95)
+        _ -> m
+      end
+
+    if Map.has_key?(n, :via_rps) and n.hosts == [] and n.kind != "proxy",
+      do: Map.put(m, :rps, n.via_rps),
+      else: m
   end
 
   defp merge_kind(m, %{kind: "db"} = n, pg) do
@@ -85,6 +118,29 @@ defmodule ObsFactor.History do
 
   defp merge_kind(m, %{kind: "static", holds: [%{bytes: b}]}, _), do: Map.put(m, :bytes, b)
   defp merge_kind(m, _, _), do: m
+
+  # series key => the report's runtime gauge it is read from.
+  @inside_gauges [
+    beam_memory: "memory.total",
+    process_count: "process.count",
+    run_queue: "run_queue"
+  ]
+
+  # From a node's report, while it is read: the runtime gauges that exist and
+  # how many units are inside.
+  defp merge_inside(m, %{ok: true, runtime: %{gauges: gauges}, units: units}) do
+    m =
+      Enum.reduce(@inside_gauges, m, fn {key, gauge}, m ->
+        case gauges do
+          %{^gauge => value} -> Map.put(m, key, value)
+          _ -> m
+        end
+      end)
+
+    Map.put(m, :units, units |> Enum.map(& &1.count) |> Enum.sum())
+  end
+
+  defp merge_inside(m, _), do: m
 
   ## Server
 
@@ -106,7 +162,9 @@ defmodule ObsFactor.History do
           %{state | bucket: {minute, [metrics | ticks]}}
 
         {old, ticks} ->
-          state |> push(:coarse, {old, average(ticks)}) |> Map.put(:bucket, {minute, [metrics]})
+          state
+          |> push(:coarse, {old, ticks |> average() |> drop_short_lived()})
+          |> Map.put(:bucket, {minute, [metrics]})
       end
 
     {:noreply, push(state, :fine, {at_ms, metrics})}
@@ -145,6 +203,16 @@ defmodule ObsFactor.History do
     else
       {:reply, :unknown_node, state}
     end
+  end
+
+  # What a sub-app reports about its own inside (the BEAM's memory, process
+  # count, run queue, units alive) is kept for the last hour only: it is for
+  # watching now, not for looking back a day.
+  @short_lived [:beam_memory, :process_count, :run_queue, :units]
+
+  @doc false
+  def drop_short_lived(averages) do
+    Map.new(averages, fn {node, values} -> {node, Map.drop(values, @short_lived)} end)
   end
 
   defp push(state, :fine, item) do

@@ -8,6 +8,7 @@
 //   s.holdColors   colours of the HOLDS keys, for db bands
 
 import { P, box, cyl, faceX, faceY, poly, line, glow, alpha, shade, ZH } from "./iso.js";
+import { STYLES, STYLE_HEIGHT, styleChimneys } from "./styles.js";
 
 export const STATUS_COLOR = {
   working: "#3ddc84", idle: "#f2c94c", blocked: "#ff9f1c", down: "#ff4d4d", unknown: "#8b93a7",
@@ -18,6 +19,15 @@ export const HEIGHT = {
   proxy: 2.4, app: 2.5, relay: 3.4, db: 2.2, static: 1.6, external: 2.3,
   resource: 2.7, source: 3.0, unplaced: 1.5,
 };
+
+// A node's own building if its style is one this page draws, else its kind's.
+export const styleOf = (n) => (n.style && STYLES[n.style] ? n.style : null);
+export function heightOf(n) {
+  const st = styleOf(n);
+  let h = st ? STYLE_HEIGHT[st] : HEIGHT[n.kind] ?? 1.5;
+  if (st && n.kind === "relay") h = Math.max(h, 3.0);
+  return h;
+}
 
 const WIN_ON = "#ffcf70", WIN_OFF = "#2a3142";
 
@@ -189,27 +199,56 @@ function db(ctx, b, s) {
     const bands = [];
     const n = Math.min(4, colors.length);
     for (let i = 0; i < n; i++) bands.push([0.35 + i * 0.32, 0.55 + i * 0.32, c(colors[(i + k) % colors.length], 0.9)]);
-    cyl(ctx, c, sx, sy, 0.1, 0.55, 1.75, "#c9ced8", { bands });
-    // domed top
+    cyl(ctx, c, sx, sy, 0.1, 0.5, 1.75, "#c9ced8", { bands });
     const [tx, ty] = P(sx, sy, 1.85);
-    ctx.beginPath(); ctx.ellipse(tx, ty, 0.55 * 45.25, 0.55 * 22.6, 0, Math.PI, 0); ctx.ellipse(tx, ty, 0.55 * 45.25, 9, 0, 0, Math.PI, true);
+    ctx.beginPath(); ctx.ellipse(tx, ty, 0.5 * 45.25, 0.5 * 22.6, 0, Math.PI, 0); ctx.ellipse(tx, ty, 0.5 * 45.25, 8, 0, 0, Math.PI, true);
     ctx.fillStyle = c("#e4e8ef"); ctx.fill();
-    // ladder
-    line(ctx, P(sx + 0.39, sy + 0.39, 0.1), P(sx + 0.39, sy + 0.39, 1.85), c("#e8b730"), 1);
+    line(ctx, P(sx + 0.35, sy + 0.35, 0.1), P(sx + 0.35, sy + 0.35, 1.85), c("#e8b730"), 1);
   };
-  silo(x + 0.75, y + 0.75, 0);
-  // pipe bridge
+  silo(x + 0.7, y + 0.7, 0);
   ctx.lineCap = "round";
-  line(ctx, P(x + 0.75, y + 0.75, 1.4), P(x + 2.25, y + 0.75, 1.4), c("#8a5a3c"), 3);
-  line(ctx, P(x + 0.75, y + 0.75, 1.4), P(x + 0.75, y + 2.25, 1.4), c("#8a5a3c"), 3);
-  silo(x + 2.25, y + 0.75, 1);
-  silo(x + 0.75, y + 2.25, 2);
-  // pump house
-  box(ctx, c, x + 1.7, y + 1.7, 0.1, 1.1, 1.1, 0.75, "#56627a");
-  faceY(ctx, y + 2.8, x + 1.9, x + 2.6, 0.5, 0.65, s.on ? alpha("#4cc9f0", 0.9) : c(WIN_OFF));
-  faceX(ctx, x + 2.8, y + 1.9, y + 2.6, 0.1, 0.6, c("#2b303b"));
-  const [px, py] = P(x + 2.25, y + 2.25, 0.85);
-  glow(ctx, px, py, 10, "#4cc9f0", s.on ? 0.35 + 0.2 * Math.sin(s.t * 3) : 0.08);
+  line(ctx, P(x + 0.7, y + 0.7, 1.4), P(x + 2.3, y + 0.7, 1.4), c("#8a5a3c"), 3);
+  silo(x + 2.3, y + 0.7, 1);
+  const [px, py] = P(x + 1.5, y + 0.9, 0.5);
+  glow(ctx, px, py, 16, "#4cc9f0", s.on ? 0.35 + 0.2 * Math.sin(s.t * 3) : 0.08);
+  // The yard: one container per `containerUnit` bytes, coloured by database.
+  const cols = 5, rows = 2, levels = 3;
+  const cw = 0.5, cd = 0.46, chh = 0.26;
+  const list = s.containers ?? [];
+  for (let r = 0; r < rows; r++) {
+    for (let k = 0; k < cols; k++) {
+      for (let l = 0; l < levels; l++) {
+        // fill a whole layer before starting the next, so the yard grows evenly
+        const i = l * cols * rows + r * cols + k;
+        if (i >= list.length) continue;
+        const bx = x + 0.22 + k * (cw + 0.03), by = y + 1.75 + r * (cd + 0.12);
+        box(ctx, c, bx, by, 0.1 + l * chh, cw, cd, chh - 0.02, list[i]);
+        line(ctx, P(bx + cw, by + 0.08, 0.1 + l * chh), P(bx + cw, by + 0.08, 0.08 + (l + 1) * chh), c("#1d2129"), 0.5);
+      }
+    }
+  }
+  // gantry crane over the yard
+  const gy0 = y + 1.6, gy1 = y + 2.95, gz = 1.25;
+  const gx = x + 0.3 + (s.on ? (0.5 + 0.5 * Math.sin(s.t * 0.5)) * 2.2 : 1.1);
+  line(ctx, P(gx, gy0, 0.1), P(gx, gy0, gz), c("#c0392b"), 1.8);
+  line(ctx, P(gx, gy1, 0.1), P(gx, gy1, gz), c("#c0392b"), 1.8);
+  line(ctx, P(gx, gy0, gz), P(gx, gy1, gz), c("#e0a526"), 2.6);
+  line(ctx, P(gx, (gy0 + gy1) / 2, gz), P(gx, (gy0 + gy1) / 2, gz - 0.3), c("#1d2129"), 1);
+}
+
+// Crates on the apron of a static site: more bytes, more crates (log scale).
+function crates(ctx, b, s, x0, y0) {
+  const c = s.col;
+  const n = Math.max(1, Math.min(9, Math.round(Math.log10(Math.max(1, s.bytes ?? 1)) - 4)));
+  const palette = ["#c97c3a", "#4a8fd6", "#5fb45a", "#d65a8f", "#d9b23a"];
+  let k = 0;
+  for (let row = 0; row < 3 && k < n; row++) {
+    for (let col = 0; col < 2 && k < n; col++) {
+      for (let lvl = 0; lvl < 2 && k < n; lvl++, k++) {
+        box(ctx, c, x0 + col * 0.36, y0 + row * 0.75, 0.1 + lvl * 0.3, 0.32, 0.6, 0.3, palette[(k + s.seed) % palette.length]);
+      }
+    }
+  }
 }
 
 function staticSite(ctx, b, s) {
@@ -225,17 +264,7 @@ function staticSite(ctx, b, s) {
   // roof vents
   box(ctx, c, xa + 0.3, ya + 0.4, 1.2, 0.35, 0.35, 0.22, "#6d7487");
   box(ctx, c, xa + 0.3, ya + 1.4, 1.2, 0.35, 0.35, 0.22, "#6d7487");
-  // crates on the apron: more bytes, more crates (log scale)
-  const n = Math.max(1, Math.min(9, Math.round(Math.log10(Math.max(1, s.bytes ?? 1)) - 4)));
-  const palette = ["#c97c3a", "#4a8fd6", "#5fb45a", "#d65a8f", "#d9b23a"];
-  let k = 0;
-  for (let row = 0; row < 3 && k < n; row++) {
-    for (let col = 0; col < 2 && k < n; col++) {
-      for (let lvl = 0; lvl < 2 && k < n; lvl++, k++) {
-        box(ctx, c, x + 2.25 + col * 0.36, y + 0.4 + row * 0.75, 0.1 + lvl * 0.3, 0.32, 0.6, 0.3, palette[(k + s.seed) % palette.length]);
-      }
-    }
-  }
+  crates(ctx, b, s, x + 2.25, y + 0.4);
 }
 
 function external(ctx, b, s) {
@@ -376,8 +405,60 @@ function unplaced(ctx, b, s) {
   box(ctx, c, x + 0.4, y + 2.35, 0.1, 0.5, 0.5, 0.4, "#8a7a5c");
 }
 
+// A small mast for a relay that has a building of its own.
+function mast(ctx, b, s) {
+  const c = s.col, mx = b.x + 0.2, my = b.y + 0.2;
+  const top = P(mx, my, 2.9);
+  line(ctx, P(mx, my, 0.1), top, c("#e0a526"), 1.6);
+  for (let i = 1; i < 5; i++) line(ctx, P(mx - 0.12, my, i * 0.55), P(mx + 0.12, my, i * 0.55 + 0.2), c("#e0a526"), 0.9);
+  const blink = s.on ? 0.5 + 0.5 * Math.sin(s.t * 5) : 0.25;
+  glow(ctx, top[0], top[1] - 3, 13, s.accent, 0.8 * blink);
+  ctx.beginPath(); ctx.arc(top[0], top[1] - 3, 2.4, 0, Math.PI * 2); ctx.fillStyle = shade(s.accent, 0.8 + blink * 0.6); ctx.fill();
+}
+
+// What every container building carries, whatever it looks like: a memory
+// gauge on the front corner and the requests in flight waiting at the dock.
+export function drawFittings(ctx, b, s) {
+  const { x, y } = b, c = s.col;
+  if (s.memFrac != null) {
+    const gx = x + 2.95, gy = y + 2.95, H = 1.0;
+    const f = Math.max(0, Math.min(1, s.memFrac));
+    const hex = s.memLimited ? (f >= 0.9 ? "#ff4d4d" : f >= 0.75 ? "#ff9f1c" : "#7c8cff") : "#7c8cff";
+    const b0 = P(gx, gy, 0.12), t0 = P(gx, gy, 0.12 + H);
+    line(ctx, b0, t0, c("#11141b"), 5.5);
+    line(ctx, b0, t0, c("#c9d2e2"), 3.6);
+    line(ctx, b0, P(gx, gy, 0.12 + H * f), hex, 3.6);
+    ctx.beginPath(); ctx.arc(b0[0], b0[1], 3.6, 0, Math.PI * 2); ctx.fillStyle = hex; ctx.fill();
+    // a hard limit is a red tick at the top; no limit, no tick
+    if (s.memLimited) line(ctx, [t0[0] - 4, t0[1]], [t0[0] + 4, t0[1]], "#ff4d4d", 1.6);
+  }
+  // One light per thing alive inside (a LiveView session, a room), from the
+  // app's own report: a string of lamps along the right-hand apron.
+  const alive = Math.min(12, s.unitsInside ?? 0);
+  for (let i = 0; i < alive; i++) {
+    const p = P(x + 3.08, y + 0.35 + i * 0.2, 0.3);
+    const tw = 0.6 + 0.4 * Math.sin(s.t * 2.2 + i * 1.7);
+    glow(ctx, p[0], p[1], 9, "#4cc9f0", 0.45 * tw);
+    ctx.beginPath(); ctx.arc(p[0], p[1], 2, 0, Math.PI * 2); ctx.fillStyle = shade("#4cc9f0", 0.8 + 0.5 * tw); ctx.fill();
+  }
+  if (alive > 0) line(ctx, P(x + 3.08, y + 0.3, 0.12), P(x + 3.08, y + 0.3 + alive * 0.2, 0.12), c("#2b2f3a"), 1.2);
+  const q = Math.min(8, s.inFlight ?? 0);
+  for (let i = 0; i < q; i++) {
+    const bx = x + 0.1 + (i % 4) * 0.24, by = y + 3.02, bz = 0.12 + Math.floor(i / 4) * 0.2;
+    box(ctx, c, bx, by, bz, 0.18, 0.18, 0.18, "#ffd166");
+  }
+  if (q > 0) glow(ctx, ...P(x + 0.5, y + 3.1, 0.3), 16, "#ffd166", 0.25 + 0.15 * Math.sin(s.t * 4));
+}
+
 export function drawBuilding(ctx, b, s) {
   const n = b.node;
+  const st = styleOf(n);
+  if (st) {
+    STYLES[st](ctx, b, s);
+    if (n.kind === "static") crates(ctx, b, s, b.x + 2.78, b.y + 0.3);
+    if (n.kind === "relay") mast(ctx, b, s);
+    return;
+  }
   switch (n.kind) {
     case "app": return app(ctx, b, s);
     case "proxy": return proxy(ctx, b, s);
@@ -402,6 +483,7 @@ export function drawBuilding(ctx, b, s) {
 // Points where smoke leaves the building, for the effects pass.
 export function chimneys(b) {
   const { x, y } = b;
+  if (styleOf(b.node)) return styleChimneys(b);
   switch (b.node.kind) {
     case "app": return [P(x + 0.7, y + 0.35, 2.45)];
     case "resource": return b.node.id === "host-cpu" ? [P(x + 0.6, y + 0.55, 2.7), P(x + 1.25, y + 0.45, 2.3)] : [];

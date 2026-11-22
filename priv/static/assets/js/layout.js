@@ -305,7 +305,7 @@ function simplify(pts) {
 export function topoKey(s) {
   return JSON.stringify([
     s.platforms.map((p) => p.id),
-    s.nodes.map((n) => [n.id, n.kind, n.platform, n.pos]),
+    s.nodes.map((n) => [n.id, n.kind, n.style ?? null, n.platform, n.pos]),
     s.edges.map((e) => [e.id, e.from, e.to]),
   ]);
 }

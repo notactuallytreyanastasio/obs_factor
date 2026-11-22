@@ -29,6 +29,7 @@
       platform: "main",
       pos: {4, 3},
       hosts: ["b.test"],
+      report: "http://app:9568/report",
       databases: ["blog_prod", "nathan_for_us_prod"]
     },
     %{

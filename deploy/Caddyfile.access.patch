@@ -1,0 +1,195 @@
+--- Caddyfile	2026-11-19 02:06:03
++++ Caddyfile	2026-11-19 02:06:03
+@@ -10,6 +10,32 @@
+ 	# Without per_host every site's requests land in one series.
+ 	metrics {
+ 		per_host
++	}
++}
++
++# The access log the factory tails (obs_factor: deploy/Caddyfile.access).
++(access) {
++	log_append ua {header.User-Agent}
++	log_append country {header.Cf-Ipcountry}
++	log {
++		output file /var/log/caddy/access.log {
++			roll_size 50MiB
++			roll_keep 2
++			mode 0644
++		}
++		format filter {
++			wrap json
++			fields {
++				request>uri regexp "\?.*" ""
++				request>headers delete
++				request>remote_ip delete
++				request>remote_port delete
++				request>client_ip delete
++				request>tls delete
++				resp_headers delete
++				user_id delete
++			}
++		}
+ 	}
+ }
+ 
+@@ -21,6 +47,7 @@
+ }
+ 
+ bobbby.online, www.bobbby.online {
++	import access
+ 	encode gzip zstd
+ 
+ 	header {
+@@ -342,6 +369,7 @@
+ }
+ 
+ old.bobbby.online {
++	import access
+ 	# The Phoenix app, which bobbby.online no longer proxies: every page and
+ 	# route Blimp does not serve, and bobbby.online sends each such URL here
+ 	# with a 308 (method and body kept).
+@@ -369,6 +397,7 @@
+ }
+ 
+ links.bobbby.online {
++	import access
+ 	encode gzip zstd
+ 
+ 	header {
+@@ -383,6 +412,7 @@
+ }
+ 
+ marginalia.bobbby.online {
++	import access
+ 	encode gzip zstd
+ 
+ 	header {
+@@ -397,6 +427,7 @@
+ }
+ 
+ tyler.bobbby.online {
++	import access
+ 	encode gzip zstd
+ 
+ 	header {
+@@ -413,6 +444,7 @@
+ 
+ # bobbbys.link is the landing page (host-routed inside the blinks app)
+ bobbbys.link, www.bobbbys.link {
++	import access
+ 	encode gzip zstd
+ 
+ 	header {
+@@ -423,6 +455,7 @@
+ }
+ 
+ gifmaker.bobbby.online {
++	import access
+ 	reverse_proxy nathan:4001 {
+ 		header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+ 		header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+@@ -437,6 +470,7 @@
+ }
+ 
+ deciduous.dev, www.deciduous.dev {
++	import access
+ 	root * /srv/deciduous
+ 	file_server
+ 
+@@ -448,6 +482,7 @@
+ }
+ 
+ soldat.bobbby.online {
++	import access
+ 	root * /srv/soldat-landing
+ 	file_server
+ 
+@@ -461,6 +496,7 @@
+ # Framecut Grabber download + setup page (nathan_for_us repo, site/, published
+ # to /opt/downloader by blog's deploy.sh).
+ downloader.bobbby.online {
++	import access
+ 	root * /srv/downloader
+ 	file_server
+ 
+@@ -472,6 +508,7 @@
+ }
+ 
+ donny.bobbby.online {
++	import access
+ 	root * /srv/donny
+ 	file_server
+ 
+@@ -483,6 +520,7 @@
+ }
+ 
+ blimp.bobbby.online {
++	import access
+ 	root * /srv/blimp
+ 	file_server
+ 
+@@ -496,6 +534,7 @@
+ # Pastel Garden Massacre, a three.js hack-and-slash with no build step: ES modules
+ # served as-is (whats_going_through_your_mind repo, via its scripts/deploy.sh).
+ gaming.bobbby.online {
++	import access
+ 	root * /srv/gaming
+ 	file_server
+ 
+@@ -510,6 +549,7 @@
+ }
+ 
+ slides.bobbby.online {
++	import access
+ 	encode gzip zstd
+ 
+ 	# Phone-remote WebSocket relay (the slides repo's server/relay.mjs, running
+@@ -548,6 +588,7 @@
+ # container and gets the /ws WebSocket upgrade, handled BEFORE the file
+ # server. Deployed by lumines_hd/scripts/deploy.sh.
+ lumines.bobbby.online {
++	import access
+ 	encode gzip zstd
+ 
+ 	header {
+@@ -583,6 +624,7 @@
+ }
+ 
+ phishjamexplorer.com, www.phishjamexplorer.com {
++	import access
+ 	root * /srv/phstats
+ 	file_server
+ 
+@@ -599,6 +641,7 @@
+ # Dave — the classroom music viewer (Noteflight import, synced per-instrument
+ # views). WebSocket support for Phoenix Channels rides the same upgrade.
+ dave.bobbby.online {
++	import access
+ 	encode gzip zstd
+ 
+ 	header {
+@@ -614,6 +657,7 @@
+ 
+ # skyfeed — Bluesky maps + feed construction (the skyfeed service in docker-compose.yml)
+ bskymapfeeds.bobbby.online {
++	import access
+ 	encode gzip zstd
+ 
+ 	header {
+@@ -630,6 +674,7 @@
+ # PadMac, the Remote Mac landing page: one static index.html from the padmac
+ # repo's site/, shipped to /opt/padmac by that repo's site/deploy.sh.
+ padmac.bobbby.online {
++	import access
+ 	root * /srv/padmac
+ 	file_server
+ 
+@@ -644,6 +689,7 @@
+ # docker-compose.yml, source at /opt/obs_factor). Password-protected by the
+ # app itself. /api/stream is server-sent events.
+ factory.bobbby.online {
++	import access
+ 	encode gzip zstd
+ 
+ 	header {

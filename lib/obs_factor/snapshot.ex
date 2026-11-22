@@ -25,6 +25,8 @@ defmodule ObsFactor.Snapshot do
     pg = data(sources.postgres)
     probes = data(sources.probes)
     sites = data(sources.sites)
+    access = data(sources.access)
+    reports = data(sources.reports)
 
     containers = if docker, do: docker.containers, else: []
     {matched, unplaced} = match(topology.nodes, containers)
@@ -39,6 +41,16 @@ defmodule ObsFactor.Snapshot do
       probes: probes,
       probes_ok: probes != nil,
       sites: sites,
+      # The access log adds detail only: while it fails, or has read once,
+      # `access` is nil and every field it feeds is nil. `access_ok` is the
+      # source answering at all, which is what makes a path-route belt metered.
+      access_ok: access != nil,
+      access: if(access && access.ready, do: access),
+      # node id => what its report said this tick; nil while the source fails.
+      reports: reports,
+      reports_error: sources.reports.error,
+      via_only:
+        for(n <- topology.nodes, n.via != [], n.hosts == [], into: MapSet.new(), do: n.id),
       memory: memory,
       # Resource nodes sit on the "host" platform when the topology has one.
       host_platform: if(Enum.any?(topology.platforms, &(&1.id == "host")), do: "host", else: nil),
@@ -55,7 +67,7 @@ defmodule ObsFactor.Snapshot do
     ]
 
     internet = internet_node(env)
-    all = listed ++ resources ++ [internet] ++ extra
+    all = Enum.map(listed ++ resources ++ [internet] ++ extra, &with_access(&1, env))
 
     nodes = Enum.map(all, &Map.delete(&1, :attention))
 
@@ -179,7 +191,7 @@ defmodule ObsFactor.Snapshot do
   defp listed_node(%{kind: :static} = t, _container, env) do
     hosts = host_readings(t.hosts, env)
     site = env.sites && env.sites[t.site]
-    active_now = any_traffic?(hosts)
+    active_now = any_traffic?(hosts) or via_traffic?(t, env)
     active = active?(t.id, active_now, env)
 
     {status, reason, attention} =
@@ -232,6 +244,7 @@ defmodule ObsFactor.Snapshot do
       kind: Atom.to_string(t.kind),
       platform: t.platform,
       pos: t.pos,
+      style: Map.get(t, :style),
       status: "unknown",
       reason: nil,
       headline: %{value: nil, unit: nil},
@@ -241,6 +254,7 @@ defmodule ObsFactor.Snapshot do
       via: Map.get(t, :via, []),
       holds: [],
       facts: [],
+      inside: nil,
       attention: []
     }
   end
@@ -271,7 +285,7 @@ defmodule ObsFactor.Snapshot do
     cpu_active =
       c != nil and is_number(c.cpu_cores) and c.cpu_cores >= Thresholds.working_cpu_cores()
 
-    active_now = cpu_active or any_traffic?(hosts) or db_active?(pg)
+    active_now = cpu_active or any_traffic?(hosts) or db_active?(pg) or via_traffic?(t, env)
     active = active?(t.id, active_now, env)
 
     {status, reason, attention} =
@@ -294,6 +308,7 @@ defmodule ObsFactor.Snapshot do
         else: {status, reason}
 
     kind = Atom.to_string(t.kind)
+    report = report(t, env)
 
     %{
       base(t)
@@ -305,8 +320,13 @@ defmodule ObsFactor.Snapshot do
         probe: probe && Map.take(probe, [:ok, :code, :ms, :error]),
         hosts: hosts,
         holds: if(pg, do: pg_holds(pg), else: []),
-        facts: container_facts(c, mem_limit, probe) ++ pg_facts(pg) ++ host_facts(hosts),
-        attention: attention
+        facts:
+          container_facts(c, mem_limit, probe) ++
+            pg_facts(pg) ++
+            host_facts(hosts) ++ if(t.kind == :proxy, do: access_facts(env), else: []),
+        inside: inside(t, report, env),
+        # Not part of the status: the app may be fine and merely not reporting.
+        attention: attention ++ Rules.report(t.label, report)
     }
     |> Map.put(:active_now, active_now)
   end
@@ -410,7 +430,9 @@ defmodule ObsFactor.Snapshot do
       lat =
         if h.avg_ms, do: ", #{:erlang.float_to_binary(h.avg_ms / 1, decimals: 1)} ms", else: ""
 
-      fact(h.host, Format.rps(h.rps) <> lat)
+      flying = if h.in_flight, do: ", #{h.in_flight} in flight", else: ""
+      out = if h.out_bps, do: ", #{Format.rate_bytes(h.out_bps)} out", else: ""
+      fact(h.host, Format.rps(h.rps) <> lat <> flying <> out)
     end
   end
 
@@ -447,33 +469,216 @@ defmodule ObsFactor.Snapshot do
   defp sum([]), do: 0.0
   defp sum(values), do: if(Enum.any?(values, &is_nil/1), do: nil, else: Enum.sum(values) / 1)
 
+  ## Reports
+
+  @inside_streams 40
+
+  # What the reports collector read for this node this tick: nil when the
+  # node has no `report` URL, and while the source itself gives nothing.
+  defp report(%{id: id} = t, env) do
+    cond do
+      Map.get(t, :report) == nil ->
+        nil
+
+      env.reports == nil ->
+        nil
+
+      true ->
+        case env.reports do
+          %{^id => report} ->
+            report
+
+          _ ->
+            raise ArgumentError,
+                  "reports source has no result for node #{inspect(id)}, which has a report URL"
+        end
+    end
+  end
+
+  @no_inside %{
+    ok: false,
+    error: nil,
+    at: nil,
+    runtime: nil,
+    units: nil,
+    streams: nil,
+    events: nil,
+    truncated: nil
+  }
+
+  # The node's `inside`: nil without a `report` URL, else what the report
+  # said, or why there is none.
+  defp inside(t, report, env) do
+    cond do
+      Map.get(t, :report) == nil ->
+        nil
+
+      report == nil ->
+        %{@no_inside | error: "reports source failing: #{env.reports_error}"}
+
+      not report.ok ->
+        %{@no_inside | error: report.error, at: iso(report.at)}
+
+      true ->
+        {streams, cut} =
+          report.streams
+          # Totals first, then the breakdown rows (`by`), each busiest first:
+          # the cut takes breakdown rows before it takes any total.
+          |> Enum.sort_by(&{&1.by != nil, -(&1.rate || 0), -&1.count, &1.kind, &1.name})
+          |> Enum.split(@inside_streams)
+
+        %{
+          ok: true,
+          error: nil,
+          at: iso(report.at),
+          runtime: %{
+            report.runtime
+            | rates: Map.new(report.runtime.rates, fn {key, v} -> {key, round_to(v, 3)} end)
+          },
+          units: report.units,
+          streams:
+            Enum.map(streams, fn s ->
+              %{
+                s
+                | rate: round_to(s.rate, 3),
+                  err_rate: round_to(s.err_rate, 3),
+                  avg_ms: round_to(s.avg_ms, 1)
+              }
+            end),
+          events: report.events,
+          # What is not shown here is counted, whoever cut it.
+          truncated: %{report.truncated | streams: report.truncated.streams + length(cut)}
+        }
+    end
+  end
+
+  ## Access log
+
+  # What the access log adds to a node. Every field is nil while the source
+  # fails or has read once; a node the log has no requests for has no routes
+  # (`[]`), no latency (nil) and, when it has path routes, a rate of zero.
+  defp with_access(n, env) do
+    seen = env.access && Map.get(env.access.nodes, n.id, %{routes: [], latency: nil})
+    n = Map.merge(n, %{routes: seen && seen.routes, latency: seen && seen.latency})
+
+    n =
+      if n.via != [] do
+        via = via_reading(n.id, env)
+        n = Map.merge(n, %{via_rps: via.rps, via_codes: via.codes})
+
+        if MapSet.member?(env.via_only, n.id) and env.access_ok,
+          do: %{n | headline: %{value: round_to(via.rps, 2), unit: "req/s"}},
+          else: n
+      else
+        n
+      end
+
+    if n.id == "internet", do: Map.put(n, :clients, env.access && env.access.clients), else: n
+  end
+
+  # Requests/s on a node's path routes over the last tick, by status class.
+  defp via_reading(_id, %{access: nil}), do: %{rps: nil, codes: nil}
+  defp via_reading(_id, %{access: %{rates: false}}), do: %{rps: nil, codes: nil}
+
+  defp via_reading(id, %{access: access}) do
+    case access.via[id] do
+      nil ->
+        %{rps: 0.0, codes: Map.new(ObsFactor.Caddy.classes(), &{&1, 0.0})}
+
+      via ->
+        %{
+          rps: round_to(via.rps, 3),
+          codes: Map.new(via.codes, fn {class, v} -> {class, round_to(v, 3)} end)
+        }
+    end
+  end
+
+  defp via_traffic?(%{via: [_ | _]} = t, env) do
+    rps = via_reading(t.id, env).rps
+    is_number(rps) and rps > 0
+  end
+
+  defp via_traffic?(_t, _env), do: false
+
+  defp access_facts(%{access: nil}), do: [fact("access log", "unknown")]
+
+  defp access_facts(%{access: %{stats: s, window_s: window}}) do
+    lost = if s.rotations > 0, do: " (what was unread in the old file is lost)", else: ""
+
+    [
+      fact("access log", "#{s.lines} lines in #{window} s"),
+      fact("access log bad lines", Integer.to_string(s.bad_lines)),
+      fact("access log skipped", Format.bytes(s.skipped_bytes)),
+      fact("access log rotations", "#{s.rotations}#{lost}"),
+      fact("access log unrouted", "#{s.unrouted} requests")
+    ]
+  end
+
   ## Hosts (Caddy)
+
+  @unknown_host %{
+    rps: nil,
+    err_rps: nil,
+    avg_ms: nil,
+    codes: nil,
+    in_bps: nil,
+    out_bps: nil,
+    in_flight: nil
+  }
 
   defp host_readings(names, env) do
     Enum.map(names, fn h ->
-      case env.caddy do
-        nil ->
-          %{host: h, rps: nil, err_rps: nil, avg_ms: nil}
+      reading =
+        case env.caddy do
+          nil ->
+            @unknown_host
 
-        caddy ->
-          case caddy.hosts[h] do
-            nil when caddy.total_rps != nil ->
-              # Caddy is read and has never seen a request for this host.
-              %{host: h, rps: 0.0, err_rps: 0.0, avg_ms: nil}
+          caddy ->
+            case caddy.hosts[h] do
+              nil when caddy.total_rps != nil ->
+                # Caddy is read and has never seen a request for this host.
+                %{
+                  rps: 0.0,
+                  err_rps: 0.0,
+                  avg_ms: nil,
+                  codes: Map.new(ObsFactor.Caddy.classes(), &{&1, 0.0}),
+                  in_bps: 0.0,
+                  out_bps: 0.0,
+                  in_flight: 0
+                }
 
-            nil ->
-              %{host: h, rps: nil, err_rps: nil, avg_ms: nil}
+              nil ->
+                # No rates on this scrape (the first, or a reset), but the
+                # gauge is read: no series means nothing in flight.
+                %{@unknown_host | in_flight: 0}
 
-            r ->
-              %{
-                host: h,
-                rps: round_to(r.rps, 3),
-                err_rps: round_to(r.err_rps, 3),
-                avg_ms: round_to(r.avg_ms, 1)
-              }
-          end
-      end
+              r ->
+                %{
+                  rps: round_to(r.rps, 3),
+                  err_rps: round_to(r.err_rps, 3),
+                  avg_ms: round_to(r.avg_ms, 1),
+                  codes:
+                    r.codes && Map.new(r.codes, fn {class, v} -> {class, round_to(v, 3)} end),
+                  in_bps: round_to(r.in_bps, 1),
+                  out_bps: round_to(r.out_bps, 1),
+                  in_flight: r.in_flight
+                }
+            end
+        end
+
+      Map.put(reading, :host, h)
     end)
+  end
+
+  # Class rates summed over hosts; nil if any host's are unknown.
+  defp sum_codes(hosts) do
+    if Enum.any?(hosts, &is_nil(&1.codes)) do
+      nil
+    else
+      Map.new(ObsFactor.Caddy.classes(), fn class ->
+        {class, round_to(sum(Enum.map(hosts, &Map.fetch!(&1.codes, class))), 3)}
+      end)
+    end
   end
 
   defp proxy_hosts(%{caddy: nil}), do: []
@@ -606,7 +811,9 @@ defmodule ObsFactor.Snapshot do
             round_to(env.caddy && env.caddy.total_rps, 2),
             "req/s",
             true,
-            "all hosts"
+            "all hosts",
+            # Without a total there are no rates to sum, whatever hosts exist.
+            if(env.caddy && env.caddy.total_rps != nil, do: sum_codes(proxy_hosts(env)))
           )
         ]
       else
@@ -617,7 +824,8 @@ defmodule ObsFactor.Snapshot do
       if proxy do
         for n <- topology.nodes, n.hosts != [] or n.via != [] do
           if n.hosts != [] do
-            rate = sum(Enum.map(host_readings(n.hosts, env), & &1.rps))
+            readings = host_readings(n.hosts, env)
+            rate = sum(Enum.map(readings, & &1.rps))
 
             edge(
               proxy.id,
@@ -626,10 +834,28 @@ defmodule ObsFactor.Snapshot do
               round_to(rate, 2),
               "req/s",
               true,
-              Enum.join(n.hosts, ", ")
+              Enum.join(n.hosts, ", "),
+              sum_codes(readings)
             )
           else
-            edge(proxy.id, n.id, "requests", nil, "req/s", false, Enum.join(n.via, ", "))
+            label = Enum.join(n.via, ", ")
+
+            if env.access_ok do
+              via = via_reading(n.id, env)
+
+              edge(
+                proxy.id,
+                n.id,
+                "requests",
+                round_to(via.rps, 2),
+                "req/s",
+                true,
+                label,
+                via.codes
+              )
+            else
+              edge(proxy.id, n.id, "requests", nil, "req/s", false, label)
+            end
           end
         end
       else
@@ -666,7 +892,7 @@ defmodule ObsFactor.Snapshot do
     internet ++ to_nodes ++ to_db ++ extra
   end
 
-  defp edge(from, to, item, rate, unit, metered, label) do
+  defp edge(from, to, item, rate, unit, metered, label, codes \\ nil) do
     %{
       id: "#{from}>#{to}",
       from: from,
@@ -675,7 +901,8 @@ defmodule ObsFactor.Snapshot do
       rate: rate,
       unit: unit,
       metered: metered,
-      label: label
+      label: label,
+      codes: codes
     }
   end
 

@@ -24,6 +24,14 @@
 # Caddy), so a probe failing means the app, not the route. The observer
 # treats any status below 500 as up, so a 404 or 302 on "/" is fine.
 #
+# `style` names the building the browser draws for a node (docs/contract.md,
+# Per-subdomain detail): what the thing is, not what it measures. A node
+# without one gets the plain building of its kind.
+#
+# `report` is where a sub-app serves its own inside (docs/contract.md,
+# Reports): the four Phoenix apps that carry vendor/factory_report. Tyler and
+# Dave do not yet: their source here does not match what the box runs.
+#
 # Unverified items are marked UNVERIFIED with what exactly is not known.
 
 %{
@@ -44,7 +52,7 @@
     # UNVERIFIED: "/" is a full homepage render on a one-thread server every
     # 5 s; no cheaper route was found in blimp_site/src. It is what the
     # blog's own deploy health check uses.
-    %{id: "blimp-blog", label: "Blimp blog", kind: :app, service: "blimp-blog",
+    %{id: "blimp-blog", label: "Blimp blog", kind: :app, style: "press", service: "blimp-blog",
       platform: "main", pos: {2, 0},
       hosts: ["bobbby.online", "www.bobbby.online"],
       probe: "http://blimp-blog:4100/", databases: ["blog_prod"]},
@@ -52,28 +60,28 @@
     # The Phoenix blog. Owns old.bobbby.online; bobbby.online sends it the
     # hotel carbon and tennis potatoes paths directly (handle blocks above
     # @phoenix_write in the Caddyfile).
-    %{id: "app", label: "Phoenix blog", kind: :app, service: "app",
+    %{id: "app", label: "Phoenix blog", kind: :app, style: "foundry", service: "app",
       platform: "main", pos: {2, 1},
       hosts: ["old.bobbby.online"],
       via: ["bobbby.online/hotel-carbon*", "bobbby.online/static/hotel-carbon/*",
             "bobbby.online/tennis-potatoes*", "bobbby.online/static/tennis-potatoes/*"],
-      probe: "http://app:4000/", databases: ["blog_prod"]},
+      probe: "http://app:4000/", report: "http://app:9568/report", databases: ["blog_prod"]},
 
     # bobbbys.link is host-routed inside the blinks app (Caddyfile comment).
-    %{id: "blinks", label: "Blinks", kind: :app, service: "blinks",
+    %{id: "blinks", label: "Blinks", kind: :app, style: "switchyard", service: "blinks",
       platform: "main", pos: {2, 2},
       hosts: ["links.bobbby.online", "bobbbys.link", "www.bobbbys.link"],
-      probe: "http://blinks:4000/", databases: ["blinks_backend_prod"]},
+      probe: "http://blinks:4000/", report: "http://blinks:9568/report", databases: ["blinks_backend_prod"]},
 
-    %{id: "nathan", label: "Gifmaker", kind: :app, service: "nathan",
+    %{id: "nathan", label: "Gifmaker", kind: :app, style: "studio", service: "nathan",
       platform: "main", pos: {2, 3},
       hosts: ["gifmaker.bobbby.online"],
-      probe: "http://nathan:4001/", databases: ["nathan_for_us_prod"]},
+      probe: "http://nathan:4001/", report: "http://nathan:9568/report", databases: ["nathan_for_us_prod"]},
 
-    %{id: "marginalia", label: "Marginalia", kind: :app, service: "marginalia",
+    %{id: "marginalia", label: "Marginalia", kind: :app, style: "library", service: "marginalia",
       platform: "main", pos: {2, 4},
       hosts: ["marginalia.bobbby.online"],
-      probe: "http://marginalia:4000/", databases: ["marginalia_prod"]},
+      probe: "http://marginalia:4000/", report: "http://marginalia:9568/report", databases: ["marginalia_prod"]},
 
     %{id: "tyler", label: "Tyler", kind: :app, service: "tyler",
       platform: "main", pos: {2, 5},
@@ -82,19 +90,19 @@
 
     # UNVERIFIED: no router.ex was found in ~/code/dave, so "/" is assumed to
     # answer below 500 like the other Phoenix apps.
-    %{id: "dave", label: "Dave", kind: :app, service: "dave",
+    %{id: "dave", label: "Dave", kind: :app, style: "conservatory", service: "dave",
       platform: "main", pos: {2, 6},
       hosts: ["dave.bobbby.online"],
       probe: "http://dave:4000/", databases: ["dave_prod"]},
 
     # No database: reads a snapshot mounted at /data.
-    %{id: "skyfeed", label: "Skyfeed", kind: :app, service: "skyfeed",
+    %{id: "skyfeed", label: "Skyfeed", kind: :app, style: "observatory", service: "skyfeed",
       platform: "main", pos: {2, 7},
       hosts: ["bskymapfeeds.bobbby.online"],
       probe: "http://skyfeed:4000/"},
 
     # This app. Its own probe is GET /health (docs/contract.md, Auth).
-    %{id: "obs-factor", label: "Factory (this)", kind: :app, service: "obs-factor",
+    %{id: "obs-factor", label: "Factory (this)", kind: :app, style: "control", service: "obs-factor",
       platform: "main", pos: {2, 8},
       hosts: ["factory.bobbby.online"],
       probe: "http://obs-factor:4000/health"},
@@ -104,19 +112,19 @@
     # in the one soldat container. UNVERIFIED: the soldat repo is not on this
     # laptop; "/" on :8901 is from the compose comment ("watch.mjs serves
     # the site at /").
-    %{id: "soldat", label: "Arena (live)", kind: :app, service: "soldat",
+    %{id: "soldat", label: "Arena (live)", kind: :app, style: "arena", service: "soldat",
       platform: "main", pos: {3, 0},
       via: ["bobbby.online/arena/*", "bobbby.online/arena/ws"],
       probe: "http://soldat:8901/"},
 
     # GET /health is in mba-vs-dj/proxy (send 200 {ok, today}).
-    %{id: "dtree-ai", label: "dtree-ai", kind: :relay, service: "dtree-ai",
+    %{id: "dtree-ai", label: "dtree-ai", kind: :relay, style: "lab", service: "dtree-ai",
       platform: "main", pos: {3, 1},
       via: ["bobbby.online/dtree-ai/*"],
       probe: "http://dtree-ai:8080/health"},
 
     # GET /health is in skee_skee_skee/relay/relay.mjs (200 "ok").
-    %{id: "skee-relay", label: "Skee relay", kind: :relay, service: "skee-relay",
+    %{id: "skee-relay", label: "Skee relay", kind: :relay, style: "arcade", service: "skee-relay",
       platform: "main", pos: {3, 2},
       via: ["bobbby.online/skee-host/*", "old.bobbby.online/skee-host/*"],
       probe: "http://skee-relay:8788/health"},
@@ -124,7 +132,7 @@
     # The only service besides db with a Docker healthcheck, which curls
     # /ready (read from the local deciduous-mcp:local image's config;
     # UNVERIFIED that the box's image is the same).
-    %{id: "deciduous-mcp", label: "Deciduous MCP", kind: :app, service: "deciduous-mcp",
+    %{id: "deciduous-mcp", label: "Deciduous MCP", kind: :app, style: "greenhouse", service: "deciduous-mcp",
       platform: "main", pos: {3, 3},
       via: ["bobbby.online/deciduous-mcp/*"],
       probe: "http://deciduous-mcp:4000/ready", databases: ["deciduous_mcp_prod"]},
@@ -132,13 +140,13 @@
     # A bare `ws` WebSocketServer (slides/server/relay.mjs). UNVERIFIED: a
     # plain GET is expected to answer 426 Upgrade Required (the ws library's
     # behaviour for non-upgrade requests), which counts as up.
-    %{id: "slides-relay", label: "Slides relay", kind: :relay, service: "slides-relay",
+    %{id: "slides-relay", label: "Slides relay", kind: :relay, style: "stage", service: "slides-relay",
       platform: "main", pos: {3, 5},
       via: ["slides.bobbby.online/relay"],
       probe: "http://slides-relay:8787/"},
 
     # GET /healthz is in lumines_hd/server/standalone.ts (200).
-    %{id: "lumines", label: "Lumines rooms", kind: :relay, service: "lumines",
+    %{id: "lumines", label: "Lumines rooms", kind: :relay, style: "arcade", service: "lumines",
       platform: "main", pos: {3, 6},
       via: ["lumines.bobbby.online/ws"],
       probe: "http://lumines:8903/healthz"},
@@ -157,21 +165,21 @@
     # `site` is the directory name under SITES_DIR, the same name Caddy
     # mounts it under in /srv (deploy/compose.obs-factor.yml mounts each
     # /opt/<dir> read-only at /sites/<site>).
-    %{id: "site-deciduous", label: "deciduous.dev", kind: :static, site: "deciduous",
+    %{id: "site-deciduous", label: "deciduous.dev", kind: :static, style: "greenhouse", site: "deciduous",
       platform: "static", pos: {0, 0}, hosts: ["deciduous.dev", "www.deciduous.dev"]},
-    %{id: "site-phstats", label: "phishjamexplorer.com", kind: :static, site: "phstats",
+    %{id: "site-phstats", label: "phishjamexplorer.com", kind: :static, style: "conservatory", site: "phstats",
       platform: "static", pos: {1, 0}, hosts: ["phishjamexplorer.com", "www.phishjamexplorer.com"]},
-    %{id: "site-soldat-landing", label: "soldat.bobbby.online", kind: :static, site: "soldat-landing",
+    %{id: "site-soldat-landing", label: "soldat.bobbby.online", kind: :static, style: "arena", site: "soldat-landing",
       platform: "static", pos: {2, 0}, hosts: ["soldat.bobbby.online"]},
-    %{id: "site-blimp", label: "blimp.bobbby.online", kind: :static, site: "blimp",
+    %{id: "site-blimp", label: "blimp.bobbby.online", kind: :static, style: "press", site: "blimp",
       platform: "static", pos: {3, 0}, hosts: ["blimp.bobbby.online"]},
-    %{id: "site-gaming", label: "gaming.bobbby.online", kind: :static, site: "gaming",
+    %{id: "site-gaming", label: "gaming.bobbby.online", kind: :static, style: "arcade", site: "gaming",
       platform: "static", pos: {0, 1}, hosts: ["gaming.bobbby.online"]},
     # slides and lumines: the host belongs to the static build; the relay
     # behind /relay and /ws is a path route (col 3).
-    %{id: "site-slides", label: "slides.bobbby.online", kind: :static, site: "slides",
+    %{id: "site-slides", label: "slides.bobbby.online", kind: :static, style: "stage", site: "slides",
       platform: "static", pos: {1, 1}, hosts: ["slides.bobbby.online"]},
-    %{id: "site-lumines", label: "lumines.bobbby.online", kind: :static, site: "lumines",
+    %{id: "site-lumines", label: "lumines.bobbby.online", kind: :static, style: "arcade", site: "lumines",
       platform: "static", pos: {2, 1}, hosts: ["lumines.bobbby.online"]},
     %{id: "site-downloader", label: "downloader.bobbby.online", kind: :static, site: "downloader",
       platform: "static", pos: {3, 1}, hosts: ["downloader.bobbby.online"]},
@@ -181,7 +189,7 @@
       platform: "static", pos: {1, 2}, hosts: ["padmac.bobbby.online"]},
     # Only /arena/play/* is served from it (the rest of /arena/* is soldat),
     # so only /opt/arena/play is mounted.
-    %{id: "site-arena", label: "Arena replays", kind: :static, site: "arena",
+    %{id: "site-arena", label: "Arena replays", kind: :static, style: "arena", site: "arena",
       platform: "static", pos: {2, 2}, via: ["bobbby.online/arena/play/*"]},
 
     # ------------------------------------------------------------ outside

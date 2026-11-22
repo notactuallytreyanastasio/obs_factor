@@ -39,6 +39,7 @@ defmodule ObsFactor.Application do
       src = Application.get_env(:obs_factor, :sources, [])
       tick = Application.fetch_env!(:obs_factor, :tick_ms)
       probes = for n <- topology.nodes, n.probe, do: {n.id, n.probe}
+      reports = for n <- topology.nodes, n.report, do: {n.id, n.report}
 
       Enum.reject(
         [
@@ -55,6 +56,10 @@ defmodule ObsFactor.Application do
             interval_ms: Application.fetch_env!(:obs_factor, :sites_interval_ms),
             deadline_ms: 30_000,
             dir: src[:sites_dir]}},
+          {ObsFactor.Collector,
+           {ObsFactor.AccessLog, interval_ms: tick, path: src[:access_log], nodes: topology.nodes}},
+          {ObsFactor.Collector,
+           {ObsFactor.Reports, interval_ms: tick, targets: reports, token: src[:report_token]}},
           {ObsFactor.Ticker, tick_ms: tick}
         ],
         &is_nil/1
