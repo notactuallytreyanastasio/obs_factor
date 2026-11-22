@@ -312,4 +312,41 @@ defmodule ObsFactor.RulesTest do
              {"warn", "Phoenix app report failing: host not found"}
            ]
   end
+
+  describe "a cluster's members side by side" do
+    defp m(name, sees, opts \\ []) do
+      conns =
+        Enum.map(sees, fn other ->
+          %{node: other, kind: "visible", in_bytes: 1, out_bytes: 1, send_queue_bytes: opts[:queue] || 0, in_bps: nil, out_bps: nil}
+        end)
+
+      %{ok: Keyword.get(opts, :ok, true), cluster: %{node: name, distributed: true, connections: conns, globals: opts[:globals] || []}}
+    end
+
+    test "a full mesh, or one node, says nothing" do
+      assert ObsFactor.Rules.cluster("M", [m("a", ~w(b c)), m("b", ~w(a c)), m("c", ~w(a b))]) == []
+      assert ObsFactor.Rules.cluster("M", [m("a", [])]) == []
+      assert ObsFactor.Rules.cluster("M", nil) == []
+    end
+
+    test "one side listing the other is a partial partition; neither is not connected" do
+      alerts = ObsFactor.Rules.cluster("M", [m("a", ~w(b c)), m("b", ~w(c)), m("c", ~w(a b))])
+      assert alerts == [{"alert", "M: a lists b, which does not list it back (a partial partition)"}]
+
+      assert [{"alert", "M: a and b are not connected"}] =
+               ObsFactor.Rules.cluster("M", [m("a", ~w(c)), m("b", ~w(c)), m("c", ~w(a b))])
+    end
+
+    test "a node whose report failed is not counted as disconnected" do
+      assert ObsFactor.Rules.cluster("M", [m("a", ~w(b)), m("b", ~w(a)), m("c", [], ok: false)]) == []
+    end
+
+    test "a deep send queue warns, and two homes for one global is an alert" do
+      g = fn home -> [%{name: "Marginalia.Runs", node: home}] end
+      alerts = ObsFactor.Rules.cluster("M", [m("a", ~w(b), queue: 5_000_000, globals: g.("a")), m("b", ~w(a), globals: g.("b"))])
+      assert {"warn", "M: 4.8 MB queued on a for b"} in alerts
+      assert {"alert", "M: the nodes disagree where Marginalia.Runs lives (a, b)"} in alerts
+    end
+  end
+
 end

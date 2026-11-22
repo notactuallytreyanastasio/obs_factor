@@ -54,7 +54,9 @@ defmodule ObsFactor.Application do
         {Task.Supervisor, name: ObsFactor.TaskSupervisor},
         ObsFactor.Http,
         ObsFactor.History
-      ] ++ collectors(topology) ++ [ObsFactorWeb.Endpoint]
+      ] ++
+        ObsFactor.Objectives.child_specs(Application.get_env(:obs_factor, :objectives_pg_url)) ++
+        collectors(topology) ++ [ObsFactorWeb.Endpoint]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: ObsFactor.Supervisor)
   end
