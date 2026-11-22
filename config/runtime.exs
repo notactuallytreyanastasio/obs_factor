@@ -34,6 +34,22 @@ if config_env() != :test do
   config :obs_factor, topology_path: blank_to_nil.(System.get_env("TOPOLOGY"))
 end
 
+# OBS_ROLE=builder runs the builder (lib/obs_factor/builder) instead of the
+# observer. The observer reads a builder at BUILDER_URL when it is set.
+config :obs_factor, :role, if(System.get_env("OBS_ROLE") == "builder", do: :builder, else: :observer)
+
+if config_env() != :test do
+  config :obs_factor, :builder_client,
+    url: blank_to_nil.(System.get_env("BUILDER_URL")),
+    token: blank_to_nil.(System.get_env("BUILDER_TOKEN"))
+
+  config :obs_factor,
+         :builder,
+         (for key <- ~w(token state_dir domain a_record dns_server caddy_container caddy_http site_prefix network llm_url llm_key llm_model buildx dns_provider cf_api_token cf_zone_id cf_api cf_proxied)a do
+            {key, blank_to_nil.(System.get_env("BUILDER_" <> String.upcase(Atom.to_string(key))))}
+          end)
+end
+
 password = blank_to_nil.(System.get_env("OBS_FACTOR_PASSWORD"))
 
 cond do

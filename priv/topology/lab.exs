@@ -24,7 +24,10 @@
   platforms: [
     %{id: "main", label: "obslab"},
     %{id: "static", label: "static sites (Caddy /srv)"},
-    %{id: "host", label: "the laptop (Colima VM)"}
+    %{id: "host", label: "the laptop (Colima VM)"},
+    # Apps the builder made, and its construction lots. Nothing is listed
+    # here: they place themselves (obs_factor.* labels, see ObsFactor.Labelled).
+    %{id: "built", label: "built here"}
   ],
   nodes: [
     %{id: "caddy", label: "Caddy", kind: :proxy, service: "caddy", platform: "main", pos: {0, 2}},

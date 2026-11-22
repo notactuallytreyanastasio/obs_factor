@@ -20,7 +20,11 @@ defmodule ObsFactor.Probes do
   def init_state(opts), do: %{targets: Keyword.fetch!(opts, :targets)}
 
   @impl true
-  def collect(%{targets: targets} = state) do
+  def collect(%{targets: static} = state) do
+    # Plus the probe of every labelled container (apps the builder made),
+    # from the latest container list: they appear without a restart.
+    targets = static ++ labelled_targets()
+
     results =
       targets
       |> Task.async_stream(fn {id, url} -> {id, probe(url)} end,
@@ -36,6 +40,16 @@ defmodule ObsFactor.Probes do
       end)
 
     {:ok, results, state}
+  end
+
+  defp labelled_targets do
+    case ObsFactor.Sources.get(:docker) do
+      %{ok: true, data: %{containers: cs}} ->
+        ObsFactor.Labelled.probe_targets(ObsFactor.topology(), cs)
+
+      _ ->
+        []
+    end
   end
 
   def probe(url) do

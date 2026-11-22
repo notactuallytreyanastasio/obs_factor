@@ -101,10 +101,26 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./sites/docs:/srv/docs:ro
+      # The builder's site blocks (import /built/caddy/*.caddy).
+      - ./built:/built:ro
       - caddy_data:/data
       - caddy_config:/config
       # The access log (deploy/Caddyfile.access); the observer mounts it read-only.
       - caddy_logs:/var/log/caddy
+
+  # DNS for lab.test, from the hosts file the builder writes. The builder's
+  # first step writes an A record here and checks this server answers it.
+  dns:
+    image: coredns/coredns:1.12.1
+    restart: always
+    mem_limit: 64m
+    command: ["-conf", "/etc/coredns/Corefile"]
+    volumes:
+      - ./dns:/etc/coredns:ro
+      - ./built:/built:ro
+    ports:
+      - "127.0.0.1:15353:53/udp"
+      - "127.0.0.1:15353:53/tcp"
 
   # Read-only Docker API: three GET endpoints, 403 for everything else.
   # The socket's :ro does NOT make the API read-only (connect() on a
@@ -157,6 +173,12 @@ services:
       SITES_DIR: /sites
       TOPOLOGY: /app/topology/lab.exs
       ACCESS_LOG: /caddy-logs/access.log
+      # The builder runs on the laptop (it needs the logged-in agent CLI and
+      # Docker write), as OBS_ROLE=builder; see README "Building apps".
+      # Unset BUILDER_URL and the observer has no builder source at all.
+      # Another machine without a builder: BUILDER_URL= docker-compose ...
+      BUILDER_URL: ${BUILDER_URL-http://host.docker.internal:14100}
+      BUILDER_TOKEN: obslab-builder
     volumes:
       # An empty directory, only so statfs() has a path on the filesystem we
       # mean. In the lab that is the laptop's disk (Colima's virtiofs share).

@@ -37,7 +37,7 @@ defmodule ObsFactorWeb.Endpoint do
   end
 
   plug Plug.RequestId
-  plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
+  plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint], log: {__MODULE__, :log_level, []}
 
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
@@ -48,4 +48,11 @@ defmodule ObsFactorWeb.Endpoint do
   plug Plug.Head
   plug Plug.Session, @session_options
   plug ObsFactorWeb.Router
+
+  # The "Under the hood" panel polls /api/beam (and the log explorer /api/logs) every 2 s and shows the log
+  # ring: logging its own polls would fill the ring with them in minutes.
+  @doc false
+  def log_level(%Plug.Conn{request_path: "/api/beam"}), do: false
+  def log_level(%Plug.Conn{request_path: "/api/logs"}), do: false
+  def log_level(_), do: :info
 end

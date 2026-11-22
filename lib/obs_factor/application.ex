@@ -6,6 +6,30 @@ defmodule ObsFactor.Application do
 
   @impl true
   def start(_type, _args) do
+    case Application.get_env(:obs_factor, :role, :observer) do
+      :builder -> start_builder()
+      :observer -> start_observer()
+    end
+  end
+
+  # OBS_ROLE=builder: no collectors, no topology, only the jobs and the
+  # token-guarded /builder/api. This is the process that holds Docker write,
+  # git and the agent; the observer never does.
+  defp start_builder do
+    cfg = ObsFactor.Builder.Config.load!()
+
+    children = [
+      ObsFactorWeb.Telemetry,
+      {Phoenix.PubSub, name: ObsFactor.PubSub},
+      {Task.Supervisor, name: ObsFactor.TaskSupervisor},
+      {ObsFactor.Builder.Jobs, cfg},
+      ObsFactorWeb.Endpoint
+    ]
+
+    Supervisor.start_link(children, strategy: :one_for_one, name: ObsFactor.Supervisor)
+  end
+
+  defp start_observer do
     # Validated before anything starts: a bad topology stops the boot with
     # a message naming the entry.
     path =
@@ -23,6 +47,7 @@ defmodule ObsFactor.Application do
     children =
       [
         ObsFactorWeb.Telemetry,
+        ObsFactor.LogRing,
         {DNSCluster, query: Application.get_env(:obs_factor, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: ObsFactor.PubSub},
         ObsFactor.Store,
@@ -51,6 +76,7 @@ defmodule ObsFactor.Application do
           {ObsFactor.Collector,
            {ObsFactor.Host, interval_ms: tick, proc: src[:host_proc], disk: src[:host_disk_path]}},
           {ObsFactor.Collector, {ObsFactor.Probes, interval_ms: tick, targets: probes}},
+          builder_collector(tick),
           {ObsFactor.Collector,
            {ObsFactor.Sites,
             interval_ms: Application.fetch_env!(:obs_factor, :sites_interval_ms),
@@ -67,6 +93,14 @@ defmodule ObsFactor.Application do
     else
       []
     end
+  end
+
+  defp builder_collector(tick) do
+    cfg = ObsFactor.BuilderClient.config()
+
+    if cfg[:url],
+      do: {ObsFactor.Collector, {ObsFactor.BuilderSource, interval_ms: tick, url: cfg[:url], token: cfg[:token]}},
+      else: nil
   end
 
   @impl true

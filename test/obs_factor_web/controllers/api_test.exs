@@ -79,6 +79,34 @@ defmodule ObsFactorWeb.ApiTest do
   end
 
   describe "pages" do
+    test "asset URLs carry a content version, and modules import through it", %{conn: conn, pages: dir} do
+      File.mkdir_p!(Path.join(dir, "assets/js"))
+      File.write!(Path.join(dir, "assets/app.css"), "p {}")
+      File.write!(Path.join(dir, "assets/js/main.js"), ~s(import "./beam.js";))
+      File.write!(Path.join(dir, "assets/js/beam.js"), "1")
+
+      File.write!(Path.join(dir, "index.html"), """
+      <link rel="stylesheet" href="/assets/app.css">
+      <script type="module" src="/assets/js/main.js"></script>
+      """)
+
+      page = fn -> conn |> authed() |> get("/") |> html_response(200) end
+      html = page.()
+      [_, v] = Regex.run(~r{href="/assets/app.css\?v=([\w-]+)"}, html)
+      assert html =~ ~s(src="/assets/js/main.js?v=#{v}")
+      [_, map] = Regex.run(~r{<script type="importmap">(.*?)</script>\s*<script type="module"}s, html)
+
+      assert Jason.decode!(map)["imports"] == %{
+               "/assets/js/beam.js" => "/assets/js/beam.js?v=#{v}",
+               "/assets/js/main.js" => "/assets/js/main.js?v=#{v}"
+             }
+
+      # A changed module is a new version for every URL, not only its own: an
+      # unchanged main.js still has to be refetched to reach the new beam.js.
+      File.write!(Path.join(dir, "assets/js/beam.js"), "2")
+      refute page.() =~ "?v=#{v}"
+    end
+
     test "/ serves priv/static/index.html when it exists", %{conn: conn, pages: dir} do
       File.write!(Path.join(dir, "index.html"), "<p>factory</p>")
       assert conn |> authed() |> get("/") |> html_response(200) == "<p>factory</p>"

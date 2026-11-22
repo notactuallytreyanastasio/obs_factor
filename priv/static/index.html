@@ -26,6 +26,9 @@
     </button>
     <div id="menu" hidden>
       <button type="button" id="fitbtn2">Show everything</button>
+      <button type="button" id="logsbtn">Logs</button>
+      <button type="button" id="beambtn2">Under the hood</button>
+      <button type="button" id="tourbtn2">Take the tour</button>
       <form method="post" action="/logout"><button type="submit">Log out</button></form>
     </div>
   </header>
@@ -47,6 +50,9 @@
   <div id="controls">
     <button class="ctl" id="legendbtn" aria-expanded="false">Legend</button>
     <button class="ctl" id="sitesbtn" aria-expanded="false">Sites</button>
+    <button class="ctl build" id="buildbtn" aria-expanded="false" hidden>Build new app</button>
+    <button class="ctl" id="beambtn" aria-expanded="false" title="The observer's own BEAM: processes, tables, log">Under the hood</button>
+    <button class="ctl tour" id="tourbtn">Tour</button>
     <span class="grow"></span>
     <button class="ctl sq" id="zoomout" aria-label="Zoom out">−</button>
     <button class="ctl sq" id="zoomin" aria-label="Zoom in">+</button>
@@ -83,6 +89,29 @@
       <tbody id="sites-rows"></tbody>
     </table>
   </aside>
+
+  <aside id="builder" hidden aria-label="Build a new app">
+    <form id="build-form" autocomplete="off">
+      <h3>Build a new app</h3>
+      <label class="fld">Name
+        <span class="addr"><input name="name" required maxlength="30" pattern="[a-z][a-z0-9\-]{0,28}[a-z0-9]" placeholder="deci" spellcheck="false"><span id="build-domain">.lab.test</span></span>
+      </label>
+      <fieldset>
+        <legend>On the lot</legend>
+        <label class="opt"><input type="radio" name="mode" value="github" checked><span><b>From GitHub</b>an agent reads the README and builds it</span></label>
+        <label class="opt"><input type="radio" name="mode" value="route"><span><b>Just the lot</b>an A record and a Caddy route to a placeholder page</span></label>
+      </fieldset>
+      <div class="gh">
+        <label class="fld">Repository <input name="repo" value="https://github.com/notactuallytreyanastasio/deciduous" spellcheck="false"></label>
+        <label class="fld">Branch or tag <input name="ref" placeholder="default branch" spellcheck="false"></label>
+      </div>
+      <ol class="plan" id="build-plan"></ol>
+      <p class="err" id="build-error" hidden></p>
+      <button type="submit" class="go" id="build-go">Break ground</button>
+    </form>
+  </aside>
+
+  <aside id="beam" hidden aria-label="Under the hood: the observer's own BEAM"></aside>
 
   <aside id="inspector" hidden aria-label="Inspector">
     <div class="grab" aria-hidden="true"></div>

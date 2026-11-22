@@ -17,7 +17,7 @@ export const STATUS_COLOR = {
 // Top of each silhouette (tiles of z): chips and power lines attach here.
 export const HEIGHT = {
   proxy: 2.4, app: 2.5, relay: 3.4, db: 2.2, static: 1.6, external: 2.3,
-  resource: 2.7, source: 3.0, unplaced: 1.5,
+  resource: 2.7, source: 3.0, unplaced: 1.5, construction: 3.1,
 };
 
 // A node's own building if its style is one this page draws, else its kind's.
@@ -450,6 +450,72 @@ export function drawFittings(ctx, b, s) {
   if (q > 0) glow(ctx, ...P(x + 0.5, y + 3.1, 0.3), 16, "#ffd166", 0.25 + 0.15 * Math.sin(s.t * 4));
 }
 
+// A builder job's lot. The steel frame rises with the job's progress
+// (headline "% built"), the crane slews while a step runs, a failed build
+// is taped off, and a reserved lot (route only) is a fenced plot with a sign.
+function construction(ctx, b, s) {
+  const { x, y } = b, c = s.col;
+  const n = b.node;
+  const pct = Math.max(0, Math.min(100, n.headline?.value ?? 0)) / 100;
+  const lot = n.build?.mode === "route";
+  // slab
+  box(ctx, c, x + 0.25, y + 0.25, 0.1, 2.5, 2.5, 0.12, "#8a8f99");
+  if (lot) {
+    // fence along the two visible edges, a sign at the front
+    for (let i = 0; i <= 6; i++) {
+      line(ctx, P(x + 0.25 + i * 0.42, y + 2.75, 0.22), P(x + 0.25 + i * 0.42, y + 2.75, 0.7), c("#c9ced8"), 1.2);
+      line(ctx, P(x + 2.75, y + 0.25 + i * 0.42, 0.22), P(x + 2.75, y + 0.25 + i * 0.42, 0.7), c("#c9ced8"), 1.2);
+    }
+    line(ctx, P(x + 0.25, y + 2.75, 0.62), P(x + 2.75, y + 2.75, 0.62), c("#c9ced8"), 1);
+    line(ctx, P(x + 2.75, y + 0.25, 0.62), P(x + 2.75, y + 2.75, 0.62), c("#c9ced8"), 1);
+    line(ctx, P(x + 1.5, y + 1.6, 0.22), P(x + 1.5, y + 1.6, 1.0), c("#3b3f48"), 1.6);
+    faceY(ctx, y + 1.6, x + 0.85, x + 2.15, 0.95, 1.55, c("#e8b730"));
+    const [qx, qy] = P(x + 1.5, y + 1.6, 1.25);
+    ctx.save();
+    ctx.translate(qx, qy); ctx.transform(1, -0.5, 0, 1, 0, 0);
+    ctx.fillStyle = "#1c1f26"; ctx.font = "bold 7px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("RESERVED", 0, 0);
+    ctx.restore();
+    return;
+  }
+  // frame: corner columns as tall as the progress, a beam ring per level
+  const top = 0.35 + 1.9 * pct;
+  const cols = [[0.45, 0.45], [2.55, 0.45], [0.45, 2.55], [2.55, 2.55], [1.5, 0.45], [0.45, 1.5]];
+  const steel = s.status === "down" ? "#7a4a3a" : "#d98e2b";
+  for (const [cx, cy] of cols.slice(0, 2).concat(cols.slice(4))) line(ctx, P(x + cx, y + cy, 0.22), P(x + cx, y + cy, top), c(steel), 2);
+  for (let z = 0.75; z <= top + 0.01; z += 0.55) {
+    poly(ctx, [P(x + 0.45, y + 0.45, z), P(x + 2.55, y + 0.45, z), P(x + 2.55, y + 2.55, z), P(x + 0.45, y + 2.55, z)], null, c(steel, 0.85), 1.4);
+  }
+  // finished floors fill in from the bottom
+  const floors = Math.floor(pct * 3);
+  for (let i = 0; i < floors; i++) box(ctx, c, x + 0.5, y + 0.5, 0.22 + i * 0.55, 2.0, 2.0, 0.42, "#6f788b");
+  for (const [cx, cy] of cols.slice(2, 4)) line(ctx, P(x + cx, y + cy, 0.22), P(x + cx, y + cy, top), c(steel), 2);
+  // tower crane at the back corner
+  const mx = x + 0.15, my = y + 0.15, mh = 3.0;
+  line(ctx, P(mx, my, 0.1), P(mx, my, mh), c("#e8b730"), 2.6);
+  for (let z = 0.3; z < mh; z += 0.35) line(ctx, P(mx - 0.08, my, z), P(mx + 0.08, my, z + 0.3), c("#b8901f"), 0.8);
+  const ang = s.status === "working" ? s.t * 0.35 : 0.8;
+  const jx = mx + Math.cos(ang) * 2.4, jy = my + Math.sin(ang) * 2.4;
+  const cx2 = mx - Math.cos(ang) * 0.7, cy2 = my - Math.sin(ang) * 0.7;
+  line(ctx, P(cx2, cy2, mh), P(jx, jy, mh), c("#e8b730"), 2);
+  box(ctx, c, cx2 - 0.15, cy2 - 0.15, mh - 0.25, 0.3, 0.3, 0.25, "#5b6274");
+  const hx = mx + Math.cos(ang) * 1.7, hy = my + Math.sin(ang) * 1.7;
+  const drop = s.status === "working" ? 0.9 + 0.5 * Math.sin(s.t * 1.3) : 1.3;
+  line(ctx, P(hx, hy, mh), P(hx, hy, mh - drop), c("#c9ced8"), 0.8);
+  box(ctx, c, hx - 0.12, hy - 0.12, mh - drop - 0.18, 0.24, 0.24, 0.18, "#4cc9f0");
+  if (s.status === "working") {
+    const [lx, ly] = P(mx, my, mh + 0.1);
+    glow(ctx, lx, ly, 8, "#ff5a5a", 0.4 + 0.4 * (Math.sin(s.t * 5) > 0 ? 1 : 0));
+  }
+  if (s.status === "down") {
+    // hazard tape round the lot
+    ctx.save();
+    ctx.setLineDash([5, 4]);
+    poly(ctx, [P(x + 0.15, y + 0.15, 0.55), P(x + 2.85, y + 0.15, 0.55), P(x + 2.85, y + 2.85, 0.55), P(x + 0.15, y + 2.85, 0.55)], null, "#ff4d4d", 2);
+    ctx.restore();
+  }
+}
+
 export function drawBuilding(ctx, b, s) {
   const n = b.node;
   const st = styleOf(n);
@@ -468,6 +534,7 @@ export function drawBuilding(ctx, b, s) {
     case "external": return external(ctx, b, s);
     case "source": return source(ctx, b, s);
     case "unplaced": return unplaced(ctx, b, s);
+    case "construction": return construction(ctx, b, s);
     case "resource":
       if (n.id === "host-cpu") return cpu(ctx, b, s);
       if (n.id === "host-mem") return mem(ctx, b, s);

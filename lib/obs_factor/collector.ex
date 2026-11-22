@@ -109,12 +109,12 @@ defmodule ObsFactor.Collector do
   defp log_transition(_name, same, same), do: same
 
   defp log_transition(name, _previous, nil) do
-    Logger.info("source #{name}: ok")
+    Logger.info("source #{name}: ok", source: name)
     nil
   end
 
   defp log_transition(name, _previous, error) do
-    Logger.warning("source #{name}: #{error}")
+    Logger.warning("source #{name}: #{error}", source: name)
     error
   end
 

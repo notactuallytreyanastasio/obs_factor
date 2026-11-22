@@ -12,20 +12,26 @@ defmodule ObsFactor.Sources do
   @table __MODULE__
   @names [:docker, :caddy, :postgres, :host, :probes, :sites, :access, :reports]
 
-  def names, do: @names
+  # :builder only exists when the observer is pointed at a builder
+  # (BUILDER_URL): a box without one has nothing to report as failing.
+  def names do
+    if Application.get_env(:obs_factor, :builder_client, [])[:url],
+      do: @names ++ [:builder],
+      else: @names
+  end
 
   def create_table do
     :ets.new(@table, [:named_table, :public, :set, read_concurrency: true])
   end
 
-  def put(name, entry) when name in @names do
+  def put(name, entry) when name in @names or name == :builder do
     :ets.insert(@table, {name, entry})
     :ok
   end
 
   @doc "All sources as the snapshot builder wants them, checked for staleness."
   def all(now_ms \\ System.system_time(:millisecond)) do
-    Map.new(@names, fn name -> {name, get(name, now_ms)} end)
+    Map.new(names(), fn name -> {name, get(name, now_ms)} end)
   end
 
   def get(name, now_ms \\ System.system_time(:millisecond)) do

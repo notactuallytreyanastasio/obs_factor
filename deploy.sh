@@ -45,6 +45,8 @@ die()  { printf '\033[31m==> %s\033[0m\n' "$1" >&2; exit 1; }
 
 EXCLUDES=(
   --exclude '.git' --exclude '.env' --exclude '_build' --exclude 'deps'
+  # factory_report's build against older Phoenix (mix.exs compat lockfile)
+  --exclude 'deps_compat' --exclude '_build_compat'
   --exclude '.elixir_ls' --exclude '.deciduous' --exclude '.claude' --exclude '.prs'
   --exclude 'node_modules' --exclude 'erl_crash.dump'
   # The lab is a laptop thing (and lab/state holds cookies and snapshots);

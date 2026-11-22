@@ -1,0 +1,16 @@
+# The lab's DNS, for the builder's first primitive (the name). Serves
+# lab.test from the hosts file the builder writes (lab/built/dns/hosts),
+# re-read every 2 s. Real DNS, published on 127.0.0.1:15353. Colima forwards
+# published ports over TCP only, so from the laptop ask over TCP:
+#
+#   dig +tcp @127.0.0.1 -p 15353 deci.lab.test +short
+#
+# A name the file does not have answers SERVFAIL (observed with 1.12.1).
+# Production's equivalent is the zone at Cloudflare.
+lab.test:53 {
+    hosts /built/dns/hosts {
+        reload 2s
+    }
+    log
+    errors
+}

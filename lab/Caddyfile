@@ -128,3 +128,8 @@ http://docs.lab.test {
 	encode gzip zstd
 	header Cache-Control "public, max-age=300"
 }
+
+# Apps the builder made: one file per app, lab/built/caddy/<name>.caddy,
+# written and reloaded by the builder (lib/obs_factor/builder/route.ex).
+# An empty directory imports nothing (verified with caddy validate).
+import /built/caddy/*.caddy
