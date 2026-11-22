@@ -11,6 +11,10 @@ import { BeamPanel } from "./beam.js";
 import { Tour } from "./tour.js";
 import { LogExplorer } from "./logs.js";
 import { Missions } from "./missions.js";
+// apps.js: the Applications floor
+import { AppsFloor } from "./apps.js";
+import { ProcPanel } from "./apps_proc.js";
+import "./apps_buildings.js";
 
 const $ = (id) => document.getElementById(id);
 const canvas = $("floor");
@@ -50,8 +54,9 @@ function freeArea() {
   let x = 0, y = top, fw = w, fh = h - top;
   // missions.js: the panel on the left, beside the floor, on a desktop
   if (missions.open && w >= 760) { const r = missions.el.getBoundingClientRect(); x = r.right; fw = w - x; }
-  if (inspector.open) {
-    const r = inspector.el.getBoundingClientRect();
+  const side = inspector.open ? inspector.el : procPanel.open ? procPanel.el : null; // apps.js: the process panel sits where the inspector does
+  if (side) {
+    const r = side.getBoundingClientRect();
     if (w >= 760) fw = r.left - x;
     else fh = r.top - y;
   }
@@ -68,6 +73,7 @@ function resize() {
     fitAll();
   }
   drawStars();
+  if (insideOf && apps.active) renderApps(); // apps.js: bar heights
   dirty = true;
 }
 window.addEventListener("resize", resize);
@@ -174,16 +180,18 @@ function zoomAt(sx, sy, factor) {
 
 function showView() {
   const node = insideOf && outerSnap.nodes.find((n) => n.id === insideOf);
-  if (insideOf && !canEnter(node)) {
+  // apps.js: the observer's own BEAM is entered from Under the hood, not from a building
+  if (insideOf && insideOf !== OBSERVER && !canEnter(node)) {
     // the building is gone or stopped reporting: back to the floor, and say why
     const why = !node ? "it is no longer in the snapshot" : `its report is failing: ${node.inside?.error ?? "no report"}`;
     insideOf = null; inspectOuter = false;
     $("insidebar").hidden = true; document.body.classList.remove("inside");
     scene.theme = null;
     hideUnder();
+    stopApps();
     console.error(`obs_factor: left the inside view, ${why}`);
   }
-  snap = insideOf ? interiorSnapshot(outerSnap, node) : outerSnap;
+  snap = insideOf ? (apps.active ? apps.snapshot(outerSnap) : interiorSnapshot(outerSnap, node)) : outerSnap;
   if (insideOf) under.setSnapshot(outerSnap);
   const changed = scene.setSnapshot(snap);
   chips.update(snap);
@@ -197,6 +205,7 @@ function showView() {
     $("inside-kind").textContent = [i.kind, ...Object.entries(i.versions).map(([k, v]) => `${k} ${v}`)].join(" · ");
   }
   if (inspector.open) inspector.update(inspectOuter ? outerSnap : snap);
+  if (apps.active) renderApps();
   missions.applyLens(); // the lens follows the view: the floor, or the floor under the inside
   dirty = true;
   return changed;
@@ -213,6 +222,7 @@ function enter(id) {
     scene.theme = "inside";
     document.body.classList.add("inside");
     $("insidebar").hidden = false;
+    renderApps();
     showView();
     scene.fit(freeArea());
     lineUpUnder();
@@ -259,6 +269,7 @@ function leave() {
   const id = insideOf;
   insideOf = null; inspectOuter = false;
   inspector.close();
+  stopApps();
   scene.selected = null; scene.hover = null;
   scene.theme = null;
   document.body.classList.remove("inside");
@@ -281,12 +292,14 @@ function leave() {
 // A click on the floor: a building with an inside opens; anything else is inspected.
 function activate(id) {
   const node = snap.nodes.find((n) => n.id === id);
+  if (apps.active) return pickProc(id);
   if (!insideOf && canEnter(node)) enter(id);
   else select(id);
 }
 
 function select(id, flyTo = false) {
   if (!snap) return;
+  if (apps.active) { pickProc(id); if (flyTo) centreOn(id); return; }
   scene.selected = id;
   inspectOuter = false;
   inspector.show(id, snap, { history: !insideOf });
@@ -451,6 +464,7 @@ $("build-form").addEventListener("submit", async (e) => {
 const beam = new BeamPanel({
   onOpen: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); missions.toggle(false); inspector.close(); },
   onExplore: (preset) => logs.open(preset),
+  onApps: () => enterObserver(),
 });
 
 // ---- missions (missions.js) ---------------------------------------------
@@ -542,13 +556,128 @@ function onSnapshot(s) {
 }
 
 $("backbtn").addEventListener("click", () => leave());
+
+// ---- the Applications floor (apps.js) ---------------------------------------
+// Inside a building that reports (or the observer's own BEAM, from Under the
+// hood): "Applications" swaps the machine room for the building's OTP
+// applications, fed by the observer:<node>:<member>:apps / :tree:<app>
+// feeds. A click opens the process (apps_proc.js). Leaving, or switching
+// mode, member or application, drops the feeds no longer shown.
+const OBSERVER = "observer";
+let appsFit = false; // fit the camera once the new floor has its trees
+const procPanel = new ProcPanel({
+  onClose: () => { scene.selected = null; dirty = true; },
+  onPid: (pid) => { const n = snap?.nodes.find((x) => x.otp?.pid === pid); if (n) pickProc(n.id, true); },
+});
+const apps = new AppsFloor({
+  onChange: (refit) => {
+    if (!insideOf || !apps.active || !outerSnap) return;
+    if (refit) appsFit = true;
+    const changed = showView();
+    if (appsFit && changed) scene.fit(freeArea());
+    if (appsFit && apps.topics().every((t) => t.endsWith(":apps") || apps.trees.has(t.slice(t.lastIndexOf("tree:") + 5)))) appsFit = false;
+    if (procPanel.open) procPanel.follow(snap.nodes.find((n) => n.id === scene.selected) ?? null);
+  },
+});
+function appsTarget(id) {
+  if (id === OBSERVER) return { node: OBSERVER, label: "the observer (obs_factor)", member: null, members: [] };
+  const n = outerSnap.nodes.find((x) => x.id === id);
+  const members = (n?.inside?.members ?? []).map((m) => m.address).filter(Boolean);
+  return { node: id, label: n?.label ?? id, member: members.length > 1 ? members[0] : null, members };
+}
+function setMode(mode) {
+  if (!insideOf) return;
+  if (mode === "apps" && !apps.active) { apps.start(appsTarget(insideOf)); appsFit = true; }
+  if (mode === "machine" && apps.active) { if (insideOf === OBSERVER) return; stopApps(); }
+  scene.selected = null; inspector.close();
+  showView();
+  scene.fit(freeArea());
+  dirty = true;
+}
+function stopApps() {
+  apps.stop(); procPanel.close();
+  document.body.classList.remove("apps");
+  $("apps-info").hidden = true;
+}
+function pickProc(id, flyTo = false) {
+  const n = snap.nodes.find((x) => x.id === id);
+  if (!n?.otp || n.otp.group) { procPanel.close(); scene.selected = id; dirty = true; renderApps(n?.reason); return; }
+  scene.selected = id;
+  procPanel.show(n, apps.target);
+  // keep the picked building in view beside the panel / above the sheet
+  const [sx, sy] = scene.toScreen(scene.nodeCenter(id));
+  const f = freeArea();
+  if (flyTo || sx < f.x + 40 || sx > f.x + f.w - 40 || sy < f.y + 40 || sy > f.y + f.h - 20) centreOn(id, scene.cam.z);
+  dirty = true;
+}
+function enterObserver() {
+  if (!outerSnap) return;
+  beam.toggle(false);
+  if (insideOf) leave();
+  inspector.close();
+  insideOf = OBSERVER; inspectOuter = false;
+  scene.selected = null; scene.hover = null;
+  scene.theme = "inside";
+  document.body.classList.add("inside");
+  $("insidebar").hidden = false;
+  apps.start(appsTarget(OBSERVER)); appsFit = true;
+  showView();
+  scene.fit(freeArea());
+  lineUpUnder();
+  $("under").classList.add("on");
+  dirty = true;
+}
+// the bar: mode, member, application in focus; the line under the floor:
+// what was read, how long it took, what is not drawn and why
+function renderApps(note) {
+  const on = apps.active;
+  document.body.classList.toggle("apps", on);
+  // panels start under the inside bar and the attention strip, whichever is lower
+  const bars = [$("insidebar"), $("attention")].filter((el) => !el.hidden).map((el) => el.getBoundingClientRect().bottom);
+  document.body.style.setProperty("--ibh", `${$("insidebar").offsetHeight || 49}px`);
+  document.body.style.setProperty("--aptop", `${Math.max(0, ...bars)}px`);
+  const obs = insideOf === OBSERVER;
+  for (const b of $("apps-mode").querySelectorAll("button")) {
+    b.setAttribute("aria-pressed", String((b.dataset.mode === "apps") === on));
+    if (b.dataset.mode === "machine") { b.disabled = obs; b.title = obs ? "the observer reports no machine room of its own: Under the hood shows its VM" : ""; }
+  }
+  $("inspect-outer").hidden = obs;
+  const t = apps.target;
+  const mem = $("apps-member");
+  mem.hidden = !on || !t || t.members.length < 2;
+  if (!mem.hidden) mem.innerHTML = t.members.map((a) => `<option value="${esc(a)}"${a === t.member ? " selected" : ""}>${esc(a)}</option>`).join("");
+  const foc = $("apps-focus");
+  foc.hidden = !on;
+  if (on) {
+    const opts = [["", "all applications"], ...apps.choices().map((a) => [a, a])];
+    const html = opts.map(([v, l]) => `<option value="${esc(v)}"${v === (apps.focus ?? "") ? " selected" : ""}>${esc(l)}</option>`).join("");
+    if (foc.dataset.html !== html) { foc.innerHTML = html; foc.dataset.html = html; }
+  }
+  const info = $("apps-info");
+  info.hidden = !on || !snap?.apps;
+  if (info.hidden) return;
+  const i = snap.apps;
+  const ms = i.trees_ms.length ? `trees ${Math.min(...i.trees_ms)}–${Math.max(...i.trees_ms)} ms` : "no tree read yet";
+  const alerts = snap.attention.filter((a) => a.severity === "alert" || a.severity === "warn");
+  info.innerHTML = `<div class="ap-line"><b>${esc(i.node ?? "?")}</b> · ${esc(i.count ?? "?")} applications, ${i.drawn.length} drawn · apps read ${esc(i.took_ms ?? "?")} ms, ${esc(ms)} · ${apps.topics().length} feeds</div>
+    ${note ? `<div class="ap-line">${esc(note)}</div>` : ""}
+    ${alerts.map((a) => `<div class="ap-line ${a.severity}">${esc(a.text)}</div>`).join("")}
+    ${i.cut.length ? `<div class="ap-line warn">cut: ${esc(i.cut.join("; "))}</div>` : ""}
+    <div class="ap-line unk">not drawn: ${esc(i.trivial.map((x) => x.name).join(", ") || "none")} <i>(libraries with no processes, or one empty supervisor)</i></div>`;
+}
+$("apps-info").addEventListener("click", (e) => e.currentTarget.classList.toggle("open"));
+$("apps-mode").addEventListener("click", (e) => { const b = e.target.closest("[data-mode]"); if (b && !b.disabled) setMode(b.dataset.mode); });
+$("apps-member").addEventListener("change", (e) => { procPanel.close(); scene.selected = null; apps.setMember(e.target.value); });
+$("apps-focus").addEventListener("change", (e) => { procPanel.close(); scene.selected = null; apps.setFocus(e.target.value || null); });
+window.__obsFactorApps = { apps, procPanel, enterObserver, setMode };
+// ---- end the Applications floor ---------------------------------------------
 $("inspect-outer").addEventListener("click", () => {
   if (!insideOf) return;
   inspectOuter = true;
   scene.selected = null;
   inspector.show(insideOf, outerSnap, { history: true });
 });
-window.addEventListener("keydown", (e) => { if (e.key === "Escape" && insideOf && !inspector.open) leave(); });
+window.addEventListener("keydown", (e) => { if (e.key === "Escape" && !e.defaultPrevented && insideOf && !inspector.open && !procPanel.open) leave(); });
 
 connect({
   onSnapshot,

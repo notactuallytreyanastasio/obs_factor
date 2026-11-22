@@ -1,0 +1,86 @@
+/* The Applications floor (apps.js, apps_proc.js). */
+
+/* the inside bar's height, measured by main.js renderApps (the bar wraps on a phone) */
+body.inside #attention { top: calc(var(--top) + var(--ibh, 49px)); }
+
+#insidebar { flex-wrap: wrap; row-gap: 6px; }
+#insidebar .ap-bar { display: flex; gap: 8px; align-items: center; }
+.ap-mode { display: inline-flex; border: 1px solid rgba(76,201,240,0.5); border-radius: 9px; overflow: hidden; }
+#insidebar .ap-mode button { border: 0; border-radius: 0; background: transparent; min-height: 32px; padding: 5px 11px; }
+#insidebar .ap-mode button + button { border-left: 1px solid rgba(76,201,240,0.35); }
+#insidebar .ap-mode button[aria-pressed="true"] { background: rgba(76,201,240,0.34); color: #fff; font-weight: 700; }
+#insidebar .ap-mode button:disabled { opacity: 0.4; cursor: not-allowed; }
+#insidebar select { background: #0f2a36; color: #cdefff; border: 1px solid rgba(76,201,240,0.5); border-radius: 8px; min-height: 34px; padding: 4px 8px; max-width: 46vw; font: inherit; font-size: 13px; }
+#insidebar select[hidden] { display: none; }
+#insidebar #inspect-outer[hidden] { display: none; }
+@media (max-width: 760px) {
+  #insidebar .ap-bar { flex-basis: 100%; }
+  #insidebar .ap-mode button { font-size: 13px; padding: 5px 9px; }
+}
+
+/* what was read, what was cut, what is not drawn */
+#apps-info {
+  position: fixed; left: 12px; bottom: calc(62px + var(--safe-b)); z-index: 14; max-width: min(620px, calc(100vw - 24px));
+  background: rgba(10, 26, 34, 0.9); border: 1px solid rgba(76,201,240,0.35); border-radius: 10px; padding: 7px 11px;
+  font-size: 12.5px; line-height: 1.4; color: #cfe3ec; max-height: 30vh; overflow-y: auto; cursor: pointer;
+}
+#apps-info[hidden] { display: none; }
+#apps-info .ap-line + .ap-line { margin-top: 3px; }
+#apps-info .ap-line.warn { color: #ffd08a; }
+#apps-info .ap-line.alert { color: #ffb4ad; font-weight: 600; }
+#apps-info .ap-line.unk i { font-style: normal; color: var(--dim); }
+@media (max-width: 759px) {
+  #apps-info:not(.open) { max-height: 3.2em; overflow: hidden; }
+  body.ap-inspecting #apps-info { display: none; }
+}
+@media (min-width: 760px) { body.ap-inspecting #apps-info { max-width: calc(100vw - 450px); } }
+
+/* the process panel: where the inspector goes */
+#apps-proc {
+  position: fixed; z-index: 18; background: var(--panel); border: 1px solid var(--line);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.55); overflow: hidden; display: flex; flex-direction: column;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+#apps-proc[hidden] { display: none; }
+#apps-proc .ap-body { overflow-y: auto; overscroll-behavior: contain; padding: 0 20px calc(24px + var(--safe-b)); flex: 1; }
+#apps-proc .close { position: absolute; top: 12px; right: 12px; margin: 0; width: 44px; height: 44px; z-index: 2; background: var(--panel-solid); }
+@media (max-width: 759px) {
+  #apps-proc { left: 0; right: 0; bottom: 0; height: 58vh; border-radius: 18px 18px 0 0; border-bottom: 0; }
+}
+@media (min-width: 760px) {
+  #apps-proc { top: calc(var(--aptop, 101px) + 10px); right: 10px; bottom: 10px; width: 420px; border-radius: 14px; }
+  #apps-proc .grab { display: none; }
+  #apps-proc .ap-body { padding-top: 18px; }
+  body.ap-inspecting #controls { right: 440px; }
+}
+#apps-proc .note { font-size: 13.5px; }
+#apps-proc .note.err { color: #ffb4ad; }
+#apps-proc .ap-ok { color: #9ef0c0; }
+#apps-proc .ap-moved { color: #7fe0ff; }
+.ap-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.ap-acts button, .ap-confirm button {
+  min-height: 38px; padding: 7px 14px; border-radius: 9px; cursor: pointer;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.2);
+}
+.ap-acts button:hover, .ap-confirm button:hover { background: rgba(255,255,255,0.12); }
+.ap-acts button.danger, .ap-confirm button.danger { border-color: rgba(255,77,77,0.6); color: #ffc2bd; }
+.ap-acts button:disabled, .ap-confirm button:disabled { opacity: 0.5; cursor: wait; }
+.ap-confirm { margin-top: 12px; padding: 12px; border-radius: 10px; border: 1px solid rgba(255,159,28,0.55); background: rgba(255,159,28,0.08); }
+.ap-confirm p { margin: 0 0 8px; }
+.ap-confirm input { width: 100%; margin: 0 0 8px; min-height: 38px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: #0b0f1a; color: var(--text); font: inherit; }
+.ap-stack { margin: 0; padding-left: 22px; font-family: var(--mono); font-size: 12px; }
+.ap-stack li { margin-bottom: 3px; word-break: break-word; }
+.ap-keys code { display: inline-block; font-size: 12px; background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 4px; margin: 0 4px 4px 0; }
+.ap-pre { white-space: pre-wrap; word-break: break-word; font-size: 12px; max-height: 240px; overflow: auto; background: rgba(0,0,0,0.25); padding: 8px; border-radius: 6px; }
+#apps-proc .kv dd a { color: var(--cyan); }
+ul.ap-seen { list-style: none; margin: 0; padding: 0; font-size: 12.5px; }
+ul.ap-seen li { padding: 4px 0; border-bottom: 1px solid var(--line); word-break: break-word; }
+ul.ap-seen li.bad { color: #ffb4ad; }
+ul.ap-seen time { color: var(--muted); font-family: var(--mono); }
+
+/* Under the hood: the way in */
+#beam .bm-apps {
+  display: block; width: 100%; margin: 6px 0 10px; padding: 9px 12px; border-radius: 9px; cursor: pointer; text-align: left;
+  background: rgba(76,201,240,0.12); border: 1px solid rgba(76,201,240,0.5); color: #cdefff; font-weight: 600;
+}
+#beam .bm-apps:hover { background: rgba(76,201,240,0.24); }

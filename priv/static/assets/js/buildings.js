@@ -23,6 +23,8 @@ export const HEIGHT = {
 // A node's own building if its style is one this page draws, else its kind's.
 export const styleOf = (n) => (n.style && STYLES[n.style] ? n.style : null);
 export function heightOf(n) {
+  // a node that says how tall it is (apps.js: from a process's memory)
+  if (typeof n.height === "number" && Number.isFinite(n.height)) return n.height;
   const st = styleOf(n);
   let h = st ? STYLE_HEIGHT[st] : HEIGHT[n.kind] ?? 1.5;
   if (st && n.kind === "relay") h = Math.max(h, 3.0);

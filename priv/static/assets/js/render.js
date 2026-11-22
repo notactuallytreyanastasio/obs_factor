@@ -194,7 +194,7 @@ export class Scene {
       if (b.node.status === "down") drawPadRing(ctx, b, "#ff4d4d", 0.5 + 0.4 * Math.sin(t * 4), 2.5);
       else if (b.node.status === "blocked") drawPadRing(ctx, b, "#ff9f1c", 0.75, 2);
       drawBuilding(ctx, b, s);
-      if (b.node.container || b.node.inside) drawFittings(ctx, b, s);
+      if (b.node.container || b.node.inside || b.node.fittings) drawFittings(ctx, b, s);
       drawLamp(ctx, b, s);
     }
     this.drawPower(t, z);
@@ -215,7 +215,7 @@ export class Scene {
         drawPad(ctx, b, s);
         drawPadRing(ctx, b, sev === "alert" ? "#ff5a5a" : "#ffb347", pulse, 3);
         drawBuilding(ctx, b, s);
-        if (b.node.container || b.node.inside) drawFittings(ctx, b, s);
+        if (b.node.container || b.node.inside || b.node.fittings) drawFittings(ctx, b, s);
         drawLamp(ctx, b, s);
       }
     }
@@ -260,7 +260,9 @@ export class Scene {
     const unitsInside = n.inside?.ok ? (n.inside.units ?? []).reduce((a, x) => a + (isNum(x.count) ? x.count : 0), 0) : null;
     return {
       unitsInside,
-      memFrac, memLimited, inFlight: flights.reduce((a, v) => a + v, 0), containers,
+      memFrac, memLimited, containers,
+      // crates at the dock: requests in flight, or a process's mailbox (apps.js n.queue)
+      inFlight: isNum(n.queue) ? n.queue : flights.reduce((a, v) => a + v, 0),
       col: tn, t: t + (b.seed % 1000) / 137, status: st, on: st === "working" || (st === "blocked" && n.kind !== "resource"),
       load, accent: b.accent, seed: b.seed,
       holdColors: n.holds?.length ? n.holds.map((_, i) => HOLD_COLORS[i % HOLD_COLORS.length]) : [],

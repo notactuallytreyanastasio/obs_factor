@@ -17,7 +17,7 @@ const LEVELS = ["debug", "info", "warning", "error"];
 const MEM_PARTS = [["processes", "#7c8cff"], ["ets", "#61e294"], ["binary", "#ffd166"], ["code", "#7fe0ff"], ["atom", "#c792ea"], ["system", "#8b93a7"]];
 
 export class BeamPanel {
-  constructor({ onOpen, onExplore }) {
+  constructor({ onOpen, onExplore, onApps }) {
     this.el = $("beam");
     this.onOpen = onOpen;
     this.unsub = null;
@@ -30,6 +30,7 @@ export class BeamPanel {
     this.el.innerHTML = `
       <div class="bm-head"><h3>Under the hood <span class="unk">the observer's own BEAM</span></h3>
         <button class="iconbtn" data-close aria-label="Close">×</button></div>
+      <button type="button" class="bm-apps" title="The observer's BEAM as a building: its OTP applications, supervision trees and processes">Applications floor ↗</button>
       <div class="bm-vm"></div>
       <h4>Supervision tree <span class="unk">ObsFactor.Supervisor, one_for_one</span></h4>
       <div class="bm-procs"></div>
@@ -46,6 +47,7 @@ export class BeamPanel {
     this.tabEl = this.el.querySelector(".bm-tables");
     this.logEl = this.el.querySelector(".bm-log");
     this.el.querySelector("[data-close]").addEventListener("click", () => this.toggle(false));
+    this.el.querySelector(".bm-apps").addEventListener("click", () => onApps?.());
     this.el.querySelector(".bm-explore").addEventListener("click", () => onExplore?.({ service: ["observer"], query: this.filter }));
     this.logEl.title = "Click to search these logs";
     this.logEl.addEventListener("click", () => { if (!window.getSelection()?.toString()) onExplore?.({ service: ["observer"], query: this.filter }); });

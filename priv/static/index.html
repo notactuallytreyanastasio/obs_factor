@@ -7,6 +7,7 @@
   <title>obs_factor</title>
   <link rel="stylesheet" href="/assets/app.css">
   <link rel="stylesheet" href="/assets/missions.css">
+  <link rel="stylesheet" href="/assets/apps.css">
   <script type="module" src="/assets/js/main.js"></script>
 </head>
 <body class="factory">
@@ -43,7 +44,18 @@
     </button>
     <div class="where"><span class="lead">inside</span> <b id="inside-name"></b> <span id="inside-kind"></span></div>
     <button type="button" id="inspect-outer">Inspect the building</button>
+    <!-- apps.js: machine room or applications; which member; which application -->
+    <div class="ap-bar">
+      <div class="ap-mode" id="apps-mode" role="group" aria-label="What to show inside">
+        <button type="button" data-mode="machine" aria-pressed="true">Machine room</button><button type="button" data-mode="apps" aria-pressed="false">Applications</button>
+      </div>
+      <select id="apps-member" hidden aria-label="Which member of the cluster"></select>
+      <select id="apps-focus" hidden aria-label="Which applications to draw"></select>
+    </div>
   </div>
+  <!-- apps.js: what the Applications floor read, and what it did not draw -->
+  <div id="apps-info" hidden></div>
+  <aside id="apps-proc" hidden aria-label="Process"></aside>
   <div id="attention" hidden>
     <span class="title">Needs attention:</span>
     <div class="items" id="attention-items"></div>
