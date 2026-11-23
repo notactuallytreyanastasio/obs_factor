@@ -158,7 +158,8 @@ topic (`{path: "proc/0.284.0/gc", by}`) goes to the app with
 refetches that node's feeds at once. Checked in headless Chrome against
 `mix phx.server` on the lab: `observer:observer:-:tree:obs_factor` pushed
 every 2 s, a gc pushed on it was answered, came back on `actions`, and the
-tree was pushed again 5 ms later. No page shows these feeds yet; the lab's
+tree was pushed again 5 ms later. The Processes panel (below) shows the
+`procs` and `proc` feeds; no page shows the others yet. The lab's
 buildings report on Docker-network names, so only node `observer` was
 checked from outside the container. docs/contract.md "Observer: a
 building's BEAM, live", "On the bus".
@@ -177,7 +178,40 @@ request in the whole session. With the server stopped the bar said
 websocket from http://127.0.0.1:14201: CHECK_ORIGIN allows ["//localhost"]`;
 restarted without, `live` again with no reload.
 
-### The tour, and under the hood
+### Processes: every BEAM's processes in one table
+
+**Processes** (the control bar, or the menu on a phone) is `:observer`'s
+Processes tab across the floor: scope one building, every reporting
+building (one source per cluster member), or the observer's own VM. Each
+source is the feed `observer:<node>:<member or ->:procs:<sort>`, the top 50
+by memory, mailbox or reductions in the last second; clicking the mailbox,
+memory or reductions/s column asks every source for its top 50 by that.
+A source that fails says why on its own line; its last rows stay, greyed.
+Search uses the log explorer's syntax with process fields
+(`mq:>100 node:marginalia* -status:waiting memory:>1MB name:Runs`; an
+unknown field is an error, not an empty result). `/` searches, the arrows
+pick, Enter opens the process (`observer:...:proc:<pid>`, every second)
+with GC, Exit(shutdown) and Kill: each asks you to confirm and to say who
+you are, and goes out as an `action` push, so it is logged and everyone
+sees it under "Actions on the floor". ↗ flies to the building and says
+which member a cluster's process is on. The **metric lens** lights each
+reporting building by its worst process (mailbox ≥ 100 / 1000, memory ≥
+50 / 200 MB, reductions ≥ 500k / 2M per second, amber / red) and lists the
+sources it could not read; it and the Missions issues lens share one owner,
+named in a badge with an Off button. **⌘K / Ctrl+K** jumps to a building,
+an undone objective or a process seen lately. Closing the panel, or
+changing its scope or ranking, leaves those feeds.
+
+Checked in headless Chrome at 1440×900 and 390×844 against `mix phx.server`
+with a second local BEAM running `FactoryReport` on 127.0.0.1:19599 (a
+scratch topology adding it as a building) holding a process with 2500
+messages: the lens lit that building red, `mq:>100` found the process, Kill
+answered `gone, :killed` and the detail then said `answered 404: no process
+... (not alive)`; GC on the observer's own `:erts_code_purger` answered and
+came back on `actions`; the lab's `liveapp` showed `answered 502:
+liveapp:9568: host not found` on its own line. No `/api` request after
+load, and no observer frame in the 5 s after the panel closed.
+
 
 **Tour** (bottom bar, or the ☰ menu on a phone, or `/?tour`) walks the
 live page in 19 stops: the floor, the live clock, the attention strip, the

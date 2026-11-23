@@ -15,6 +15,8 @@ import { Missions } from "./missions.js";
 import { AppsFloor } from "./apps.js";
 import { ProcPanel } from "./apps_proc.js";
 import "./apps_buildings.js";
+import { Processes } from "./processes.js"; // processes.js
+import { JumpList } from "./jump.js"; // jump.js
 
 const $ = (id) => document.getElementById(id);
 const canvas = $("floor");
@@ -54,6 +56,8 @@ function freeArea() {
   let x = 0, y = top, fw = w, fh = h - top;
   // missions.js: the panel on the left, beside the floor, on a desktop
   if (missions.open && w >= 760) { const r = missions.el.getBoundingClientRect(); x = r.right; fw = w - x; }
+  // processes.js: the same, for the Processes panel
+  if (procs.open && w >= 760) { const r = procs.el.getBoundingClientRect(); x = r.right; fw = w - x; }
   const side = inspector.open ? inspector.el : procPanel.open ? procPanel.el : null; // apps.js: the process panel sits where the inspector does
   if (side) {
     const r = side.getBoundingClientRect();
@@ -180,20 +184,28 @@ function zoomAt(sx, sy, factor) {
 
 function showView() {
   const node = insideOf && outerSnap.nodes.find((n) => n.id === insideOf);
-  // apps.js: the observer's own BEAM is entered from Under the hood, not from a building
-  if (insideOf && insideOf !== OBSERVER && !canEnter(node)) {
-    // the building is gone or stopped reporting: back to the floor, and say why
+  // apps.js: the observer's own BEAM is entered from Under the hood, not from a building.
+  // The Applications floor stays while the building is on the floor, report
+  // failing or not: it reads its own feeds, and each shows its own error.
+  let forcedOut = false;
+  if (insideOf && insideOf !== OBSERVER && !canEnter(node) && !(apps.active && node)) {
+    // the building is gone or stopped reporting: back to the floor, and say why on screen
+    const label = node?.label ?? insideOf;
     const why = !node ? "it is no longer in the snapshot" : `its report is failing: ${node.inside?.error ?? "no report"}`;
     insideOf = null; inspectOuter = false;
     $("insidebar").hidden = true; document.body.classList.remove("inside");
     scene.theme = null;
+    inspector.close();
     hideUnder();
     stopApps();
+    leftNotice(`Left the inside of ${label}: ${why}`);
     console.error(`obs_factor: left the inside view, ${why}`);
+    forcedOut = true;
   }
   snap = insideOf ? (apps.active ? apps.snapshot(outerSnap) : interiorSnapshot(outerSnap, node)) : outerSnap;
   if (insideOf) under.setSnapshot(outerSnap);
   const changed = scene.setSnapshot(snap);
+  if (forcedOut) scene.fit(freeArea());
   chips.update(snap);
   topbar.snapshot(outerSnap);
   renderAttention(outerSnap, scene.problems, (id) => { if (insideOf) leave(); select(id, true); }, () => toggleLegend(true));
@@ -207,12 +219,29 @@ function showView() {
   if (inspector.open) inspector.update(inspectOuter ? outerSnap : snap);
   if (apps.active) renderApps();
   missions.applyLens(); // the lens follows the view: the floor, or the floor under the inside
+  lens.apply();
   dirty = true;
   return changed;
 }
 
+// Why the inside view was left without being asked: on screen until
+// dismissed or until a building is entered again.
+function leftNotice(text) {
+  let el = $("left-notice");
+  if (!el) {
+    el = document.createElement("button");
+    el.type = "button"; el.id = "left-notice"; el.setAttribute("role", "status");
+    el.title = "Dismiss";
+    el.addEventListener("click", () => { el.hidden = true; });
+    document.body.appendChild(el);
+  }
+  el.textContent = text;
+  el.hidden = !text;
+}
+
 function enter(id) {
   if (insideOf || !outerSnap) return;
+  leftNotice("");
   const c = scene.nodeCenter(id);
   if (!c) return;
   inspector.close();
@@ -443,6 +472,9 @@ $("build-form").addEventListener("submit", async (e) => {
   err.hidden = true;
   const body = { name: f.name.value.trim(), mode: f.mode.value };
   if (body.mode === "github") { body.repo = f.repo.value.trim(); body.ref = f.ref.value.trim(); }
+  // who is asking, as every action says it (the name missions.js keeps); the
+  // request is broadcast on "actions" with it, or as "nobody said"
+  try { const who = localStorage.getItem("obs_factor.who"); if (who) body.by = who; } catch { /* no storage: nobody said */ }
   $("build-go").disabled = true;
   try {
     const r = await fetch("/api/builds", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify(body) });
@@ -467,6 +499,42 @@ const beam = new BeamPanel({
   onApps: () => enterObserver(),
 });
 
+// ---- lens owner (missions.js, processes.js) ------------------------------
+// scene.focus (the lens: buildings drawn above a veil) has one owner at a
+// time. claim(owner, {map, label, detail, onDrop}) takes it, and the owner
+// before is told with its onDrop; drop(owner) lets go. Inside a building the
+// lens lights the floor underneath (its ids are the floor's). The badge
+// under the top bar names the owner and turns it off.
+const lens = (() => {
+  let cur = null;
+  const badge = document.createElement("div");
+  badge.id = "lensbadge";
+  badge.hidden = true;
+  document.body.appendChild(badge);
+  badge.addEventListener("click", (e) => { if (e.target.closest("[data-off]") && cur) drop(cur.owner, true); });
+  function apply() {
+    const m = cur?.map ?? null;
+    scene.focus = m && !insideOf ? m : null;
+    under.focus = m && insideOf ? m : null;
+    badge.hidden = !cur;
+    if (cur) badge.innerHTML = `<b>${esc(cur.label)}</b>${cur.detail ? ` <span>${esc(cur.detail)}</span>` : ""} <button type="button" data-off>Off</button>`;
+    dirty = true;
+  }
+  function claim(owner, o) {
+    if (cur && cur.owner !== owner) { const prev = cur; cur = null; prev.onDrop?.(); }
+    cur = { owner, ...o };
+    apply();
+  }
+  function drop(owner, tell = false) {
+    if (!cur || cur.owner !== owner) return;
+    const prev = cur; cur = null;
+    apply();
+    if (tell) prev.onDrop?.();
+  }
+  return { claim, drop, apply, owner: () => cur?.owner ?? null };
+})();
+// ---- end lens owner -------------------------------------------------------
+
 // ---- missions (missions.js) ---------------------------------------------
 // Objectives to check and cross off. Go leaves the inside first; Flag pins
 // the selected building, or, inside one, the building we are in.
@@ -475,6 +543,7 @@ const missions = new Missions({
   outer: () => outerSnap,
   insideOf: () => insideOf,
   scenes: () => [scene, under],
+  lens,
   go: (id) => {
     if (!outerSnap) return "no snapshot yet";
     if (!outerSnap.nodes.some((n) => n.id === id)) return `${id} is not on the floor in the current snapshot`;
@@ -488,6 +557,9 @@ const missions = new Missions({
   },
   target: () => {
     if (!outerSnap) return null;
+    // the observer's own floor is not a building: a pin to "observer" could
+    // never be gone to or lit by the lens
+    if (insideOf === OBSERVER) return null;
     if (insideOf) {
       if (!inspectOuter && !scene.selected) return null;
       const b = outerSnap.nodes.find((n) => n.id === insideOf);
@@ -497,10 +569,46 @@ const missions = new Missions({
     const n = scene.selected && outerSnap.nodes.find((x) => x.id === scene.selected);
     return n ? { id: n.id, label: n.label, part: null } : null;
   },
-  onOpen: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); if (window.innerWidth < 760) inspector.close(); },
+  noTarget: () => (insideOf === OBSERVER
+    ? "This is the observer's own VM, not a building on the floor: an objective pinned here could never be gone to or lit by the lens. Flag the building the problem shows up in."
+    : null),
+  onOpen: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); procs.toggle(false); if (window.innerWidth < 760) inspector.close(); },
   redraw: () => { dirty = true; },
 });
 // ---- end missions ---------------------------------------------------------
+
+// ---- processes (processes.js) and the jump list (jump.js) -----------------
+// Go: leave the inside first, then fly; on a phone the panel gets out of the way.
+function goTo(id, closePanel) {
+  if (!outerSnap) return "no snapshot yet";
+  if (!outerSnap.nodes.some((n) => n.id === id)) return `${id} is not on the floor in the current snapshot`;
+  let z = null;
+  if (insideOf) { leave(); z = Math.max(fly ? fly.to.z : scene.cam.z, 0.85); }
+  if (window.innerWidth < 760) closePanel?.();
+  select(id, true);
+  if (z) centreOn(id, z);
+  return null;
+}
+const procs = new Processes({
+  outer: () => outerSnap,
+  lens,
+  // the panel stays beside the floor only if the building and the inspector fit beside it
+  go: (id) => {
+    if (window.innerWidth - procs.el.getBoundingClientRect().right < 760) procs.toggle(false);
+    return goTo(id, () => procs.toggle(false));
+  },
+  onOpen: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); missions.toggle(false); if (window.innerWidth < 760) inspector.close(); },
+  redraw: () => { dirty = true; },
+});
+const jump = new JumpList({
+  outer: () => outerSnap,
+  go: (id) => goTo(id, () => { procs.toggle(false); missions.toggle(false); }),
+  recent: () => procs.recent(),
+  openProc: (row) => procs.openProc(row),
+});
+$("procsbtn2")?.addEventListener("click", () => toggleMenu(false));
+$("jumpbtn")?.addEventListener("click", () => toggleMenu(false));
+// ---- end processes ----------------------------------------------------------
 $("logsbtn").addEventListener("click", () => { toggleMenu(false); logs.open(); });
 $("beambtn").addEventListener("click", () => beam.toggle());
 
@@ -518,7 +626,7 @@ const tour = new Tour({
   select: (id, flyTo = false) => select(id, flyTo),
   centreOn: (id) => centreOn(id),
   closeInspector: () => inspector.close(),
-  closeAll: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); missions.toggle(false); inspector.close(); logs.close(); if (insideOf) leave(); },
+  closeAll: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); missions.toggle(false); procs.toggle(false); jump.close(); inspector.close(); logs.close(); if (insideOf) leave(); },
   panel: (name, open) => ({ legend: toggleLegend, sites: toggleSites })[name](open),
   fitAll: () => fitAll(true),
   nodeRect,
@@ -526,6 +634,7 @@ const tour = new Tour({
   logs,
   missions,
   apps: { enterObserver: () => enterObserver(), get apps() { return apps; } },
+  get procs() { return procs; },
 });
 $("tourbtn").addEventListener("click", () => tour.start());
 $("beambtn2").addEventListener("click", () => { toggleMenu(false); beam.toggle(true); });
@@ -690,7 +799,7 @@ connect({
 
 let lastCam = "";
 const stats = { frames: 0, ms: 0, worst: 0 };
-window.__obsFactor = { stats, scene, under, tour, beam, logs, missions };
+window.__obsFactor = { stats, scene, under, tour, beam, logs, missions, procs, jump, lens };
 
 function frame(now) {
   requestAnimationFrame(frame);

@@ -220,8 +220,17 @@ function drawTree(app, d, st, plat, blank, nodes, edges, attention, cap) {
       });
     } else {
       const sup = t.type === "supervisor";
-      const lamp = t.pid == null ? "down" : LAMP[t.status] ?? "unknown";
-      const reason = t.pid == null ? `not running: its supervisor lists child ${t.id} with no process (its init returned :ignore, or it stopped and was not restarted)`
+      // A live supervisor cannot hold a crashed permanent child: it restarts
+      // it or dies itself. So a child with no process ran and finished
+      // (transient/temporary), returned :ignore from its start (Phoenix's
+      // endpoint :warmup, DNSCluster with no query), or was stopped with
+      // terminate_child. None of those is down; it is idle, said which.
+      const finished = t.pid == null && t.status === "finished";
+      const absent = t.pid == null && !finished && t.status !== "restarting";
+      const lamp = finished || absent ? "idle" : t.pid == null ? "unknown" : LAMP[t.status] ?? "unknown";
+      const reason = finished ? `finished: a ${t.restart} child that ran and stopped, as it is meant to`
+        : absent ? `no process: a ${t.restart ?? "child"} whose start returned :ignore, or that was stopped with terminate_child (a crashed one would have been restarted)`
+        : t.pid == null ? `restarting`
         : lamp === "unknown" ? `status ${JSON.stringify(t.status)} is not one this page knows`
           : t.not_walked ? `children not read: ${t.not_walked}` : null;
       n = blank({
@@ -240,8 +249,7 @@ function drawTree(app, d, st, plat, blank, nodes, edges, attention, cap) {
           message_queue_len: t.message_queue_len ?? null, reductions: t.reductions ?? null, children: t.children ? t.children.length : null,
         },
       });
-      if (t.pid == null) attention.push({ node: e.id, severity: "warn", text: `${app.name}: ${procLabel(t)} is not running (no process under its supervisor)` });
-      else if ((t.message_queue_len ?? 0) >= 100) attention.push({ node: e.id, severity: "warn", text: `${app.name}: ${procLabel(t)} has ${t.message_queue_len} messages waiting` });
+      if ((t.message_queue_len ?? 0) >= 100) attention.push({ node: e.id, severity: "warn", text: `${app.name}: ${procLabel(t)} has ${t.message_queue_len} messages waiting` });
     }
     nodes.push(n);
     if (e.parent) {

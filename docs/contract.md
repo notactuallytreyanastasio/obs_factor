@@ -221,7 +221,13 @@ config :obs_factor, :feed_views, [MyViews]
 
 `ObsFactorWeb.UserSocket` routes `observer:*`, `history:*` and `builds:*` to
 `ObsFactorWeb.FeedChannel`; a topic no resolver claims is refused with
-`{reason: "no feed serves \"...\""}`. Configured resolvers:
+`{reason: "no feed serves \"...\""}`. Feeds are bounded: one socket holds at
+most 150 feed joins (`config :obs_factor, :feeds_per_socket`) and the
+observer runs at most 1000 feeds (`:feeds_max`); past either the join is
+refused with `{reason: "this page already holds 150 feeds ..."}` or
+`{reason: "1000 feeds are running ..."}`. A `proc:<pid>` or `tree:<app>`
+topic is not checked against the node before it starts (a sub-app is
+asked over HTTP); a made-up one is a feed of 404 errors. Configured resolvers:
 `ObsFactor.Feeds.ObserverViews` (every other `observer:*` topic, below).
 
 `GET /api/snapshot`, `/api/stream` (SSE), `/api/beam`, `/api/logs`,
@@ -813,14 +819,21 @@ Nothing runs until asked: no process, table or handler of its own.
 without HTTP. A pid is written `0.123.0` (`FactoryReport.Observer.pid_text/1`);
 a pid of another node is refused (400). Every answer is a JSON object with
 `"took_ms"` and `"node"` (`node()` as a string), errors included:
-`{"error": "...", "node": ..., "took_ms": ...}`.
+`{"error": "...", "node": ..., "took_ms": ...}`; the errors the plug answers
+itself (auth, off switch, body) carry `"took_ms": 0.0`.
 
 Auth. Reads need the report's token when the app was given one
 (`FACTORY_REPORT_TOKEN`, `authorization: Bearer <token>`, else 401
-`{"error": "unauthorized"}`). Actions are off (403 `{"error": "actions are
-off: no actions_token configured", "path": ...}`) unless the app sets
-`actions_token:` / `FACTORY_REPORT_ACTIONS_TOKEN`; then they take only
-`authorization: Bearer <actions_token>` (constant-time compare, else 401).
+`{"error": "unauthorized"}`). With no token, reads answer 403
+`observer reads need a token: set the reporter's token (or
+FACTORY_REPORT_TOKEN), or observer: true to serve them without one`, unless
+the app passed `observer: true` explicitly (the lab's apps do). Actions are
+off (403 `{"error": "actions are off: no actions_token configured", "path":
+...}`) unless the app sets `actions_token:` / `FACTORY_REPORT_ACTIONS_TOKEN`;
+then they take only `authorization: Bearer <actions_token>` (constant-time
+compare, else 401 `unauthorized: actions need authorization: Bearer
+<actions_token>`). A body that is not a JSON object is 400, one over 8 kB
+413.
 Every action is logged by the app at `warning`:
 `factory_report observer action: kill 0.238.0 (:engine_throwaway) by <x-factory-by>`.
 `observer: false` turns `/observer` off (404).
@@ -834,13 +847,24 @@ Reads (GET):
 | `apps` | | `{"count": n, "apps": [{"name","vsn","description","top_supervisor": pid or null,"error"}]}` (at most 200) |
 | `tree/:app` | `depth` 1..12 (8) | `{"app","supervisor","tree": node,"nodes","depth_limit","children_limit": 25,"node_limit": 1500,"time_limit_ms": 2000,"cut": {"depth","grouped","nodes","time","errors"}}` |
 | `procs` | `sort` = `reductions` (default) \| `memory` \| `message_queue_len`; `limit` 1..200 (50); `interval_ms` 0..2000 (0; > 0 only with `sort=reductions`: two samples, ranked by reductions between them) | `{"sort","limit","interval_ms","total","walked","walk_limit": 100000,"procs": [summary]}` |
-| `proc/:pid` | `state=true` (only if the app set `inspect_state: true`) | summary plus `application`, `links` `[{"pid"} \| {"port"}]`, `links_count`, `monitors`, `monitors_count`, `monitored_by`, `monitored_by_count`, `current_stacktrace` `[{"mfa","file","line"}]` (30), `dictionary_keys` (names only, 100), `dictionary_count`, `heap_size_words`, `total_heap_size_words`, `stack_size_words`, `garbage_collection`, `trap_exit`, `group_leader`, `priority`, `supervisor_path`, `state` (`{"status": "not requested"}` unless asked and allowed) |
+| `proc/:pid` | `state=true` (only if the app set `inspect_state: true`) | summary plus `application`, `links` `[{"pid"} \| {"port"}]`, `links_count`, `monitors`, `monitors_count`, `monitored_by`, `monitored_by_count`, `current_stacktrace` `[{"mfa","file","line"}]` (30), `dictionary_keys` (names only, 100), `dictionary_count` (both `null`, with `dictionary_not_read` saying why, when the process holds more than 1 MiB: listing keys copies every value), `heap_size_words`, `total_heap_size_words`, `stack_size_words`, `garbage_collection`, `trap_exit`, `group_leader`, `priority`, `supervisor_path`, `state` (`{"status": "not requested"}` unless asked and allowed) |
 | `ets` | | `{"count","limit": 500,"cut","tables": [{"id","name","named","type","protection","size","memory_bytes","owner","owner_name"}]}` by memory |
 | `ports` | | `{"count","limit": 500,"cut","ports": [{"id","name","os_pid","connected","input_bytes","output_bytes"}]}` by traffic |
 
-A process summary: `{"pid","registered_name","current_function","initial_call","status","message_queue_len","memory","reductions","links"}`.
-A tree node is a summary plus `{"id" (inspect of the child id),"type": "worker"|"supervisor","children": [node] | null,"not_walked": null | "depth limit 2" | ...}`;
-a child that is not running is `{"id","type","pid": null,"status": "not running"}`;
+A process summary: `{"pid","registered_name","current_function","initial_call","status","message_queue_len","memory","reductions","links"}`;
+in a `procs` answer with `interval_ms` > 0 each one also carries
+`reductions_delta` (reductions between the two samples) and
+`reductions_per_s` (that, per second, rounded); with `interval_ms` 0 neither
+key is there.
+A tree node is a summary plus `{"id" (inspect of the child id),"type": "worker"|"supervisor"}`;
+only a supervisor also has `"children": [node] | null` and
+`"not_walked": null | "depth limit 2" | ...` (a worker has neither key);
+a child that is not running is `{"id","type","pid": null,"status","restart","children": null,"not_walked": null}`
+with `restart` `"permanent"|"transient"|"temporary"|null` (from the supervisor's child spec; null
+for a DynamicSupervisor or no answer) and `status` `"restarting"`, `"finished"` (a transient or
+temporary child that ran and stopped, e.g. a boot-time Task: not a fault) or `"not running"` (a
+permanent child with no process, or restart unknown); a supervisor child that
+died while it was walked is `{"id","type","pid","status": "dead","children": null,"not_walked": null}`;
 children past 25 per supervisor are one `{"group": true,"count","memory","message_queue_len_max"}`.
 `which_children` is sent only to processes proc_lib started as supervisors,
 1 s timeout each. Strings are cut at 200 characters, lists at 100. Message
@@ -874,9 +898,16 @@ form 0.123.0)`, `pid 4.1.0 is not on this node (...)`, `sort must be one
 of ...`, `reason must be one of shutdown, normal, kill`, `... is not a
 supervisor`); 404 no such endpoint, application, process (`no process
 0.238.0 (not alive)`) or child; 405 the wrong method (`GET is not allowed on
-/observer/proc/0.1.0/kill; use POST`); 409 refused: the answering process,
-`init` or a `kernel` process (`refused: 0.0.0 is init; killing it stops the
-VM`), a DynamicSupervisor's child by id; 500/504 `terminate_child` or
+/observer/proc/0.1.0/kill; use POST`); 409 refused, for kill and exit: the
+answering process, `init` (`refused: 0.0.0 is init; killing it stops the
+VM`), the VM's own processes by name (`application_controller`,
+`erl_prim_loader`, `erts_code_purger`, `socket_registry`, `logger`, `user`,
+`standard_error`, `code_server`, `file_server_2`, `kernel_sup`, `user_drv`),
+anything whose group leader is init (started by erts before any
+application), any `kernel` or `stdlib` process, and any application master;
+for restart: anything in `kernel`'s or `stdlib`'s tree, a supervisor or a
+child the kill rule refuses, a `:temporary` child (terminating it deletes
+it, so it could not be restarted), and a DynamicSupervisor's child by id; 500/504 `terminate_child` or
 `restart_child` failed or did not answer in 4500 ms, or a tree walk timed out.
 
 ### Pass-through: `GET|POST /api/nodes/:id/observer/*path[?member=<address>]`
@@ -949,8 +980,18 @@ Every POST, done or refused, is recorded twice on the observer:
 
   `member` is `nil` unless given; `params` holds only `reason`,
   `supervisor`, `child_id`, `level`; `by` is `nil` when nobody said (that
-  request was refused); exactly one of `result` (the 2xx body) and `error`
-  (the message) is non-nil. Reads are not broadcast.
+  request was refused); a `by` that is blank once non-printing characters
+  are removed and it is trimmed counts as nobody said; exactly one of
+  `result` (the 2xx body) and `error` (the message) is non-nil. Reads are
+  not broadcast. A channel `action` push the channel refuses itself (no
+  `path`, `params` not an object) is recorded the same way, with `path`
+  `""` when it gave none and `params` `%{}` when they were not an object.
+
+`POST /api/builds` is recorded the same way: `node` `"builder"`, `path`
+`"builds"`, `params` the job's `name`, `mode`, `repo`, `ref`, `label`,
+`by` from `x-factory-by` or `"by"` in the body (`nil` when nobody said; a
+build does not need a name), `result` the builder's 2xx body or `error`
+its refusal (404 no builder, 502 unreachable, the builder's 4xx).
 
 ### On the bus: `observer:<node_id>:<member or ->:<view>` *(2026-11-22)*
 
@@ -1036,4 +1077,31 @@ After an action that answered 2xx, 500 or 504 (by push or by POST), every
 running feed of that node and member (`observer:<node>:<member>:`, from
 `ObserverProxy.topic_prefix/2`) is refetched at once, so the tree, the procs
 and the process show the effect without waiting for their period.
+
+
+### The Processes panel and the lenses *(2026-11-22)*
+
+The page's `processes.js` reads only the bus. Sources: every node of the
+snapshot with `inside` non-null, one per `inside.members[].address` when
+there are two or more, else member `-`; and `observer` (not on the floor).
+Topics: `observer:<node>:<member>:procs:<memory|message_queue_len|reductions>`
+per source in scope, `observer:<node>:<member>:proc:<pid>` for the open
+process, `actions` while the panel is open, `snapshots` to follow the
+floor's sources. Reductions/s is the engine's `reductions_per_s` on the
+`reductions` feed, and otherwise the difference between two reads of the
+same pid over their `at`s (`-` until there are two). Actions: `action`
+`{path: "proc/<pid>/<gc|exit|kill>", params: {} | {reason: "shutdown"}, by:
+"<name> (processes)"}` on the process's topic, after a confirm that names
+the pid, its name and the node/member; the name is localStorage
+`obs_factor.who` (the one Missions signs with), asked for when empty.
+
+Lens owner (`main.js`): `lens.claim(owner, {map, label, detail, onDrop})`,
+`lens.drop(owner)`, `lens.owner()`. `map` is what `Scene.focus` takes (node
+id → `"alert" | "warn"`); inside a building it goes on the floor underneath.
+One owner at a time: a claim calls the previous owner's `onDrop`. Owners:
+`missions` (issues lens) and `processes` (metric lens: the worst process of
+each building, from `procs:<metric>` of every reporting source; amber/red at
+mailbox 100/1000, memory 50/200 MiB, reductions 500k/2M per second).
+
+The jump list (`jump.js`, Cmd/Ctrl+K) joins `objectives` while it is open.
 

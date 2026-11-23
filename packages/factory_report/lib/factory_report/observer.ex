@@ -432,13 +432,13 @@ defmodule FactoryReport.Observer do
 
       true ->
         case which_children(pid) do
-          {:ok, list} -> walk_children(list, depth, ctx)
+          {:ok, list} -> walk_children(pid, list, depth, ctx)
           {:error, reason} -> {nil, reason, bump(ctx, "errors")}
         end
     end
   end
 
-  defp walk_children(list, depth, ctx) do
+  defp walk_children(sup, list, depth, ctx) do
     {listed, rest} =
       if length(list) > @tree_children do
         list
@@ -456,8 +456,21 @@ defmodule FactoryReport.Observer do
           walk(child, clip(inspect(id)), Atom.to_string(type), depth + 1, ctx)
 
         {id, child, type, _mods}, ctx ->
-          status = if child == :restarting, do: "restarting", else: "not running"
-          {%{"id" => clip(inspect(id)), "type" => Atom.to_string(type), "pid" => nil, "status" => status, "children" => nil, "not_walked" => nil}, %{ctx | nodes: ctx.nodes + 1}}
+          restart = restart_type(sup, id)
+
+          # A child with no process is only a problem if its supervisor meant
+          # to keep it running. :transient and :temporary children that ran
+          # and stopped (a boot-time Task such as marginalia's :warmup, or
+          # kernel's :on_load) are "finished"; they read as down otherwise.
+          status =
+            cond do
+              child == :restarting -> "restarting"
+              restart in ["transient", "temporary"] -> "finished"
+              true -> "not running"
+            end
+
+          {%{"id" => clip(inspect(id)), "type" => Atom.to_string(type), "pid" => nil, "status" => status,
+             "restart" => restart, "children" => nil, "not_walked" => nil}, %{ctx | nodes: ctx.nodes + 1}}
       end)
 
     case rest do
@@ -497,6 +510,18 @@ defmodule FactoryReport.Observer do
   # expect.
   defp supervisor_call?(%{"supervisor?" => true}), do: true
   defp supervisor_call?(_), do: false
+
+  # "permanent" | "transient" | "temporary", or nil when the supervisor does
+  # not say (a DynamicSupervisor, or no answer in time).
+  defp restart_type(sup, id) do
+    case :supervisor.get_childspec(sup, id) do
+      {:ok, %{restart: r}} when r in [:permanent, :transient, :temporary] -> Atom.to_string(r)
+      {:ok, {_id, _start, r, _shut, _type, _mods}} when r in [:permanent, :transient, :temporary] -> Atom.to_string(r)
+      _ -> nil
+    end
+  catch
+    :exit, _ -> nil
+  end
 
   defp which_children(pid) do
     {:ok, GenServer.call(pid, :which_children, @call_timeout)}
@@ -599,9 +624,13 @@ defmodule FactoryReport.Observer do
     :memory,
     :garbage_collection,
     :reductions,
-    :current_stacktrace,
-    :dictionary
+    :current_stacktrace
   ]
+
+  # Listing dictionary keys copies the whole dictionary, values and all,
+  # into this process (the VM has no keys-only read). Above this much
+  # process memory the keys are not listed, and the answer says why.
+  @max_dict_copy 1_048_576
 
   @doc false
   def proc(pid, params, opts) do
@@ -611,7 +640,7 @@ defmodule FactoryReport.Observer do
         list -> Map.new(list)
       end
 
-    dict = info[:dictionary]
+    {dict, keys_part} = dictionary(pid, info[:memory])
     initial = initial_call(:erlang.process_info(pid, :initial_call), dict_get(dict, :"$initial_call"))
 
     gc = info[:garbage_collection] || []
@@ -640,12 +669,48 @@ defmodule FactoryReport.Observer do
       "garbage_collection" =>
         for({k, v} <- gc, k in [:min_heap_size, :min_bin_vheap_size, :max_heap_size, :fullsweep_after, :minor_gcs], into: %{}, do: {Atom.to_string(k), gc_value(v)}),
       "reductions" => info[:reductions],
-      "dictionary_keys" => dict |> Enum.map(fn {k, _} -> clip(inspect(k, limit: 5)) end) |> Enum.sort() |> Enum.take(@max_list),
-      "dictionary_count" => length(dict),
       "application" => application_of(pid),
       "supervisor_path" => supervisor_path(pid, dict),
       "state" => state(pid, dict_get(dict, :"$initial_call"), params, opts)
     }
+    |> Map.merge(keys_part)
+  end
+
+  # `{dict, fields}`: `dict` holds `$initial_call` and `$ancestors` (read
+  # alone where the VM can), `fields` the key names and count, or, for a
+  # process above @max_dict_copy, nil for both and `dictionary_not_read`.
+  defp dictionary(pid, memory) do
+    small? = is_integer(memory) and memory <= @max_dict_copy
+
+    full =
+      if small? or not dict_key?() do
+        case :erlang.process_info(pid, :dictionary) do
+          {:dictionary, d} -> d
+          :undefined -> bad(404, "no process #{pid_text(pid)} (not alive)")
+        end
+      end
+
+    dict =
+      if full,
+        do: Enum.filter(full, fn {k, _} -> k in [:"$initial_call", :"$ancestors"] end),
+        else: for(k <- [:"$initial_call", :"$ancestors"], {_, v} = :erlang.process_info(pid, {:dictionary, k}), v != :undefined, do: {k, v})
+
+    fields =
+      if small? do
+        %{
+          "dictionary_keys" => full |> Enum.map(fn {k, _} -> clip(inspect(k, limit: 5)) end) |> Enum.sort() |> Enum.take(@max_list),
+          "dictionary_count" => length(full)
+        }
+      else
+        %{
+          "dictionary_keys" => nil,
+          "dictionary_count" => nil,
+          "dictionary_not_read" =>
+            "the process holds #{memory} bytes (over #{@max_dict_copy}); listing its dictionary keys would copy every value, so they are not listed"
+        }
+      end
+
+    {dict, fields}
   end
 
   defp gc_value(v) when is_integer(v), do: v
@@ -835,12 +900,56 @@ defmodule FactoryReport.Observer do
   end
 
   # Killing one of these stops or wedges the VM: refused, with the reason.
+  # By application (kernel, stdlib), by identity (the VM's own processes,
+  # which belong to no application: everything whose group leader is init,
+  # i.e. started by erts or init before any application, among them
+  # erts_code_purger, socket_registry, erl_prim_loader and logger), by
+  # registered name, and any application master (killing it stops its
+  # application, and the VM with it when the application is permanent).
+  @vital_names ~w(init application_controller erl_prim_loader erts_code_purger socket_registry logger
+                  user standard_error code_server file_server_2 kernel_sup user_drv)a
   defp refuse_vital!(pid) do
+    init = Process.whereis(:init)
+    name = registered(pid)
+
     cond do
       pid == self() -> bad(409, "refused: #{pid_text(pid)} is the process answering this request")
-      pid == Process.whereis(:init) -> bad(409, "refused: #{pid_text(pid)} is init; killing it stops the VM")
-      application_of(pid) == "kernel" -> bad(409, "refused: #{pid_text(pid)}#{label(pid)} belongs to kernel; killing it can stop the VM")
+      pid == init -> bad(409, "refused: #{pid_text(pid)} is init; killing it stops the VM")
+      name in Enum.map(@vital_names, &inspect/1) ->
+        bad(409, "refused: #{pid_text(pid)}#{label(pid)} is one of the VM's own processes; killing it stops the VM")
+      group_leader(pid) == init ->
+        bad(409, "refused: #{pid_text(pid)}#{label(pid)} was started by the VM before any application (its group leader is init); killing it can stop the VM")
+      application_of(pid) in ["kernel", "stdlib"] ->
+        bad(409, "refused: #{pid_text(pid)}#{label(pid)} belongs to #{application_of(pid)}; killing it can stop the VM")
+      application_master?(pid) ->
+        bad(409, "refused: #{pid_text(pid)} is the application master of #{application_of(pid)}; killing it stops the application, and the VM if it is permanent")
       true -> :ok
+    end
+  end
+
+  defp group_leader(pid) do
+    case :erlang.process_info(pid, :group_leader) do
+      {:group_leader, gl} -> gl
+      :undefined -> nil
+    end
+  end
+
+  defp application_master?(pid) do
+    match?({:initial_call, {:application_master, _, _}}, :erlang.process_info(pid, :initial_call)) or
+      match?({:application_master, _, _}, proc_lib_initial(pid))
+  end
+
+  defp proc_lib_initial(pid) do
+    if dict_key?() do
+      case :erlang.process_info(pid, {:dictionary, :"$initial_call"}) do
+        {_, v} -> v
+        :undefined -> nil
+      end
+    else
+      case :erlang.process_info(pid, :dictionary) do
+        {:dictionary, d} -> dict_get(d, :"$initial_call")
+        :undefined -> nil
+      end
     end
   end
 
@@ -849,8 +958,13 @@ defmodule FactoryReport.Observer do
     child_id = Map.get(params, "child_id")
     is_binary(child_id) || bad(400, "child_id must be a string: the child's id as the tree shows it")
 
+    app in [:kernel, :stdlib] &&
+      bad(409, "refused: #{app}'s children are the VM's own processes (code server, file server, user); restarting them can stop the VM")
+
     application_of(sup) == Atom.to_string(app) ||
       bad(400, "#{pid_text(sup)} is not in #{app}'s tree (it belongs to #{application_of(sup) || "no application"})")
+
+    refuse_vital!(sup)
 
     summary = summary(sup, dict_key?()) || bad(404, "no process #{pid_text(sup)} (not alive)")
     summary["supervisor?"] || bad(400, "#{pid_text(sup)} is not a supervisor (initial call #{summary["initial_call"] || "unknown"})")
@@ -869,6 +983,19 @@ defmodule FactoryReport.Observer do
         bad(409, "#{pid_text(sup)} is a DynamicSupervisor: its children have no ids and are not restarted by id; kill the process instead")
 
       {id, old, _, _} ->
+        if is_pid(old), do: refuse_vital!(old)
+
+        # terminate_child deletes a temporary child's spec, so restart_child
+        # would find nothing and the child would be gone for good
+        case sup_call(sup, {:get_childspec, id}, "get_childspec") do
+          {:ok, spec} ->
+            if restart_type(spec) == :temporary,
+              do: bad(409, "refused: #{clip(child_id)} is a temporary child; terminating it removes it from #{pid_text(sup)} and it cannot be restarted")
+
+          {:error, status, reason} ->
+            bad(status, reason)
+        end
+
         logged(opts, "restart #{child_id} under #{pid_text(sup)}#{label(sup)} in #{app}")
 
         with :ok <- sup_call(sup, {:terminate_child, id}, "terminate_child"),
@@ -887,6 +1014,10 @@ defmodule FactoryReport.Observer do
         end
     end
   end
+
+  defp restart_type(%{} = spec), do: Map.get(spec, :restart, :permanent)
+  defp restart_type({_id, _start, restart, _shutdown, _type, _mods}), do: restart
+  defp restart_type(_), do: :unknown
 
   defp restarted({:ok, pid}), do: {:ok, pid}
   defp restarted({:ok, pid, _info}), do: {:ok, pid}

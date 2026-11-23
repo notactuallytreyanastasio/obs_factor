@@ -84,6 +84,8 @@ defmodule ObsFactor.SnapshotTest do
              m.container.replicas
 
     refute Enum.any?(s.nodes, &(&1.id in ["blog-marginalia-2", "blog-marginalia-3"]))
+    assert %{severity: "alert", text: "Marginalia: 2 of 3 replicas running (blog-marginalia-3 restarting)"} =
+             Enum.find(s.attention, &(&1.node == "marginalia" and &1.text =~ "replicas"))
   end
 
   test "a listed service with no container is down", %{snapshot: s} do

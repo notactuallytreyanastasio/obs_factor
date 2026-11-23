@@ -85,7 +85,8 @@ function observerActionText(a, seen) {
 export class Missions {
   // api: snap() what is on screen, outer() the floor, insideOf() the building
   // we are in or null, scenes() [scene, under], go(id) -> null | why not,
-  // target() -> {id, label, part} | null (what Flag would pin), onOpen(),
+  // target() -> {id, label, part} | null (what Flag would pin), noTarget()
+  // -> why there is nothing to pin, when that needs saying, onOpen(),
   // redraw().
   constructor(api) {
     this.api = api;
@@ -157,7 +158,7 @@ export class Missions {
       if (e.key === "Escape" && !this.modal.hidden) { e.stopPropagation(); this.closeModal(); return; }
       if (e.metaKey || e.ctrlKey || e.altKey || typing(e.target) || !this.modal.hidden) return;
       if (!this.configured) return;
-      if (e.key === "f" && this.api.target()) { e.preventDefault(); this.flag(); }
+      if (e.key === "f" && (this.api.target() || this.api.noTarget?.())) { e.preventDefault(); this.flag(); }
       else if (e.key === "l") { e.preventDefault(); this.setLens(!this.lens); }
     }, true);
 
@@ -360,8 +361,14 @@ export class Missions {
     const [scene, under] = this.api.scenes();
     const on = this.lens && this.configured;
     const m = on ? this.focusMap() : null;
-    scene.focus = on && !this.api.insideOf() ? m : null;
-    under.focus = on && this.api.insideOf() ? m : null;
+    if (this.api.lens) {
+      // main.js's lens owner: one lens at a time; another taking it turns this one off
+      if (on) this.api.lens.claim("missions", { map: m, label: "Issues lens", detail: "buildings with an undone objective", onDrop: () => this.setLens(false) });
+      else this.api.lens.drop("missions");
+    } else {
+      scene.focus = on && !this.api.insideOf() ? m : null;
+      under.focus = on && this.api.insideOf() ? m : null;
+    }
     this.lensBtn.setAttribute("aria-pressed", String(!!on));
     this.lensBtn.classList.toggle("on", !!on);
     const outer = this.api.outer();
@@ -506,7 +513,16 @@ export class Missions {
   flag() {
     if (!this.configured) return;
     const t = this.api.target();
-    if (!t) return;
+    if (!t) {
+      // nothing Flag could pin here: say why rather than do nothing
+      const why = this.api.noTarget?.();
+      if (why) {
+        this.showModal(`<div class="ms-flag" role="dialog"><h3>Nothing to flag here</h3><p>${esc(why)}</p>
+          <div class="ms-mbtns"><button type="button" data-cancel>Close</button></div></div>`);
+        this.modal.querySelector("[data-cancel]").addEventListener("click", () => this.closeModal());
+      }
+      return;
+    }
     const who = this.who ? "" : `<label>Who are you? <input name="who" maxlength="60" required placeholder="your name" autocomplete="nickname" spellcheck="false"></label>`;
     this.showModal(`<form class="ms-flag" data-form="flag">
       <h3>Flag <b>${esc(t.label)}</b></h3>

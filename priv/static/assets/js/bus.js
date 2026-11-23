@@ -6,7 +6,9 @@
 //   subscribe(topic, onEvent, { params, onJoin, onError }) -> unsubscribe
 //     onEvent(event, payload) for every push on the topic;
 //     onJoin(reply) on the join and again on every rejoin after a reconnect
-//       (the reply is the topic's current state, so that is the resync);
+//       (the reply is the topic's current state, so that is the resync); a
+//       second subscriber to a joined topic gets the topic's current state
+//       too: the latest whole-state push, or a fresh rejoin (see WHOLE);
 //     onError(reason) when the server refuses the join (it is not retried);
 //     params: an object, or a function called at each (re)join, e.g.
 //       () => ({ after: lastId }) so a rejoin asks only for what it missed.
@@ -122,41 +124,68 @@ async function open() {
   socket.connect();
 }
 
+// Pushes that carry a topic's whole state, in the shape of its join reply:
+// they replace the reply kept for a late subscriber. Pushes that carry no
+// state (an action relayed, a tick that failed) leave it. Any other push
+// changes the state by a step (an `objective` row): the kept reply is
+// stale from then on, and a late subscriber rejoins for a fresh one.
+const WHOLE = { feed: (p) => p, list: (p) => p, snapshot: (p) => ({ snapshot: p }) };
+const NO_STATE = new Set(["action", "error"]);
+
+function openChannel(topic, entry) {
+  const ch = socket.channel(topic, entry.params);
+  entry.ch = ch;
+  ch.onMessage = (event, payload) => {
+    if (entry.ch !== ch) return payload; // a channel this topic has left for a newer join
+    if (!event.startsWith("phx_") && !event.startsWith("chan_reply_")) {
+      if (WHOLE[event]) entry.reply = WHOLE[event](payload);
+      else if (!NO_STATE.has(event)) entry.stale = true;
+      for (const x of entry.handlers) {
+        try { x.onEvent?.(event, payload); } catch (e) { console.error(`obs_factor: ${topic} ${event} handler`, e); }
+      }
+    }
+    return payload;
+  };
+  ch.join()
+    .receive("ok", (reply) => {
+      if (entry.ch !== ch) return;
+      entry.reply = reply; entry.joined = true; entry.stale = false;
+      for (const x of entry.handlers) x.onJoin?.(reply);
+    })
+    .receive("error", (r) => {
+      if (entry.ch !== ch) return;
+      const reason = r?.reason ?? JSON.stringify(r);
+      console.error(`obs_factor: join ${topic} refused: ${reason}`);
+      for (const x of entry.handlers) x.onError?.(reason);
+      // a refused join is the server saying no, not a transient failure
+      ch.leave(); topics.delete(topic);
+    })
+    .receive("timeout", () => {
+      if (entry.ch !== ch) return;
+      for (const x of entry.handlers) x.onError?.(`join ${topic} timed out; retrying`);
+    });
+}
+
 export function subscribe(topic, onEvent, { params = {}, onJoin, onError } = {}) {
   ensureSocket();
   let t = topics.get(topic);
   const h = { onEvent, onJoin, onError };
   if (!t) {
-    const ch = socket.channel(topic, typeof params === "function" ? params : () => params);
-    t = { ch, handlers: new Set(), reply: null, joined: false };
+    t = { ch: null, handlers: new Set(), reply: null, joined: false, stale: false, params: typeof params === "function" ? params : () => params };
     topics.set(topic, t);
-    const entry = t;
-    ch.onMessage = (event, payload) => {
-      if (!event.startsWith("phx_") && !event.startsWith("chan_reply_")) {
-        for (const x of entry.handlers) {
-          try { x.onEvent?.(event, payload); } catch (e) { console.error(`obs_factor: ${topic} ${event} handler`, e); }
-        }
-      }
-      return payload;
-    };
-    ch.join()
-      .receive("ok", (reply) => {
-        entry.reply = reply; entry.joined = true;
-        for (const x of entry.handlers) x.onJoin?.(reply);
-      })
-      .receive("error", (r) => {
-        const reason = r?.reason ?? JSON.stringify(r);
-        console.error(`obs_factor: join ${topic} refused: ${reason}`);
-        for (const x of entry.handlers) x.onError?.(reason);
-        // a refused join is the server saying no, not a transient failure
-        ch.leave(); topics.delete(topic);
-      })
-      .receive("timeout", () => {
-        for (const x of entry.handlers) x.onError?.(`join ${topic} timed out; retrying`);
-      });
-  } else if (t.joined) {
-    // already joined for someone else on this page: hand over its last join reply
+    openChannel(topic, t);
+  } else if (t.joined && !t.stale) {
+    // already joined for someone else on this page, and the kept reply is
+    // still the topic's state: hand it over
     queueMicrotask(() => onJoin?.(t.reply));
+  } else if (t.joined) {
+    // the kept reply predates a change: join again, and every subscriber
+    // gets the fresh reply (onJoin is the resync, as after a reconnect)
+    // (the leave goes out first: a join of a topic still open on the
+    // socket would make phoenix.js leave it itself, out of our order)
+    t.joined = false;
+    t.ch.leave();
+    openChannel(topic, t);
   }
   t.handlers.add(h);
   return () => {

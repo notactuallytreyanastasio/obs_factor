@@ -1,0 +1,183 @@
+/* Processes (assets/js/processes.js), the jump list (assets/js/jump.js) and
+   the lens badge (main.js "lens owner"). Its own file so app.css stays out
+   of the way of anyone else editing it. */
+
+/* ---- the panel ----------------------------------------------------------- */
+#procs {
+  position: fixed; left: 12px; top: calc(var(--top) + var(--strip, 0px) + 10px); bottom: calc(64px + var(--safe-b)); z-index: 17;
+  width: min(1040px, calc(100vw - 24px)); display: flex; flex-direction: column; gap: 6px;
+  background: var(--panel-solid); border: 1px solid rgba(97, 226, 148, 0.3); border-radius: 12px; padding: 10px 14px 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); overflow: hidden;
+}
+#procs[hidden] { display: none; }
+body.inside #procs { top: calc(var(--top) + var(--strip, 0px) + 60px); }
+@media (min-width: 760px) and (max-width: 1500px) { #procs { width: min(1040px, calc(100vw - 340px)); } }
+@media (min-width: 760px) { body.inspecting #procs { width: min(1040px, calc(100vw - 440px)); } }
+#procs .unk { color: var(--muted); }
+#procs .mono { font-family: var(--mono); }
+#procs .pr-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#procs h3 { margin: 0; font: 700 12px var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: #61e294; }
+#procs h3 .unk { text-transform: none; letter-spacing: 0; font-weight: 500; margin-left: 6px; }
+#procs .iconbtn { width: 34px; height: 34px; font-size: 20px; background: none; border: 0; cursor: pointer; color: var(--muted); }
+#procs select, #procs input, #procs button { font: 13px var(--sans); color: var(--text); }
+#procs select, #procs .pr-search input {
+  background: #0b0e17; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px;
+}
+#procs .pr-bar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font: 12px var(--sans); color: var(--muted); }
+#procs .pr-bar label { display: inline-flex; gap: 6px; align-items: center; }
+#procs .pr-lens { display: inline-flex; gap: 6px; align-items: center; margin-left: auto; }
+#procs button.pr-lensbtn, #procs .pr-dacts button, #pr-modal button, #lensbadge button {
+  height: 32px; padding: 0 11px; border-radius: 8px; cursor: pointer; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line);
+}
+#procs button.pr-lensbtn.on { border-color: #61e294; color: #61e294; background: rgba(97, 226, 148, 0.12); }
+#procs .pr-lensnote { margin: 0; font-size: 12px; }
+#procs .pr-lensnote ul { margin: 4px 0 0; padding-left: 18px; }
+#procs .pr-lensnote li.bad { color: #ff9a90; }
+#procs .pr-search input { width: 100%; box-sizing: border-box; font: 13px var(--mono); padding: 8px 10px; }
+#procs .pr-search input:focus { outline: none; border-color: #61e294; }
+#procs .pr-qerr, #procs .pr-note.bad, #procs .pr-bad { margin: 0; color: #ff9a90; font-size: 12.5px; }
+#procs .pr-note { margin: 0; font-size: 12.5px; color: var(--cyan); }
+#procs .pr-ok { margin: 6px 0; color: #61e294; font-size: 12.5px; }
+#procs .pr-sources { display: flex; flex-direction: column; gap: 2px; max-height: 92px; overflow: auto; font-size: 12px; }
+#procs .pr-src { padding: 2px 8px; border-left: 3px solid var(--dim); overflow-wrap: anywhere; }
+#procs .pr-src.ok { border-color: #61e294; }
+#procs .pr-src.bad { border-color: #ff5a5a; color: #ffb4ad; background: rgba(255, 77, 77, 0.06); }
+#procs .pr-src.wait { border-color: var(--gold); }
+
+#procs .pr-main { flex: 1; min-height: 0; display: flex; gap: 10px; }
+#procs .pr-tablewrap { flex: 1; min-width: 0; overflow: auto; border: 1px solid var(--line); border-radius: 8px; overscroll-behavior: contain; }
+#procs .pr-empty { margin: 10px; }
+#procs table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+#procs th {
+  position: sticky; top: 0; z-index: 1; background: #161b27; text-align: left; font: 600 11px var(--sans); letter-spacing: 0.04em;
+  color: var(--muted); padding: 7px 8px; cursor: pointer; white-space: nowrap; user-select: none; border-bottom: 1px solid var(--line);
+}
+#procs th.r, #procs td.r { text-align: right; }
+#procs th.on { color: var(--text); }
+#procs th.on::after { content: " ▾"; }
+#procs th.on[aria-sort="ascending"]::after { content: " ▴"; }
+#procs th.feed { box-shadow: inset 0 -2px 0 #61e294; }
+#procs td { padding: 4px 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+#procs tbody tr { cursor: pointer; }
+#procs tbody tr:hover { background: rgba(255, 255, 255, 0.04); }
+#procs tbody tr.sel { background: rgba(97, 226, 148, 0.13); box-shadow: inset 3px 0 0 #61e294; }
+#procs tbody tr.stale td { opacity: 0.55; }
+#procs td.warn { color: #ffc46b; }
+#procs td.alert { color: #ff7b72; font-weight: 700; }
+#procs td.st-running, #procs td.st-runnable { color: #61e294; }
+#procs td.st-garbage_collecting { color: var(--gold); }
+#procs .c-go { width: 30px; padding: 0 4px; }
+#procs .pr-go { width: 26px; height: 24px; border-radius: 6px; border: 1px solid var(--line); background: none; cursor: pointer; color: var(--cyan); }
+
+#procs .pr-detail { width: 380px; flex: none; overflow: auto; border: 1px solid rgba(97, 226, 148, 0.3); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; overscroll-behavior: contain; }
+#procs .pr-detail[hidden] { display: none; }
+#procs .pr-dhead { display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; }
+#procs .pr-dhead > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+#procs .pr-back { display: none; }
+#procs .pr-dacts { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+#procs button.danger, #pr-modal button.danger { border-color: rgba(255, 90, 90, 0.6); color: #ff9a90; }
+#procs button:disabled { opacity: 0.5; cursor: wait; }
+#procs .pr-kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 6px 0; }
+#procs .pr-kv dt { color: var(--muted); }
+#procs .pr-kv dd { margin: 0; overflow-wrap: anywhere; }
+#procs h5 { margin: 10px 0 4px; font: 700 11px var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+#procs .pr-stack { margin: 0; padding-left: 20px; font-size: 11.5px; }
+#procs .pr-actions { font-size: 12px; }
+#procs .pr-actions summary { cursor: pointer; color: var(--muted); }
+#procs .pr-actions ol { margin: 4px 0; padding-left: 18px; max-height: 110px; overflow: auto; }
+#procs .pr-actions li.bad { color: #ff9a90; }
+#procs .pr-keys { margin: 0; font-size: 11px; }
+
+@media (max-width: 759px) {
+  #procs { left: 0; right: 0; width: auto; top: var(--top); bottom: 0; border-radius: 0; border-width: 1px 0 0; padding: 8px 10px calc(10px + var(--safe-b)); z-index: 19; }
+  body.inside #procs { top: var(--top); }
+  #procs .pr-lens { margin-left: 0; }
+  #procs .pr-keys { display: none; }
+  #procs .pr-detail { position: absolute; inset: 0; width: auto; z-index: 3; background: var(--panel-solid); border: 0; border-radius: 0; padding: 10px 12px calc(14px + var(--safe-b)); }
+  #procs .pr-back { display: inline-block; height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background: none; cursor: pointer; }
+  #procs .pr-dhead .iconbtn { display: none; }
+  /* a phone shows the table as two lines per process */
+  #procs table, #procs tbody { display: block; }
+  #procs thead { display: block; position: sticky; top: 0; z-index: 1; background: #161b27; }
+  #procs thead tr { display: flex; flex-wrap: wrap; }
+  #procs thead th { position: static; padding: 6px 7px; border: 0; }
+  #procs thead th.c-current, #procs thead th.c-go { display: none; }
+  #procs tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; grid-template-areas: "name mq mem rps" "src pid status go"; gap: 1px 8px; padding: 6px 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+  #procs td { padding: 0; border: 0; max-width: none; }
+  #procs td.c-name { grid-area: name; overflow: hidden; text-overflow: ellipsis; }
+  #procs td.c-mq { grid-area: mq; } #procs td.c-memory { grid-area: mem; } #procs td.c-rps { grid-area: rps; }
+  #procs td.c-src { grid-area: src; font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+  #procs td.c-pid { grid-area: pid; font-size: 11.5px; color: var(--muted); }
+  #procs td.c-status { grid-area: status; font-size: 11.5px; }
+  #procs td.c-go { grid-area: go; width: auto; }
+  #procs td.c-current { display: none; }
+}
+
+/* ---- the confirm dialog ------------------------------------------------------- */
+#pr-modal { position: fixed; inset: 0; z-index: 40; background: rgba(4, 7, 15, 0.7); display: grid; place-items: center; padding: 16px; }
+#pr-modal[hidden] { display: none; }
+#pr-modal .pr-confirm { width: min(460px, 100%); background: var(--panel-solid); border: 1px solid rgba(255, 90, 90, 0.4); border-radius: 12px; padding: 14px 16px; font-size: 13.5px; }
+#pr-modal h3 { margin: 0 0 6px; font: 700 15px var(--sans); }
+#pr-modal .mono { font-family: var(--mono); }
+#pr-modal .unk { color: var(--muted); }
+#pr-modal label { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; color: var(--muted); font-size: 12px; }
+#pr-modal input { background: #0b0e17; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; color: var(--text); font: 14px var(--sans); }
+#pr-modal .pr-mbtns { display: flex; gap: 8px; margin-top: 10px; }
+#pr-modal button { color: var(--text); font: 600 13px var(--sans); }
+#pr-modal button.danger { background: rgba(214, 58, 58, 0.25); }
+#pr-modal button.go { border-color: #61e294; color: #61e294; }
+
+#pr-toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(70px + var(--safe-b)); z-index: 30; max-width: min(560px, calc(100vw - 32px));
+  background: var(--panel-solid); border: 1px solid var(--cyan); border-radius: 10px; padding: 8px 12px; font-size: 13px; }
+#pr-toast.bad { border-color: #ff5a5a; color: #ffb4ad; }
+#pr-toast[hidden] { display: none; }
+
+/* ---- the lens badge (main.js) ---------------------------------------------- */
+#lensbadge {
+  position: fixed; left: 50%; transform: translateX(-50%); top: calc(var(--top) + var(--strip, 0px) + 8px); z-index: 14;
+  max-width: min(620px, calc(100vw - 24px)); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px;
+  background: rgba(17, 21, 31, 0.92); border: 1px solid rgba(255, 179, 71, 0.5); border-radius: 10px; padding: 5px 6px 5px 12px; font-size: 12.5px;
+}
+#lensbadge[hidden] { display: none; }
+#lensbadge b { color: #ffc46b; }
+#lensbadge span { color: var(--muted); }
+#lensbadge button { height: 26px; color: var(--text); }
+body.inside #lensbadge { top: calc(var(--top) + var(--strip, 0px) + 58px); }
+@media (min-width: 760px) {
+  body.inspecting #lensbadge { left: calc((100vw - 420px) / 2); max-width: min(560px, calc(100vw - 460px)); }
+  body.procs-open #lensbadge, body.missions-open #lensbadge { left: auto; right: 12px; transform: none; }
+  body.inspecting.procs-open #lensbadge, body.inspecting.missions-open #lensbadge { right: 432px; }
+}
+
+/* ---- the jump list ------------------------------------------------------------- */
+#jump { position: fixed; inset: 0; z-index: 45; background: rgba(4, 7, 15, 0.6); display: flex; justify-content: center; align-items: flex-start; padding: 12vh 16px 16px; }
+#jump[hidden] { display: none; }
+#jump .jp-box { width: min(620px, 100%); max-height: 70vh; display: flex; flex-direction: column; background: var(--panel-solid); border: 1px solid rgba(127, 224, 255, 0.35); border-radius: 12px; overflow: hidden; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6); }
+#jump input { border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--text); font: 16px var(--sans); padding: 14px 16px; outline: none; }
+#jump .jp-err { margin: 6px 16px 0; font-size: 12px; color: #ffb4ad; }
+#jump .jp-list { list-style: none; margin: 0; padding: 6px; overflow: auto; }
+#jump li { display: grid; grid-template-columns: 74px 1fr; gap: 0 10px; padding: 7px 10px; border-radius: 8px; cursor: pointer; }
+#jump li.on { background: rgba(127, 224, 255, 0.12); }
+#jump .jp-kind { grid-row: span 2; font: 700 10px var(--sans); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); padding-top: 3px; }
+#jump li.k-building .jp-kind { color: var(--cyan); }
+#jump li.k-objective .jp-kind { color: #ffc46b; }
+#jump li.k-objective.sev-alert .jp-kind { color: #ff7b72; }
+#jump li.k-process .jp-kind { color: #61e294; }
+#jump .jp-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#jump .jp-sub { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#jump .jp-why { grid-column: 2; font-size: 12px; color: #ffb4ad; }
+#jump .jp-none { display: block; padding: 8px 12px; cursor: default; }
+#jump .unk { color: var(--muted); }
+#jump .jp-keys { margin: 0; padding: 6px 16px 10px; font-size: 11px; border-top: 1px solid var(--line); }
+#menu kbd { font: 11px var(--mono); color: var(--muted); margin-left: 6px; }
+/* a phone: the badge is one line under the top bar (the inspector sheet has the bottom); a
+   full-screen panel that owns a lens says so itself, with its own button, so the badge steps aside */
+@media (max-width: 759px) {
+  #lensbadge { left: 8px; right: 8px; transform: none; max-width: none; flex-wrap: nowrap; font-size: 12px; padding: 3px 4px 3px 10px; }
+  #lensbadge span { display: none; }
+  #lensbadge b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body.procs-open #lensbadge, body.missions-open #lensbadge { display: none; }
+  #pr-toast { bottom: auto; top: calc(var(--top) + var(--strip, 0px) + 46px); }
+}
+/* a phone has Processes in the menu; the control bar keeps its room for zoom */
+@media (max-width: 759px) { #procsbtn { display: none; } }

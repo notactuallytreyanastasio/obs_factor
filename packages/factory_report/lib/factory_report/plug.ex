@@ -11,13 +11,16 @@ defmodule FactoryReport.Plug do
 
   `/observer/...` is `FactoryReport.Observer` (see the README, "Observer"):
   reads with the report's token, actions (POST) with the actions token.
+  With no report token, reads answer 403 unless the app set
+  `observer: true` explicitly.
 
   ## Options
 
     * `:token` - overrides the token given to `FactoryReport`. When a token
       is in force the request must carry `authorization: Bearer <token>`,
       otherwise the answer is 401. `nil` or `""` here means no token.
-    * `:observer`, `:inspect_state`, `:actions_token` - override the
+    * `:observer` (`true` also serves reads without a token),
+      `:inspect_state`, `:actions_token` - override the
       reporter's options of the same names (see `FactoryReport`).
   """
 
@@ -54,17 +57,27 @@ defmodule FactoryReport.Plug do
 
     cond do
       not config.enabled ->
-        json(conn, 404, %{"error" => "the observer is off (observer: false)"})
+        ojson(conn, 404, %{"error" => "the observer is off (observer: false)"})
 
       conn.method == "POST" and FactoryReport.Observer.action?(path) ->
         action(conn, path, config)
 
       conn.method in ["GET", "HEAD"] ->
-        if authorized?(conn, token(opts)) do
-          {status, body} = FactoryReport.Observer.dispatch("GET", path, fetch_query(conn), inspect_state: config.inspect_state)
-          json(conn, status, body)
-        else
-          conn |> put_resp_header("www-authenticate", "Bearer") |> json(401, %{"error" => "unauthorized"})
+        cond do
+          # with no token every read would be open to whoever reaches the
+          # port (0.0.0.0 by default): only when the app says so
+          token(opts) == nil and not config.open ->
+            ojson(conn, 403, %{
+              "error" =>
+                "observer reads need a token: set the reporter's token (or FACTORY_REPORT_TOKEN), or observer: true to serve them without one"
+            })
+
+          authorized?(conn, token(opts)) ->
+            {status, body} = FactoryReport.Observer.dispatch("GET", path, fetch_query(conn), inspect_state: config.inspect_state)
+            json(conn, status, body)
+
+          true ->
+            conn |> put_resp_header("www-authenticate", "Bearer") |> ojson(401, %{"error" => "unauthorized"})
         end
 
       true ->
@@ -79,7 +92,7 @@ defmodule FactoryReport.Plug do
   # Actions have their own token and no other: without one configured they
   # are off, whatever the read token says.
   defp action(conn, path, %{actions_token: nil}) do
-    json(conn, 403, %{"error" => "actions are off: no actions_token configured", "path" => Enum.join(path, "/")})
+    ojson(conn, 403, %{"error" => "actions are off: no actions_token configured", "path" => Enum.join(path, "/")})
   end
 
   defp action(conn, path, %{actions_token: token}) do
@@ -91,10 +104,10 @@ defmodule FactoryReport.Plug do
           json(conn, status, body)
 
         {:error, status, message, conn} ->
-          json(conn, status, %{"error" => message})
+          ojson(conn, status, %{"error" => message})
       end
     else
-      conn |> put_resp_header("www-authenticate", "Bearer") |> json(401, %{"error" => "unauthorized: actions need authorization: Bearer <actions_token>"})
+      conn |> put_resp_header("www-authenticate", "Bearer") |> ojson(401, %{"error" => "unauthorized: actions need authorization: Bearer <actions_token>"})
     end
   end
 
@@ -135,10 +148,11 @@ defmodule FactoryReport.Plug do
   defp observer_config(opts) do
     base =
       FactoryReport.meta(:observer) ||
-        %{enabled: true, inspect_state: false, actions_token: env_token()}
+        %{enabled: true, open: false, inspect_state: false, actions_token: env_token()}
 
     base
     |> override(opts, :observer, :enabled, &(&1 != false))
+    |> override(opts, :observer, :open, &(&1 == true))
     |> override(opts, :inspect_state, :inspect_state, &(&1 == true))
     |> override(opts, :actions_token, :actions_token, fn
       t when is_binary(t) and t != "" -> t
@@ -159,6 +173,10 @@ defmodule FactoryReport.Plug do
       :error -> config
     end
   end
+
+  # An error the plug answers itself, shaped like every engine answer.
+  defp ojson(conn, status, body),
+    do: json(conn, status, Map.merge(%{"node" => Atom.to_string(node()), "took_ms" => 0.0}, body))
 
   defp json(conn, status, body) do
     conn

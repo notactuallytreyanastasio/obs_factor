@@ -342,17 +342,25 @@ function clusterRooms(members, node, outer, blank, nodes, edges, attention) {
     if (!where.has(gl.name)) where.set(gl.name, new Set());
     where.get(gl.name).add(gl.node);
   }
-  let k = 0;
+  const slots = {};
   for (const [name, at] of [...where].sort((a, b) => a[0].localeCompare(b[0]))) {
-    const homes = [...at];
-    if (homes.length > 1) attention.push({ node: null, severity: "alert", text: `the nodes disagree where ${name} lives: ${homes.join(", ")}` });
-    const j = byName.get(homes[0]);
-    if (j == null) continue;
-    const slot = 1 + (k++ % 2);
-    nodes.push(blank({
-      id: `node${j}:g:${name}`, label: `★ ${name.replace(/^Elixir\./, "").split(".").slice(-2).join(".")}`, kind: "app", platform: `node${j}`,
-      pos: [slot, 1 + Math.floor((k - 1) / 2)], status: "working",
-      headline: { value: null, unit: "global" }, facts: [{ label: "registered as", value: name }, { label: "lives on", value: homes[0] }],
-    }));
+    const homes = [...at].sort();
+    const split = homes.length > 1;
+    if (split) attention.push({ node: null, severity: "alert", text: `the nodes disagree where ${name} lives: ${homes.join(", ")}` });
+    // Every node some member says holds it: in a split brain each side has
+    // elected its own, and both are drawn, red, each saying where the other is.
+    for (const home of homes) {
+      const j = byName.get(home);
+      if (j == null) continue;
+      const k = (slots[j] = (slots[j] ?? 0) + 1) - 1;
+      const short = name.replace(/^Elixir\./, "").split(".").slice(-2).join(".");
+      nodes.push(blank({
+        id: `node${j}:g:${name}`, label: `${split ? "⚠" : "★"} ${short}`, kind: "app", platform: `node${j}`,
+        pos: [1 + (k % 2), 1 + Math.floor(k / 2)], status: split ? "down" : "working",
+        reason: split ? `split brain: also registered on ${homes.filter((h) => h !== home).join(", ")}` : null,
+        headline: { value: null, unit: split ? `${homes.length} leaders` : "global" },
+        facts: [{ label: "registered as", value: name }, { label: "lives on", value: home }, ...(split ? [{ label: "also on", value: homes.filter((h) => h !== home).join(", ") }] : [])],
+      }));
+    }
   }
 }

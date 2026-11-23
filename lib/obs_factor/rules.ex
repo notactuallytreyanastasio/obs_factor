@@ -255,6 +255,27 @@ defmodule ObsFactor.Rules do
   none or nothing was read) is failing: a warning, never a status. The app
   may be fine and merely not reporting.
   """
+  @doc """
+  A scaled service whose other replicas are not all running. The node's own
+  container is the first running one, so it says nothing about the rest; a
+  stopped replica also drops out of the service's DNS name, and with it out
+  of the report's members, so without this a cluster down a node reads as a
+  smaller healthy one. An alert: the service is running short.
+  """
+  def replicas(_label, nil), do: []
+
+  def replicas(label, c) do
+    others = Map.get(c, :replicas, [])
+    down = Enum.reject(others, &(&1.state == "running"))
+
+    case down do
+      [] -> []
+      _ ->
+        total = length(others) + 1
+        [{"alert", "#{label}: #{total - length(down)} of #{total} replicas running (#{Enum.map_join(down, ", ", &"#{&1.name} #{&1.state}")})"}]
+    end
+  end
+
   def report(_label, nil), do: []
   def report(_label, %{ok: true}), do: []
 

@@ -288,6 +288,47 @@ defmodule ObsFactorWeb.ObserverFeedsTest do
       assert_receive {:action, %{"status" => 403, "by" => "eve"}}
       assert Process.alive?(victim)
     end
+
+    test "one socket holds at most :feeds_per_socket feed joins; past it the join is refused with the reason" do
+      Application.put_env(:obs_factor, :feeds_per_socket, 2)
+      on_exit(fn -> Application.delete_env(:obs_factor, :feeds_per_socket) end)
+      socket = authed_socket()
+
+      {:ok, _, a} = subscribe_and_join(socket, FeedChannel, "observer:observer:-:proc:0.1.0")
+      {:ok, _, _} = subscribe_and_join(socket, FeedChannel, "observer:observer:-:proc:0.2.0")
+
+      assert {:error, %{reason: "this page already holds 2 feeds (at most 2 per socket)" <> _}} =
+               subscribe_and_join(socket, FeedChannel, "observer:observer:-:proc:0.3.0")
+
+      assert Feeds.whereis("observer:observer:-:proc:0.3.0") == nil
+
+      # leaving gives one back (the count is per transport process; in a
+      # channel test every socket shares the test's)
+      Process.unlink(a.channel_pid)
+      ref = leave(a)
+      assert_reply ref, :ok
+      Process.sleep(20)
+      {:ok, _, _} = subscribe_and_join(socket, FeedChannel, "observer:observer:-:proc:0.4.0")
+    end
+
+    test "a payload the channel refuses itself is still recorded on actions, and a blank by is nobody" do
+      {:ok, _, socket} = join("observer:observer:-:system")
+      Phoenix.PubSub.subscribe(ObsFactor.PubSub, "actions")
+
+      ref = push(socket, "action", %{"params" => %{}, "by" => "rc"})
+      assert_reply ref, :error, %{status: 400, error: "action needs {path, params, by}" <> _}
+      assert_receive {:action, %{"status" => 400, "by" => "rc", "path" => "", "error" => "action needs" <> _}}
+
+      ref = push(socket, "action", %{"path" => "proc/0.50.0/gc", "params" => [1], "by" => "rc"})
+      assert_reply ref, :error, %{status: 400, error: "action params must be an object, got [1]"}
+      assert_receive {:action, %{"status" => 400, "path" => "proc/0.50.0/gc", "params" => %{}}}
+
+      for blank <- ["\u0007", "   ", " \u0007 "] do
+        ref = push(socket, "action", %{"path" => "proc/0.50.0/gc", "params" => %{}, "by" => blank})
+        assert_reply ref, :error, %{status: 400, error: "say who is acting" <> _}
+        assert_receive {:action, %{"status" => 400, "by" => nil}}
+      end
+    end
   end
 
   describe "a sub-app over HTTP" do

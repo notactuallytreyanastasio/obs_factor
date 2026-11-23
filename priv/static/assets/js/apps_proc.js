@@ -70,6 +70,8 @@ export class ProcPanel {
     this.el.hidden = false;
     document.body.classList.add("ap-inspecting");
     if (!same) { this.confirm = null; this.result = null; this.moved = null; this.body.scrollTop = 0; }
+    // the socket's state: while it is not connected the read below is not live
+    if (!this.stateUnsub) this.stateUnsub = bus.onState((st) => { this.link = st; this.render(); });
     if (!this.actUnsub) {
       this.actUnsub = bus.subscribe("actions", (ev, a) => {
         if (ev !== "action" || !this.target || a.node !== this.target.node || (a.member ?? null) !== (this.target.member ?? null)) return;
@@ -116,6 +118,7 @@ export class ProcPanel {
     if (!this.open) return;
     this.unsub?.(); this.unsub = null;
     this.actUnsub?.(); this.actUnsub = null;
+    this.stateUnsub?.(); this.stateUnsub = null;
     this.n = null; this.pid = null; this.data = null; this.seen = [];
     this.el.hidden = true;
     this.el.classList.remove("tall");
@@ -132,11 +135,16 @@ export class ProcPanel {
     if (p) { e.preventDefault(); this.onPid?.(p.dataset.pid); }
   }
 
+  notLive() {
+    const st = this.link ?? bus.state();
+    return st.state === "connected" ? null : `${st.state}${st.detail ? `: ${st.detail}` : ""}`;
+  }
+
   async run(key) {
     const act = ACTIONS[key];
     const o = this.n?.otp;
     const by = this.whoName || who();
-    if (!act || !o || !this.pid || !by) return;
+    if (!act || !o || !this.pid || !by || this.notLive()) return;
     this.busy = true; this.render();
     const payload = { path: act.path(this.pid, o), params: act.params(o), by };
     try {
@@ -156,7 +164,9 @@ export class ProcPanel {
     const head = `<div class="ins-head"><h2>${esc(n.label)}</h2>
       <div class="sub">${esc(o.app ?? "")} · ${esc(o.type ?? "")} · ${esc(this.pid ?? "not running")} on ${esc(where)}</div>
       <div class="status-pill st-${lampOf(d?.status ?? o.status)}"><span class="lamp ${lampOf(d?.status ?? o.status)}"></span>${esc(d?.status ?? o.status ?? (this.pid ? "unknown" : "not running"))}</div></div>`;
+    const down = this.notLive();
     const notes = [
+      down ? `<p class="note err">Not live (${esc(down)}): actions are off until the socket is back${d ? `; the read below is from ${esc(utc(new Date(this.at)))}` : ""}.</p>` : "",
       this.gone ? '<p class="note err">This building is no longer on the floor: the tree feed no longer lists it.</p>' : "",
       this.moved ? `<p class="note ap-moved">${esc(this.moved)}</p>` : "",
       !this.pid ? `<p class="note err">${esc(n.reason ?? "not running: nothing to read")}</p>` : "",
@@ -171,7 +181,8 @@ export class ProcPanel {
     const by = this.whoName || who();
     const canRestart = o.parent && o.child_id;
     const keys = ["kill", "gc", "exit", ...(canRestart ? ["restart"] : [])];
-    let body = `<div class="ap-acts">${keys.map((k) => `<button type="button" data-act="${k}"${this.busy ? " disabled" : ""} class="${k === "kill" ? "danger" : ""}">${ACTIONS[k].label}</button>`).join("")}</div>`;
+    const off = this.busy || !!this.notLive();
+    let body = `<div class="ap-acts">${keys.map((k) => `<button type="button" data-act="${k}"${off ? " disabled" : ""} class="${k === "kill" ? "danger" : ""}">${ACTIONS[k].label}</button>`).join("")}</div>`;
     if (!canRestart) body += `<p class="note">${o.parent ? "Restart needs the child id its supervisor knows it by; this one has none" : "Restart is for a supervisor's child; this is the application's top supervisor"}.</p>`;
     if (this.confirm) {
       const act = ACTIONS[this.confirm];
@@ -180,7 +191,7 @@ export class ProcPanel {
         : `${esc(act.says[0].toUpperCase() + act.says.slice(1))} <b>${esc(this.n.label)}</b> (${esc(this.pid)}) on <b>${esc(where)}</b>?`;
       body += by
         ? `<div class="ap-confirm" role="alertdialog"><p>${text}</p><p class="unk">as ${esc(by)}</p>
-            <button type="button" data-yes class="${this.confirm === "kill" ? "danger" : ""}"${this.busy ? " disabled" : ""}>${this.busy ? "Sending…" : `Yes, ${esc(act.label)}`}</button>
+            <button type="button" data-yes class="${this.confirm === "kill" ? "danger" : ""}"${off ? " disabled" : ""}>${this.busy ? "Sending…" : `Yes, ${esc(act.label)}`}</button>
             <button type="button" data-cancel>Cancel</button></div>`
         : `<form class="ap-confirm ap-who"><p>Who is acting? Every action is logged and shown to everyone watching, with this name.</p>
             <input name="who" maxlength="80" placeholder="your name" autocomplete="nickname" spellcheck="false"><button type="submit">That's me</button>
@@ -201,7 +212,7 @@ export class ProcPanel {
       : st.status === "not requested" ? '<span class="unk">not requested: the feed reads without state=true, and the app must set inspect_state: true for the engine to give it</span>'
         : `<pre class="ap-pre">${esc(typeof st === "string" ? st : JSON.stringify(st, null, 1))}</pre>`;
     return `
-      <div class="sec"><h3>Process <span class="unk">read ${esc(utc(new Date(this.at)))}, ${esc(d.took_ms)} ms</span></h3>${kv([
+      <div class="sec"><h3>Process <span class="unk">read ${esc(utc(new Date(this.at)))}, ${esc(d.took_ms)} ms${this.notLive() ? " · not live" : ""}</span></h3>${kv([
         ["registered", u(d.registered_name)], ["application", u(d.application)], ["in", u(d.current_function)], ["started as", u(d.initial_call)],
         ["mailbox", `${esc(num(d.message_queue_len))} messages`], ["memory", esc(bytes(d.memory))], ["reductions", esc(num(d.reductions))],
         ["heap / total heap", `${esc(num(d.heap_size_words))} / ${esc(num(d.total_heap_size_words))} words`], ["stack", `${esc(num(d.stack_size_words))} words`],
@@ -215,8 +226,8 @@ export class ProcPanel {
         [`links (${d.links_count ?? 0})`, list(d.links, d.links_count)], [`monitors (${d.monitors_count ?? 0})`, list(d.monitors, d.monitors_count)],
         [`monitored by (${d.monitored_by_count ?? 0})`, list(d.monitored_by, d.monitored_by_count)],
       ])}</div>
-      <div class="sec"><h3>Dictionary <span class="unk">${esc(d.dictionary_count ?? 0)} keys, names only</span></h3>
-        <div class="ap-keys">${(d.dictionary_keys ?? []).map((k) => `<code>${esc(k)}</code>`).join(" ") || '<span class="unk">empty</span>'}</div></div>
+      <div class="sec"><h3>Dictionary <span class="unk">${d.dictionary_not_read ? "not listed" : `${esc(d.dictionary_count ?? 0)} keys, names only`}</span></h3>
+        <div class="ap-keys">${d.dictionary_not_read ? `<span class="unk">${esc(d.dictionary_not_read)}</span>` : (d.dictionary_keys ?? []).map((k) => `<code>${esc(k)}</code>`).join(" ") || '<span class="unk">empty</span>'}</div></div>
       <div class="sec"><h3>State</h3>${stateText}</div>`;
   }
 

@@ -174,4 +174,20 @@ defmodule ObsFactorWeb.ApiTest do
       assert conn |> get("/api/history?node=probe-node&res=1h") |> json_response(400)
     end
   end
+
+  describe "POST /api/builds" do
+    test "a build request, refused or done, is broadcast on actions with who asked", %{conn: conn} do
+      old = Application.get_env(:obs_factor, :builder_client)
+      Application.put_env(:obs_factor, :builder_client, [])
+      on_exit(fn -> if old, do: Application.put_env(:obs_factor, :builder_client, old), else: Application.delete_env(:obs_factor, :builder_client) end)
+      Phoenix.PubSub.subscribe(ObsFactor.PubSub, "actions")
+
+      conn = conn |> authed() |> put_req_header("x-factory-by", "kim") |> post("/api/builds", %{"name" => "deci", "mode" => "local"})
+      assert json_response(conn, 404) == %{"error" => "no builder configured (BUILDER_URL)"}
+
+      assert_receive {:action,
+                      %{"node" => "builder", "path" => "builds", "by" => "kim", "status" => 404,
+                        "params" => %{"name" => "deci", "mode" => "local"}, "error" => "no builder configured (BUILDER_URL)"}}
+    end
+  end
 end

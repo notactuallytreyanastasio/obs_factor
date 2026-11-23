@@ -102,6 +102,10 @@ defmodule ObsFactor.ObjectivesTest do
   test "no such objective, and nothing stored for one" do
     assert Objectives.key("db", "Postgres 96 of 100, 3.5 ms") == "db|Postgres # of #, # ms"
     assert Objectives.key(nil, "source docker failing") == "-|source docker failing"
+    # addresses, pids and versions are identities: two partitions stay two
+    assert Objectives.key("m", "m@172.22.0.2 and m@172.22.0.3 are not connected") !=
+             Objectives.key("m", "m@172.22.0.3 and m@172.22.0.5 are not connected")
+    assert Objectives.key("m", "kill 0.2542.0: 96% of 4.8 MB") == "m|kill 0.2542.0: #% of # MB"
   end
 
   test "every change is broadcast with the public row and its events", %{s: s} do
@@ -122,6 +126,27 @@ defmodule ObsFactor.ObjectivesTest do
     {:ok, pin} = Objectives.pin(%{"node" => "blog", "title" => "odd", "by" => "bg"}, s)
     pin_id = pin.id
     assert_receive {:objective, %{id: ^pin_id, source: "pin", events: [%{kind: "pinned"}]}}
+  end
+
+  test "a store that goes away is announced, and one that comes back is announced with the whole list", %{db: db} do
+    name = :"objectives_probe_#{System.unique_integer([:positive])}"
+    topic = "objectives_probe_#{System.unique_integer([:positive])}"
+    Phoenix.PubSub.subscribe(ObsFactor.PubSub, topic)
+    start_supervised!(Supervisor.child_spec({Objectives, db: db, name: name, topic: topic, probe_ms: 50}, id: name))
+    {:ok, _} = Objectives.list(name) |> retry(name)
+    {:ok, pin} = Objectives.pin(%{"node" => "blog", "title" => "odd", "by" => "bg"}, name)
+
+    # nothing changes on the floor: only the probe can notice
+    :ok = stop_supervised(db)
+    assert_receive {:objectives_error, msg}, 2_000
+    assert is_binary(msg) and msg != ""
+    # announced once per reason, not on every probe
+    refute_receive {:objectives_error, ^msg}, 200
+
+    start_supervised!(Supervisor.child_spec({Postgrex, ObsFactor.Postgres.opts(@url, name: db, pool_size: 1, statement_timeout: "5000")}, id: db))
+    pin_id = pin.id
+    assert_receive {:objectives_list, [%{id: ^pin_id}]}, 2_000
+    refute_receive {:objectives_list, _}, 200
   end
 
   describe "the objectives channel" do
@@ -150,6 +175,14 @@ defmodule ObsFactor.ObjectivesTest do
       assert_reply ref, :error, %{error: "act needs an integer id" <> _}
 
       {:ok, %{objectives: [%{id: ^id}]}, _} = subscribe_and_join(socket, ObsFactorWeb.ObjectivesChannel, "objectives")
+    end
+
+    test "the store failing and answering again reach every viewer as `list` pushes", %{socket: socket} do
+      {:ok, %{objectives: []}, _} = subscribe_and_join(socket, ObsFactorWeb.ObjectivesChannel, "objectives")
+      Phoenix.PubSub.broadcast(ObsFactor.PubSub, "objectives", {:objectives_error, "connection not available"})
+      assert_push "list", %{error: "connection not available"}
+      Phoenix.PubSub.broadcast(ObsFactor.PubSub, "objectives", {:objectives_list, [%{id: 1}]})
+      assert_push "list", %{objectives: [%{id: 1}]}
     end
   end
 

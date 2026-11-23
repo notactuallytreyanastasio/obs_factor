@@ -11,7 +11,10 @@ defmodule Liveapp.Application do
       {FactoryReport,
        app: :liveapp,
        port: String.to_integer(System.get_env("FACTORY_REPORT_PORT", "9568")),
-       token: System.get_env("FACTORY_REPORT_TOKEN")},
+       token: System.get_env("FACTORY_REPORT_TOKEN"),
+       # lab-only: the observer reads /observer without a token here (the
+       # port is reachable only on the lab's network)
+       observer: true},
       LiveappWeb.Endpoint
     ]
 
