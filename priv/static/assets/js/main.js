@@ -17,6 +17,7 @@ import { ProcPanel } from "./apps_proc.js";
 import "./apps_buildings.js";
 import { Processes } from "./processes.js"; // processes.js
 import { JumpList } from "./jump.js"; // jump.js
+import { scopeFromUrl, scopeSnapshot } from "./scope.js";
 
 const $ = (id) => document.getElementById(id);
 const canvas = $("floor");
@@ -540,6 +541,7 @@ const lens = (() => {
 // the selected building, or, inside one, the building we are in.
 const missions = new Missions({
   snap: () => snap,
+  inScope: SCOPE ? (id) => !scopeIds || id == null || scopeIds.has(id) : null,
   outer: () => outerSnap,
   insideOf: () => insideOf,
   scenes: () => [scene, under],
@@ -653,7 +655,24 @@ document.addEventListener("pointerdown", (e) => {
 
 // ---- data -----------------------------------------------------------------
 
-function onSnapshot(s) {
+// ---- scope (scope.js): /?scope=<id> shows one building and its wiring ------
+const SCOPE = scopeFromUrl();
+let scopeIds = null; // the ids in scope, or null for the whole box
+function renderScope(sc) {
+  const el = $("scopechip");
+  if (!sc) { el.hidden = true; return; }
+  el.hidden = false;
+  el.classList.toggle("bad", sc.missing);
+  el.innerHTML = sc.missing
+    ? `no <b>${esc(SCOPE)}</b> on the floor: showing everything · <a href="/">clear</a>`
+    : `<b>${esc(sc.snap.scope.label)}</b> only <span class="dim">· ${sc.snap.scope.hidden} hidden</span> · <a href="/">whole box</a>`;
+}
+
+function onSnapshot(raw) {
+  const sc = SCOPE ? scopeSnapshot(raw, SCOPE) : null;
+  const s = sc && !sc.missing ? sc.snap : raw;
+  scopeIds = sc && !sc.missing ? sc.ids : null;
+  renderScope(sc);
   outerSnap = s;
   $("loading").hidden = true;
   showView();

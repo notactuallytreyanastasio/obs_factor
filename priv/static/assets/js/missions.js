@@ -350,7 +350,7 @@ export class Missions {
   // not on the inside (whose ids are its own and can collide with them).
   focusMap() {
     const m = new Map();
-    for (const o of this.list) {
+    for (const o of this.shown()) {
       if (!undone(o) || !o.node) continue;
       if (o.severity === "alert" || !m.has(o.node)) m.set(o.node, o.severity === "alert" ? "alert" : "warn");
     }
@@ -375,13 +375,20 @@ export class Missions {
     if (on && outer) {
       const ids = new Set(outer.nodes.map((n) => n.id));
       const lit = [...m.keys()].filter((id) => ids.has(id)).length;
-      const n = this.list.filter(undone).length;
+      const n = this.shown().filter(undone).length;
       this.lensNote.textContent = `Lens on: ${lit} building${lit === 1 ? "" : "s"} lit for ${n} undone objective${n === 1 ? "" : "s"}` +
         (n > lit ? ` (the rest have no building on the floor)` : "") + (this.api.insideOf() ? ". Inside a building it lights the floor underneath." : ".") +
         (window.innerWidth < 760 ? " Close this panel to see it." : "");
       this.lensNote.hidden = false;
     } else this.lensNote.hidden = true;
     this.api.redraw();
+  }
+
+  // The objectives this page shows: all of them, or on a scoped floor
+  // (scope.js) those on a building in scope and those on no building.
+  shown() {
+    const inScope = this.api.inScope;
+    return inScope ? this.list.filter((o) => inScope(o.node)) : this.list;
   }
 
   // ---- labels ---------------------------------------------------------------
@@ -402,7 +409,7 @@ export class Missions {
     if (this.configured === false || this.configured === null) { b.hidden = true; this.flagBtn.hidden = true; return; }
     b.hidden = false;
     this.flagBtn.hidden = false;
-    const u = this.list.filter(undone);
+    const u = this.shown().filter(undone);
     const alerts = u.filter((o) => o.severity === "alert").length;
     b.dataset.level = this.error ? "error" : alerts ? "alert" : u.length ? "warn" : "none";
     b.querySelector(".n").textContent = this.error ? "!" : String(u.length);
@@ -425,10 +432,10 @@ export class Missions {
     const msg = [this.error ? `Could not read the objectives: ${this.error}` : "", offline].filter(Boolean).join(" ");
     this.errEl.hidden = !msg;
     this.errEl.textContent = msg;
-    const u = this.list.filter(undone);
+    const u = this.shown().filter(undone);
     const open = u.filter((o) => o.state === "open" || o.state === "looking").sort((a, b) => sevRank(a) - sevRank(b) || Date.parse(b.opened_at) - Date.parse(a.opened_at));
     const cleared = u.filter((o) => o.state === "cleared");
-    const done = this.list.filter((o) => o.state === "done");
+    const done = this.shown().filter((o) => o.state === "done");
     this.el.querySelector(".ms-sum").textContent = this.loaded ? `${open.length} open · ${cleared.length} to check · ${done.length} done in 24 h` : this.error ? "not read" : "loading…";
     const section = (title, items, hint) => `<section><h4>${title} <span class="unk">${items.length}</span></h4>${hint && items.length ? `<p class="unk ms-hint">${hint}</p>` : ""}${items.length ? items.map((o) => this.item(o)).join("") : '<p class="unk ms-none">nothing</p>'}</section>`;
     this.listEl.innerHTML = !this.loaded ? (this.error ? "" : '<p class="unk">Loading…</p>') :
@@ -500,7 +507,7 @@ export class Missions {
   // ---- the notice on load -----------------------------------------------------
 
   notice() {
-    const u = this.list.filter(undone);
+    const u = this.shown().filter(undone);
     if (!u.length || this.open) return;
     const alerts = u.filter((o) => o.severity === "alert").length;
     this.toast.innerHTML = `<b>${u.length}</b> objective${u.length === 1 ? "" : "s"} waiting${alerts ? ` <span class="ms-a">${alerts} alert${alerts === 1 ? "" : "s"}</span>` : ""} <span class="unk">open missions →</span>`;
@@ -555,7 +562,7 @@ export class Missions {
   // ---- before you leave ---------------------------------------------------------
 
   debrief(logoutForm = null) {
-    const u = this.list.filter(undone);
+    const u = this.shown().filter(undone);
     const open = u.filter((o) => o.state !== "cleared").sort((a, b) => sevRank(a) - sevRank(b));
     const cleared = u.filter((o) => o.state === "cleared");
     const text = this.handover(open, cleared);
