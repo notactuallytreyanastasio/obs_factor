@@ -119,3 +119,24 @@ ol.bd-wire .x { font: 11px var(--mono); color: #9aa3b8; margin-top: 2px; word-br
 #board tr.grp td { text-align: left; color: #c9b8ff; font: 700 11px var(--sans); letter-spacing: 0.06em; padding-top: 8px; border-bottom-color: rgba(179, 136, 255, 0.3); }
 #board .dim { color: var(--dim); font-weight: 400; }
 #board td.nm em { font-style: normal; color: var(--gold); font-size: 10px; }
+
+/* ---- the wire's filter sets (board.js) --------------------------------------- */
+.nw-tag.air { color: #071018; background: #c9b8ff; }
+.bd-sets { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 6px; }
+.bd-set { display: inline-flex; align-items: stretch; border: 1px solid rgba(179, 136, 255, 0.45); border-radius: 12px; overflow: hidden; }
+.bd-set button { border: 0; background: transparent; color: #c9b8ff; cursor: pointer; font: 11px var(--sans); padding: 0 7px; height: 24px; }
+.bd-set .nm i { font: 700 10px var(--mono); color: var(--dim); font-style: normal; }
+.bd-set .air { font: 800 9px var(--sans); letter-spacing: 0.1em; color: var(--dim); border-left: 1px solid rgba(179, 136, 255, 0.25); }
+.bd-set .del { color: var(--dim); border-left: 1px solid rgba(179, 136, 255, 0.25); }
+.bd-set .del:hover { color: #ff8a80; }
+.bd-set.on { background: rgba(179, 136, 255, 0.16); }
+.bd-set.on .nm { color: #fff; font-weight: 700; }
+.bd-set.aired { border-color: #c9b8ff; box-shadow: 0 0 10px rgba(179, 136, 255, 0.35); }
+.bd-set.aired .air { color: #071018; background: #c9b8ff; }
+.bd-hint { color: var(--dim); font-size: 11px; }
+.bd-filters input[type=search] { height: 24px; min-width: 180px; flex: 1; padding: 0 8px; border-radius: 12px; border: 1px solid var(--line); background: #0b1220; color: var(--text); font: 11px var(--mono); }
+.bd-chip i { font: 700 10px var(--mono); font-style: normal; opacity: 0.7; }
+.bd-filters.kinds .bd-chip { font-family: var(--mono); font-size: 10px; }
+.bd-setbar { display: flex; align-items: center; gap: 6px; margin: 2px 0 8px; min-height: 26px; }
+.bd-setbar button { height: 24px; padding: 0 9px; border-radius: 6px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.04); color: var(--text); cursor: pointer; font: 600 11px var(--sans); }
+.bd-setbar .bd-n { margin-left: auto; color: var(--dim); font: 11px var(--mono); }
