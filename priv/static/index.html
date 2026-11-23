@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/assets/apps.css">
   <link rel="stylesheet" href="/assets/processes.css">
   <link rel="stylesheet" href="/assets/tape.css">
+  <link rel="stylesheet" href="/assets/board.css">
   <script type="module" src="/assets/js/main.js"></script>
 </head>
 <body class="factory">
@@ -26,6 +27,8 @@
       <span class="sep" aria-hidden="true">·</span><time id="utc">--:--:--</time> UTC
       <span id="stale"></span>
     </div>
+    <!-- board.js: the box's headline numbers and their moves over 5 minutes -->
+    <div id="indexrow" aria-label="Headline numbers"></div>
     <!-- scope.js: shown on /?scope=<id>, the floor narrowed to one building and its wiring -->
     <div class="scope-chip" id="scopechip" hidden></div>
     <!-- missions.js: hidden until /api/objectives answers, and kept hidden only when there is no store -->
@@ -78,6 +81,7 @@
     <button class="ctl build" id="buildbtn" aria-expanded="false" hidden>Build new app</button>
     <button class="ctl" id="beambtn" aria-expanded="false" title="The observer's own BEAM: processes, tables, log">Under the hood</button>
     <button class="ctl" id="procsbtn" aria-expanded="false" aria-controls="procs" title="Every BEAM's processes: mailbox, memory, reductions">Processes</button><!-- processes.js -->
+    <button class="ctl" id="boardbtn" aria-expanded="false" aria-controls="board" title="Every building's numbers, one dense row each (b)">Board</button><!-- board.js -->
     <button class="ctl tour" id="tourbtn">Tour</button>
     <span class="grow"></span>
     <button class="ctl sq" id="zoomout" aria-label="Zoom out">−</button>
@@ -140,6 +144,9 @@
   <!-- fires.js: what went wrong in the stretch of tape in view -->
   <aside id="fires" hidden aria-label="Fires: what went wrong, and how it was handled"></aside>
   <div id="firebanner" hidden role="status"></div>
+  <!-- board.js: the chyron and the crawl, over the timeline; the monitor -->
+  <div id="news"></div>
+  <aside id="board" hidden aria-label="The board: every building's numbers"></aside>
   <!-- timeline.js: the tape, at the bottom; hidden while there is none -->
   <div id="timeline" hidden></div>
 

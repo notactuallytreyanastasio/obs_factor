@@ -55,6 +55,25 @@ defmodule ObsFactor.TapeTest do
     assert length(sum.fires) == 2
   end
 
+  test "the board keeps a few numbers per node, rounded, and drops what is unknown" do
+    m = %{"caddy" => %{rps: 12.345678, err_rps: 0.0, p95_ms: nil, units: 9}, "db" => %{commits_per_s: 2.61234, connections: 91}, "x" => %{rps: nil}}
+    assert Tape.board(m) == %{"caddy" => %{rps: 12.35, err_rps: 0}, "db" => %{commits_per_s: 2.612, connections: 91}}
+  end
+
+  test "series: every k-th frame of the window, newest always in, with its numbers", %{db: db, tape: tape} do
+    for i <- 0..9 do
+      s = snap([])
+      Tape.record(@t0 + i * 5_000, Jason.encode!(s), Tape.summary(s, %{"caddy" => %{rps: i * 1.0}}), tape)
+      assert_receive {:tape_frame, %{metrics: %{"caddy" => %{rps: _}}}}, 2_000
+    end
+
+    {:ok, all} = Tape.series(@t0, @t0 + 60_000, 100, db)
+    assert length(all) == 10
+    assert [[@t0, %{"caddy" => %{"rps" => 0}}] | _] = all
+    {:ok, some} = Tape.series(@t0, @t0 + 60_000, 4, db)
+    assert length(some) <= 4 and List.last(some) == List.last(all)
+  end
+
   test "a frame comes back as it was recorded: the last at or before, or the first after", %{db: db, tape: tape} do
     put(tape, @t0, snap([]))
     put(tape, @t0 + 5_000, snap([alert("app", "on fire")]))

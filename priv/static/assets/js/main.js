@@ -20,6 +20,7 @@ import { JumpList } from "./jump.js"; // jump.js
 import { scopeFromUrl, scopeSnapshot } from "./scope.js";
 import { Timeline } from "./timeline.js";
 import { Fires } from "./fires.js";
+import { Board } from "./board.js";
 
 const $ = (id) => document.getElementById(id);
 // scope.js: /?scope=<id>. Up here because Missions, built further down at
@@ -28,7 +29,7 @@ const SCOPE = scopeFromUrl();
 let scopeIds = null; // the ids in scope, or null for the whole box
 // timeline.js and fires.js, built near the end; declared up here (and read
 // with ?.) so nothing that runs before then can trip on them
-let timeline = null, fires = null;
+let timeline = null, fires = null, board = null;
 const canvas = $("floor");
 const scene = new Scene(canvas);
 // While inside a building, the floor it stands on stays drawn underneath,
@@ -69,7 +70,7 @@ function freeArea() {
   // processes.js: the same, for the Processes panel
   if (fires?.open && w >= 760) { const r = fires.el.getBoundingClientRect(); x = r.right; fw = w - x; }
   if (procs.open && w >= 760) { const r = procs.el.getBoundingClientRect(); x = r.right; fw = w - x; }
-  const side = inspector.open ? inspector.el : procPanel.open ? procPanel.el : null; // apps.js: the process panel sits where the inspector does
+  const side = inspector.open ? inspector.el : procPanel.open ? procPanel.el : board?.open ? board.el : null; // apps.js: the process panel sits where the inspector does
   if (side) {
     const r = side.getBoundingClientRect();
     if (w >= 760) fw = r.left - x;
@@ -702,6 +703,7 @@ function display(raw) {
   if (tourAsked) { tourAsked = false; setTimeout(() => tour.start(), 400); }
   logs.onSnapshot();
   fires?.onShown(s);
+  board?.onShown(s, Date.parse(s.at));
 }
 
 $("backbtn").addEventListener("click", () => leave());
@@ -843,7 +845,13 @@ fires = new Fires({
   closeOthers: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); missions.toggle(false); procs.toggle(false); },
   onToggle: () => { dirty = true; },
 });
-window.__obsFactorTape = { timeline, fires };
+board = new Board({
+  timeline,
+  go: (id) => { if (outerSnap?.nodes.some((n) => n.id === id)) { if (insideOf) leave(); select(id, true); } },
+  closeOthers: () => { inspector.close(); toggleLegend(false); toggleSites(false); toggleBuilder(false); },
+  onToggle: () => { dirty = true; },
+});
+window.__obsFactorTape = { timeline, fires, board };
 
 connect({
   onSnapshot,
