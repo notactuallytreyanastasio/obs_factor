@@ -80,6 +80,15 @@ defmodule ObsFactor.WireTest do
     assert Enum.all?(items, &(&1.member == "marginalia@172.18.0.12" and &1.app == "marginalia" and &1.at == @t + 5_000))
   end
 
+  test "a restart is still news when the report was unreadable for the tick in between" do
+    gone = %{"nodes" => [%{"id" => "marginalia", "label" => "Marginalia", "kind" => "app", "inside" => %{"ok" => false, "error" => "connection refused"}}]}
+    {[], st} = Wire.observe(Wire.new(), snap(two()), @t)
+    {[], st} = Wire.observe(st, gone, @t + 5_000)
+    {items, _} = Wire.observe(st, snap(two([up: 4], up: 4)), @t + 10_000)
+    assert "marginalia@.0.10 restarted" in heads(items) and "marginalia@.0.12 restarted" in heads(items)
+    refute Enum.any?(items, &(&1.kind in ["joined", "left"]))
+  end
+
   test "atoms climbing are a leak warning, an alarm past 80% of the limit" do
     [i] = run(snap(two()), snap(two(g: %{"atom.count" => 51_000})))
     assert i.head == "atoms +1,000" and i.sev == "warn"

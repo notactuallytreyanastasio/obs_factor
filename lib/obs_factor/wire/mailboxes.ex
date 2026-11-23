@@ -44,7 +44,7 @@ defmodule ObsFactor.Wire.Mailboxes do
   def handle_info(:poll, state) do
     Process.send_after(self(), :poll, @every_ms)
     now = System.monotonic_time(:millisecond)
-    targets = for t <- targets(), Map.get(state.off, elem(t, 0), 0) <= now, do: t
+    targets = for t <- targets(), due?(state.off, elem(t, 0), now), do: t
 
     results =
       targets
@@ -67,6 +67,16 @@ defmodule ObsFactor.Wire.Mailboxes do
       end)
 
     {:noreply, state}
+  end
+
+  # monotonic time is negative on most VMs: "no backoff" is a missing key,
+  # never 0 (`0 <= now` was false, and no node was ever asked)
+  @doc false
+  def due?(off, id, now) do
+    case Map.fetch(off, id) do
+      :error -> true
+      {:ok, until} -> until <= now
+    end
   end
 
   defp targets do

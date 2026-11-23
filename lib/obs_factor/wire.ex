@@ -55,7 +55,7 @@ defmodule ObsFactor.Wire do
     state = %{
       state
       | first: false,
-        members: Map.new(beams, &{&1.key, &1}),
+        members: remember(state.members, beams),
         events: seen_events(nodes, state.events),
         streams: streams(nodes),
         db: dbs.per_db,
@@ -212,6 +212,16 @@ defmodule ObsFactor.Wire do
   defp top_boxes(beams, mailboxes), do: Map.new(beams, &{&1.key, top_box(mailboxes, &1)})
 
   defp proc_name(p), do: p["registered_name"] || p["initial_call"] || p["pid"]
+
+  # An app whose report could not be read this tick (it is restarting, as
+  # often as not) keeps its members as last seen: when it answers again its
+  # uptime is compared with that, and the restart is news. Forgetting them
+  # made a restarted node look like a new one, and said nothing.
+  defp remember(prev, beams) do
+    apps = MapSet.new(beams, & &1.app)
+    kept = for {k, m} <- prev, not MapSet.member?(apps, m.app), into: %{}, do: {k, m}
+    Map.merge(kept, Map.new(beams, &{&1.key, &1}))
+  end
 
   # ---- what changed ----------------------------------------------------------
 
