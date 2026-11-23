@@ -12,7 +12,9 @@ config :obs_factor,
   start_collectors: true,
   tick_ms: 5_000,
   sites_interval_ms: 120_000,
-  password: nil
+  password: nil,
+  # Feed resolvers besides the built-in ObsFactor.Feeds.Views (ObsFactor.Feeds, "Adding a view")
+  feed_views: [ObsFactor.Feeds.ObserverViews]
 
 # Configure the endpoint
 config :obs_factor, ObsFactorWeb.Endpoint,

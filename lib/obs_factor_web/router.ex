@@ -53,6 +53,8 @@ defmodule ObsFactorWeb.Router do
     get "/objectives", ObjectivesController, :index
     post "/objectives", ObjectivesController, :create
     post "/objectives/:id", ObjectivesController, :update
+    get "/nodes/:id/observer/*path", ObserverController, :read
+    post "/nodes/:id/observer/*path", ObserverController, :act
   end
 
   # OBS_ROLE=builder only; the plug answers 404 on the observer.

@@ -27,7 +27,7 @@
 // Who you are is a name kept in localStorage: there is one password and no
 // accounts, so it is a label, not an identity.
 
-import { esc, duration, utc } from "./fmt.js";
+import { esc, duration, utc, bytes } from "./fmt.js";
 import * as bus from "./bus.js";
 
 const $ = (id) => document.getElementById(id);
@@ -48,6 +48,39 @@ const undone = (o) => o.state !== "done";
 const sevRank = (o) => (o.severity === "alert" ? 0 : 1);
 const ago = (iso) => (iso ? `${duration((Date.now() - Date.parse(iso)) / 1000)} ago` : "-");
 const typing = (el) => !!el?.closest?.("input, textarea, select, [contenteditable=true]");
+
+// An action the observer's engine pass-through published (ObserverProxy, the
+// "actions" topic): {at, node, member, path, params, by, status, result, error}.
+// Read as "gc 0.230.0 on fakeapp — ok" with what it did, not as raw JSON.
+function observerActionText(a, seen) {
+  const parts = a.path.split("/");
+  const p = a.params ?? {};
+  const r = a.result ?? {};
+  let verb = parts[parts.length - 1], target = parts.slice(0, -1).join("/");
+  if (parts[0] === "proc") target = parts[1];
+  else if (parts[0] === "tree" && verb === "restart") target = `${p.child_id ?? "?"} under ${p.supervisor ?? "?"} (${parts[1]})`;
+  else if (parts[0] === "logger") { verb = "logger level"; target = p.level ?? ""; }
+  if (verb === "exit" && p.reason) verb = `exit(${p.reason})`;
+  const where = `${a.node ?? "?"}${a.member ? ` (${a.member})` : ""}`;
+  const ok = a.status >= 200 && a.status < 300;
+  const state = ok ? "ok" : `${a.status === 403 || a.status === 409 ? "refused" : "failed"} (${a.status})`;
+  let did = null;
+  if (ok) {
+    if (r.action === "gc") did = `memory ${bytes(r.memory_before)} → ${bytes(r.memory_after)}`;
+    else if (r.action === "kill" || r.action === "exit") did = `alive after: ${r.alive_after}, exit reason ${r.exit_reason}`;
+    else if (r.action === "restart") did = `${r.old_pid ?? "?"} → ${r.new_pid ?? "?"}`;
+    else if (r.action === "logger_level") did = `${r.before} → ${r.level}`;
+    else did = JSON.stringify(r);
+  }
+  return {
+    head: `${verb} ${target} on ${where} — ${state}`,
+    by: a.by ?? null,
+    at: a.at ?? seen,
+    err: a.error ?? null,
+    result: did,
+    rest: null,
+  };
+}
 
 export class Missions {
   // api: snap() what is on screen, outer() the floor, insideOf() the building
@@ -263,6 +296,7 @@ export class Missions {
   // One line for whatever the engine published: it names its own fields, so
   // the known ones are picked out and the rest is shown as it came.
   actionText({ seen, a }) {
+    if (typeof a.path === "string" && typeof a.status === "number") return observerActionText(a, seen);
     const what = a.action ?? a.kind ?? a.name ?? a.type ?? "action";
     const on = a.target ?? a.node ?? a.container ?? a.pid ?? a.id;
     const state = a.state ?? a.status ?? (a.error ? "failed" : a.ok === true ? "ok" : null);

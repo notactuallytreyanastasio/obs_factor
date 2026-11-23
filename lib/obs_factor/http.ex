@@ -28,12 +28,21 @@ defmodule ObsFactor.Http do
   of `{name, value}`, default none).
   Returns `{:ok, status, body, ms}` or `{:error, message}`.
   """
-  def get(url, opts \\ []) do
+  def get(url, opts \\ []), do: request(:get, url, opts)
+
+  @doc """
+  `request(:post, url, body: iodata, ...)`: as `get/2`, with a method and an
+  optional `:body` (sent as is; set its content-type in `:headers`).
+  """
+  def request(method, url, opts \\ []) when method in [:get, :post] do
     timeout = Keyword.get(opts, :timeout, 2_000)
     started = System.monotonic_time(:millisecond)
 
     result =
-      Req.get(url,
+      Req.request(
+        method: method,
+        url: url,
+        body: Keyword.get(opts, :body),
         finch: [name: @finch, pool_timeout: timeout],
         retry: false,
         redirect: false,

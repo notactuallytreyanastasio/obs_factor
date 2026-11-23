@@ -17,7 +17,7 @@ ARG RUNNER_IMAGE="docker.io/debian:${DEBIAN_VERSION}"
 FROM ${BUILDER_IMAGE} AS builder
 
 # No NIFs in the dependency tree (phoenix, bandit, req, postgrex, jason,
-# telemetry): nothing here needs a C compiler or git.
+# telemetry, factory_report): nothing here needs a C compiler or git.
 WORKDIR /app
 
 RUN mix local.hex --force \
@@ -25,12 +25,17 @@ RUN mix local.hex --force \
 
 ENV MIX_ENV="prod"
 
+# factory_report is a path dependency (FactoryReport.Observer answers for
+# this VM): Mix reads its mix.exs at deps.get and compiles its lib/ with the
+# other deps. .dockerignore lets exactly those two in.
+COPY packages/factory_report/mix.exs packages/factory_report/mix.exs
 COPY mix.exs mix.lock ./
 RUN mix deps.get --only $MIX_ENV
 RUN mkdir config
 
 # Compile-time config before deps.compile, so a config change recompiles them.
 COPY config/config.exs config/${MIX_ENV}.exs config/
+COPY packages/factory_report/lib packages/factory_report/lib
 RUN mix deps.compile
 
 COPY priv priv
