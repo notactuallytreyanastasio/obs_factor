@@ -110,6 +110,16 @@
       "to_change_id": "4307693b-b453-45f6-96e2-8f5f6023f2f1",
       "weight": 1.0
     },
+    "195674a6129ed2fc970d": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T18:00:37.463805-05:00",
+      "edge_id": "195674a6129ed2fc970d",
+      "edge_type": "leads_to",
+      "from_change_id": "99ff4a75-7570-4c6b-8032-145f132c7049",
+      "rationale": "implements",
+      "to_change_id": "934c72c6-7ebd-4d8b-9966-01c4b4e28928",
+      "weight": 1.0
+    },
     "1c3f88876a044728f8bb": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-23T13:46:12.609444-05:00",
@@ -1427,6 +1437,20 @@
       "title": "Record the whole snapshot to a Postgres tape; History alone cannot redraw the floor",
       "updated_at": "2026-11-23T16:47:28.735868-05:00"
     },
+    "934c72c6-7ebd-4d8b-9966-01c4b4e28928": {
+      "author": "Bobby Grayson",
+      "change_id": "934c72c6-7ebd-4d8b-9966-01c4b4e28928",
+      "created_at": "2026-11-23T18:00:37.396224-05:00",
+      "metadata": {
+        "branch": "21-windows-for-keeps",
+        "commit": "ef7632bcf3a9e202d7d2b7ae2b1d8a4d40959316",
+        "confidence": 85
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Undoable prune, window notes + links, replay action guard, phone layout",
+      "updated_at": "2026-11-23T18:00:37.396224-05:00"
+    },
     "9542228e-e654-4455-8ed3-833af7985dbb": {
       "author": "Bobby Grayson",
       "change_id": "9542228e-e654-4455-8ed3-833af7985dbb",
@@ -1452,6 +1476,20 @@
       "status": "pending",
       "title": "Board: index row, chyron, crawl, monitor from per-frame tape metrics",
       "updated_at": "2026-11-23T17:14:45.177593-05:00"
+    },
+    "99ff4a75-7570-4c6b-8032-145f132c7049": {
+      "author": "Bobby Grayson",
+      "change_id": "99ff4a75-7570-4c6b-8032-145f132c7049",
+      "created_at": "2026-11-23T17:55:27.209784-05:00",
+      "metadata": {
+        "branch": "21-windows-for-keeps",
+        "confidence": 75,
+        "prompt": "Keep going"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "Keep going: undoable prune, window links + notes, no live actions during replay, phone pass",
+      "updated_at": "2026-11-23T17:55:27.209784-05:00"
     },
     "9f57e789-4465-4655-84ac-ef144f53d491": {
       "author": "Bobby Grayson",
