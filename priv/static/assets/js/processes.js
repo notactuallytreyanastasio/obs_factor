@@ -511,7 +511,7 @@ export class Processes {
     const rps = r.rps == null ? `<span class="unk" title="needs two reads of this process">-</span>` : num(r.rps);
     const go = r.src.onFloor ? `<button type="button" class="pr-go" data-go title="Fly to ${esc(srcName(r.src))}" aria-label="Fly to the building">↗</button>` : "";
     return `<tr data-k="${esc(r.key)}" class="${r.key === this.selected ? "sel" : ""}${r.stale ? " stale" : ""}">
-      <td class="c-src">${esc(r.src.label)}${r.src.member ? `<span class="unk"> ${esc(r.src.sub && r.src.sub !== r.src.member ? r.src.sub : r.src.member)}</span>` : ""}</td>
+      <td class="c-src" title="${esc(srcName(r.src))}">${r.src.member ? `<b class="mono">${esc(r.src.member.split(".").slice(-2).join("."))}</b> ` : ""}${esc(r.src.label)}</td>
       <td class="c-pid mono">${esc(r.pid)}</td>
       <td class="c-name">${name}</td>
       <td class="c-current mono">${esc(r.current ?? "-")}</td>
