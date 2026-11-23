@@ -28,7 +28,8 @@ defmodule ObsFactor.Objectives do
   ## Storage
 
   Postgres, its own database and role (deploy/objectives-db.sql), through a
-  pool of two. The schema is created at start (CREATE ... IF NOT EXISTS).
+  pool of two, shared with the tape (`ObsFactor.Tape`; the role is CONNECTION
+  LIMIT 2, deploy/objectives-db.sql). The schema is created at start (CREATE ... IF NOT EXISTS).
   The live rows are held here too: a tick touches the database only when
   something changes state, and `last_seen_at` is written at most every
   30 s per row. If Postgres is unreachable the observer runs on, the
@@ -112,7 +113,9 @@ defmodule ObsFactor.Objectives do
          )},
         id: @db
       ),
-      {__MODULE__, db: @db}
+      {__MODULE__, db: @db},
+      # the tape lives in the same database, through the same pool
+      {ObsFactor.Tape, db: @db}
     ]
   end
 
