@@ -55,7 +55,11 @@ defmodule ObsFactorWeb.TapeChannelTest do
     assert_reply ref, :ok, %{lanes: [["app", "alert", ^t0, _, 3, "x2"]]}
     ref = push(socket, "prune_windows", %{"ids" => [id]})
     assert_reply ref, :ok, %{pruned: [^id]}
-    assert_push "windows", %{windows: []}
+    # pruned, still listed for an hour, restorable
+    assert_push "windows", %{windows: [%{id: ^id, pruned_at: p}]} when is_integer(p)
+    ref = push(socket, "restore_windows", %{"ids" => [id]})
+    assert_reply ref, :ok, %{restored: [^id]}
+    assert_push "windows", %{windows: [%{id: ^id, pruned_at: nil}]}
 
     ref = push(socket, "insights", %{"from" => t0, "to" => t0 - 1})
     assert_reply ref, :error, %{error: "a window is" <> _}
