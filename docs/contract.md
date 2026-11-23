@@ -394,9 +394,61 @@ The log ring for the log explorer: `{"events": [...], "last_id": 123, "kept": 20
 every event with an id above `after` (default 0: all kept), oldest first. An
 event is `{id, at, level, text, where, pid, attrs}`; `attrs` is the Logger
 metadata minus process plumbing (`request_id`, `source` from the collectors,
-`file`, `line`, `domain`, `application`, ...), atoms as bare strings. Ids only
-grow, so `after=last_id` tails. A non-integer `after` is 400. Not logged
-itself.
+`file`, `line`, `domain`, `application`, ...), atoms as bare strings, nil
+values left out. Every event below carries `event` and its fields there, so
+the explorer's `event:`, `node:`, `source:` searches and facets read them
+instead of the message text. Ids only grow, so `after=last_id` tails. A
+non-integer `after` is 400. Not logged itself.
+
+## Logs: stdout *(2026-11-23)*
+
+In prod (and the lab container, which runs the prod release) stdout is one
+JSON object per line, written by `FactoryReport.JSONFormatter`: the shape
+every app on the box that vendors factory_report writes, so one pipeline
+aggregates them all. Dev and test write text (`[warning] source docker: ...`).
+`config :obs_factor, :log_formatter` holds the formatter and its field list.
+
+```json
+{"time":"2026-11-23T17:22:20.850Z","level":"warning","msg":"action proc/0.1637.0/gc on observer by bg (curl): ok","app":"obs_factor","module":"ObsFactor.ObserverProxy","request_id":"GOq8ZGW-n-FLqVAAAAcC","page":null,"event":"action.done","source":"actions","node":"observer","member":null,"action":"gc","target":"0.1637.0","args":null,"by":"bg (curl)","path":"proc/0.1637.0/gc","status":200,"took_ms":0.053,"error":null}
+{"time":"2026-11-23T17:22:20.850Z","level":"info","msg":"POST /api/nodes/observer/observer/proc/0.1637.0/gc 200 in 0.256 ms","app":"obs_factor","module":"ObsFactorWeb.Log","request_id":"GOq8ZGW-n-FLqVAAAAcC","page":null,"event":"http.request","method":"POST","path":"/api/nodes/observer/observer/proc/0.1637.0/gc","route":"/api/nodes/:id/observer/*path","handler":"ObsFactorWeb.ObserverController.act","status":200,"took_ms":0.256}
+```
+
+The first seven keys are always there, in this order, `null` when empty:
+`time` (UTC, ms), `level`, `msg` (the human line), `app` (`"obs_factor"`),
+`module`, `request_id` (`Plug.RequestId`, inside a request), `page`
+(factory_report's attribution; `null` here, the observer does not run
+`FactoryReport`). After them come the fields of the event, under the names
+below; a field the event passed as nil is `null`, one it does not have is
+absent. `took_ms` is a float to the microsecond, except the collectors'
+whole milliseconds.
+
+| `event` | level | fields | from |
+|---|---|---|---|
+| `http.request` | info | `method`, `path`, `route` (the router pattern, null for static files), `handler` (`Controller.action`), `status`, `took_ms` | every request but `/api/beam` and `/api/logs` (`ObsFactorWeb.Endpoint.log_level/1`) |
+| `http.error_rendered` | `render_errors: [log: ...]`, debug by default (so not in prod) | `method`, `path`, `status`, `kind`, `reason` (the exception module) | an exception rendered as an error page |
+| `socket.connected` / `socket.refused` | info / warning | `transport`, `took_ms`; refused: `reason` (`token missing`, `token invalid`, `token expired`) | `/socket` connects |
+| `channel.joined` / `channel.refused` | info / warning | `topic`, `channel`, `took_ms`; refused: `reason`, the join's reply | every channel join but Phoenix's heartbeat topic |
+| `action.done` / `action.refused` | warning | `source: "actions"`, `node`, `member`, `action` (last path segment: `gc`, `kill`, `exit`, `restart`, `level`, `builds`), `target` (the segments between: a pid, an app), `args` (`reason="shutdown"`, ...), `path`, `by`, `status`, `took_ms`, `error` | every observer action and `POST /api/builds`, done or refused (Observer, "Pass-through") |
+| `source.failed` | warning | `source`, `reason`, `took_ms`, `previous_error` when the error changed | a collector's new or changed error |
+| `source.ok` / `source.recovered` | info | `source`, `took_ms`; recovered: `previous_error` | its first ok since boot / an ok after an error |
+| `snapshot.failed` | error | `kind` (the exception), `reason`, `stacktrace` | `ObsFactor.Ticker` |
+| `objectives.failed` / `objectives.recovered` | error / info | `source: "objectives"`, `reason` / `previous_error` | the store failing (at most once a minute) and answering again |
+| `objective.changed` | info | `source: "objectives"`, `objective_id`, `node`, `action` (the event kind: `seen`, `came back`, `cleared itself`, `pinned`, `looking`, `crossed off`, `reopened`), `by` | every objective event written |
+| `objective.event_failed` | warning | as `objective.changed`, and `reason` | the event row could not be written |
+| `build.started` | info | `job`, `mode`, `fqdn` | the builder (`OBS_ROLE=builder`) |
+| `build.finished` | info | `job`, `status`, `reason` (the job's error, or null) | |
+| `build.crashed` | error | `job`, `reason` | the build runner died |
+| `config.password_missing` | warning | | boot without `OBS_FACTOR_PASSWORD` outside prod |
+
+Not structured, and why: lines other libraries write themselves (Bandit's
+startup and crash reports, Phoenix's `Ignoring unmatched topic`, OTP
+supervisor and crash reports) have the seven keys and no `event`; the
+vendored factory_report's own `factory_report observer action: ...` line
+(when another app's engine acts) is unchanged, since that file ships to the
+other apps. Phoenix's debug lines (`Processing with ...`, `HANDLED ...
+INCOMING`, socket drain) are gone with `config :phoenix, :logger, false`;
+nothing replaces them. Builder job step output goes to the job's own log
+(`GET /api/builds/:id/log`), not to stdout.
 
 ## `GET /api/builds/:id/log` *(2026-11-20)*
 
@@ -961,8 +1013,10 @@ Errors (all `{"error": "..."}`, status as given):
 
 Every POST, done or refused, is recorded twice on the observer:
 
-- one `warning` log line (LogRing, so `/api/beam` and `/api/logs`), metadata
-  `source: "actions"`, `node_id`, `by`:
+- one `warning` log line (LogRing, so `/api/beam` and `/api/logs`), event
+  `action.done` or `action.refused` with `source: "actions"`, `node`,
+  `member`, `action`, `target`, `args`, `by`, `status`, `took_ms`, `error`
+  (see "Logs" below; `node_id` before 2026-11-23):
   `action proc/0.238.0/kill on upvm by engine-agent: ok`,
   `action proc/0.1.0/exit reason="shutdown" on app (10.0.0.5) by carol: 403: actions are off: ...`;
 - one message on `ObsFactor.PubSub` topic `"actions"`

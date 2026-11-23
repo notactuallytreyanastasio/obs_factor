@@ -22,6 +22,8 @@ defmodule ObsFactorWeb.BuildsController do
       end
       |> ObserverProxy.clean_by()
 
+    started = System.monotonic_time()
+
     result =
       case BuilderClient.config()[:url] do
         nil ->
@@ -34,7 +36,8 @@ defmodule ObsFactorWeb.BuildsController do
           end
       end
 
-    ObserverProxy.record_action("builder", ["builds"], job, [by: by, keys: ~w(name mode repo ref label)], result)
+    took = ObsFactorWeb.Log.took_ms(System.monotonic_time() - started)
+    ObserverProxy.record_action("builder", ["builds"], job, [by: by, keys: ~w(name mode repo ref label), took_ms: took], result)
     {status, body} = result
     conn |> put_status(status) |> json(body)
   end

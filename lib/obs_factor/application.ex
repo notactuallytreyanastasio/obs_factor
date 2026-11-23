@@ -6,6 +6,8 @@ defmodule ObsFactor.Application do
 
   @impl true
   def start(_type, _args) do
+    :ok = ObsFactorWeb.Log.attach()
+
     case Application.get_env(:obs_factor, :role, :observer) do
       :builder -> start_builder()
       :observer -> start_observer()
@@ -41,7 +43,7 @@ defmodule ObsFactor.Application do
     ObsFactor.put_topology(topology)
 
     if Application.get_env(:obs_factor, :password) == nil do
-      Logger.warning("OBS_FACTOR_PASSWORD is not set: every login will fail")
+      Logger.warning("OBS_FACTOR_PASSWORD is not set: every login will fail", event: "config.password_missing")
     end
 
     children =

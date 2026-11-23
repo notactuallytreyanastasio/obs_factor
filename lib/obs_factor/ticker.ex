@@ -50,8 +50,13 @@ defmodule ObsFactor.Ticker do
       memory
     rescue
       e ->
-        message = Exception.format(:error, e, __STACKTRACE__)
-        Logger.error("snapshot build failed: " <> message)
+        Logger.error("snapshot build failed: " <> Exception.message(e),
+          event: "snapshot.failed",
+          kind: inspect(e.__struct__),
+          reason: Exception.message(e),
+          stacktrace: Exception.format_stacktrace(__STACKTRACE__)
+        )
+
         Store.put_snapshot({:error, Exception.message(e)})
         Phoenix.PubSub.broadcast(ObsFactor.PubSub, @topic, {:snapshot_error, Exception.message(e)})
         memory

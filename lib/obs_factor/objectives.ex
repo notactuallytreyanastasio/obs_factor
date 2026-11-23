@@ -257,7 +257,7 @@ defmodule ObsFactor.Objectives do
 
     case insert(state.db, key, "pin", a, nil, now) do
       {:ok, row} ->
-        event(state.db, row.id, "pinned", clip(attrs["by"]), clip(attrs["note"], 1000))
+        event(state.db, row, "pinned", clip(attrs["by"]), clip(attrs["note"], 1000))
         row = if n = clip(attrs["note"], 1000), do: update!(state.db, row.id, "note = $2", [n]), else: row
         announce(state, row)
         {:reply, {:ok, public(row)}, state |> put_live(row, now) |> recovered()}
@@ -320,7 +320,7 @@ defmodule ObsFactor.Objectives do
   defp open_new(st, key, a, evidence, now) do
     case insert(st.db, key, "rule", a, evidence, now) do
       {:ok, row} ->
-        event(st.db, row.id, "seen", nil, a.text)
+        event(st.db, row, "seen", nil, a.text)
         announce(st, row)
         put_live(st, row, now)
 
@@ -333,7 +333,7 @@ defmodule ObsFactor.Objectives do
     case update(st.db, row.id, "state = 'open', cleared_at = NULL, seen_count = seen_count + 1, title = $2, last_seen_at = $3",
            [a.text, ms_to_dt(now)]) do
       {:ok, row} ->
-        event(st.db, row.id, "came back", nil, a.text)
+        event(st.db, row, "came back", nil, a.text)
         announce(st, row)
         put_live(st, row, now)
 
@@ -362,7 +362,7 @@ defmodule ObsFactor.Objectives do
     case update(st.db, row.id, "state = 'cleared', cleared_at = $2, last_seen_at = $3",
            [ms_to_dt(now), ms_to_dt(row.last_seen_ms)]) do
       {:ok, row} ->
-        event(st.db, row.id, "cleared itself", nil, nil)
+        event(st.db, row, "cleared itself", nil, nil)
         announce(st, row)
         put_live(st, row, now)
 
@@ -373,7 +373,7 @@ defmodule ObsFactor.Objectives do
 
   defp set(db, row, sql, params, kind, by, note) do
     with {:ok, row} <- update(db, row.id, sql, params) do
-      event(db, row.id, kind, by, note)
+      event(db, row, kind, by, note)
       {:ok, row}
     end
   end
@@ -437,8 +437,27 @@ defmodule ObsFactor.Objectives do
   defp found({:ok, []}), do: {:error, "no such objective"}
   defp found(other), do: other
 
-  defp event(db, id, kind, by, note) do
-    query(db, "INSERT INTO objective_events (objective_id, at, kind, by, note) VALUES ($1, now(), $2, $3, $4)", [id, kind, by, note])
+  # Every change to an objective goes through here, so this is where it is
+  # logged: objective.changed with the event's kind as `action`, or
+  # objective.event_failed when the event row could not be written (the
+  # change itself already was).
+  defp event(db, row, kind, by, note) do
+    result =
+      query(db, "INSERT INTO objective_events (objective_id, at, kind, by, note) VALUES ($1, now(), $2, $3, $4)", [row.id, kind, by, note])
+
+    meta = [source: "objectives", objective_id: row.id, node: row.node, action: kind, by: by]
+
+    case result do
+      {:ok, _} ->
+        Logger.info("objective #{row.id} #{kind}#{if by, do: " by #{by}"}", [event: "objective.changed"] ++ meta)
+
+      {:error, e} ->
+        Logger.warning("objective #{row.id} #{kind}: event not recorded: #{message(e)}",
+          [event: "objective.event_failed", reason: message(e)] ++ meta
+        )
+    end
+
+    result
   end
 
   defp events(_db, []), do: {:ok, %{}}
@@ -490,7 +509,7 @@ defmodule ObsFactor.Objectives do
     if msg != state.error, do: Phoenix.PubSub.broadcast(ObsFactor.PubSub, state.topic, {:objectives_error, msg})
 
     if now - state.logged_at > 60_000 do
-      Logger.error("objectives: #{msg}", source: "objectives")
+      Logger.error("objectives: #{msg}", event: "objectives.failed", source: "objectives", reason: msg)
       %{state | error: msg, logged_at: now}
     else
       %{state | error: msg}
@@ -502,7 +521,11 @@ defmodule ObsFactor.Objectives do
   defp recovered(state) do
     case read_list(state) do
       {:ok, list} ->
-        Logger.info("objectives: the store answers again (it had failed: #{state.error})", source: "objectives")
+        Logger.info("objectives: the store answers again (it had failed: #{state.error})",
+          event: "objectives.recovered",
+          source: "objectives",
+          previous_error: state.error
+        )
         Phoenix.PubSub.broadcast(ObsFactor.PubSub, state.topic, {:objectives_list, list})
         %{state | error: nil}
 
