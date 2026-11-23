@@ -430,6 +430,16 @@
       "to_change_id": "477d1080-b674-47e8-8b1d-c1b691ae3acc",
       "weight": 1.0
     },
+    "64b5ce26df90fefeb0b0": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T18:38:08.204406-05:00",
+      "edge_id": "64b5ce26df90fefeb0b0",
+      "edge_type": "leads_to",
+      "from_change_id": "52c409d5-fa42-45c3-b4c1-6db19b21ceb1",
+      "rationale": "implements",
+      "to_change_id": "763946f4-bfad-49cf-b026-0af4d1784b98",
+      "weight": 1.0
+    },
     "6af86d064e657227a433": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-18T17:31:49.993919-05:00",
@@ -678,6 +688,16 @@
       "from_change_id": "5bf6b46d-8f76-4b1d-9e4b-985850f09996",
       "rationale": "result",
       "to_change_id": "9f57e789-4465-4655-84ac-ef144f53d491",
+      "weight": 1.0
+    },
+    "ce247af3fd7aec11f21c": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T18:46:35.279435-05:00",
+      "edge_id": "ce247af3fd7aec11f21c",
+      "edge_type": "leads_to",
+      "from_change_id": "abd8abf6-acb8-4362-a165-01fdca19c416",
+      "rationale": "implements",
+      "to_change_id": "59bdc4bf-295e-42ea-b396-1f408c16672c",
       "weight": 1.0
     },
     "d19ce0583a2bcac388d2": {
@@ -1243,6 +1263,20 @@
       "title": "Timeline UI: lanes, windows tray (open/loop/trim/rename/prune), back-to-live, zoom/pan/scrub, help",
       "updated_at": "2026-11-23T17:43:37.930322-05:00"
     },
+    "52c409d5-fa42-45c3-b4c1-6db19b21ceb1": {
+      "author": "Bobby Grayson",
+      "change_id": "52c409d5-fa42-45c3-b4c1-6db19b21ceb1",
+      "created_at": "2026-11-23T18:31:14.241365-05:00",
+      "metadata": {
+        "branch": "22-beam-wire",
+        "confidence": 80,
+        "prompt": "The ticker and deeper news should only be about BEAM happenings and the marginalia app and messaging and db etc. we need this to be super powered observation on the BEAM of live systems"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "BEAM-only news: wire of happenings inside live BEAM systems (marginalia, messaging, db)",
+      "updated_at": "2026-11-23T18:31:14.241365-05:00"
+    },
     "53d3622a-0085-40a1-ab81-a236f95a4677": {
       "author": "Bobby Grayson",
       "change_id": "53d3622a-0085-40a1-ab81-a236f95a4677",
@@ -1282,6 +1316,20 @@
       "title": "Stable event names and fields at every Logger call; explorer Event/Node facets",
       "updated_at": "2026-11-23T12:25:56.248882-05:00"
     },
+    "59bdc4bf-295e-42ea-b396-1f408c16672c": {
+      "author": "Bobby Grayson",
+      "change_id": "59bdc4bf-295e-42ea-b396-1f408c16672c",
+      "created_at": "2026-11-23T18:46:35.214838-05:00",
+      "metadata": {
+        "branch": "23-wire-filter-sets",
+        "commit": "9e1c43f77a50262579e1a87760f49cac9ada9942",
+        "confidence": 85
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Wire filter sets: multi-filter, search, shared saved sets, on air",
+      "updated_at": "2026-11-23T18:46:35.214838-05:00"
+    },
     "5bf6b46d-8f76-4b1d-9e4b-985850f09996": {
       "author": "Bobby Grayson",
       "change_id": "5bf6b46d-8f76-4b1d-9e4b-985850f09996",
@@ -1319,6 +1367,20 @@
       "status": "pending",
       "title": "OpenTelemetry in every app plus a collector",
       "updated_at": "2026-11-19T02:58:16.409375-05:00"
+    },
+    "763946f4-bfad-49cf-b026-0af4d1784b98": {
+      "author": "Bobby Grayson",
+      "change_id": "763946f4-bfad-49cf-b026-0af4d1784b98",
+      "created_at": "2026-11-23T18:38:08.143114-05:00",
+      "metadata": {
+        "branch": "22-beam-wire",
+        "commit": "69373e5cdd59f70c9eed0a8ef813a2160848a640",
+        "confidence": 85
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "BEAM wire + BEAM-only board (index, chyron, crawl, Wire/BEAM/DB tabs)",
+      "updated_at": "2026-11-23T18:38:08.143114-05:00"
     },
     "7e0c4208-d03d-45d2-bf21-a78159179b41": {
       "author": "Bobby Grayson",
@@ -1582,6 +1644,20 @@
       "status": "pending",
       "title": "Workstream 10 done; real backend under real frontend verified on the lab stack (fire on a stopped app, 5xx alert, memory warning); 90 tests pass",
       "updated_at": "2026-11-18T18:12:54.010955-05:00"
+    },
+    "abd8abf6-acb8-4362-a165-01fdca19c416": {
+      "author": "Bobby Grayson",
+      "change_id": "abd8abf6-acb8-4362-a165-01fdca19c416",
+      "created_at": "2026-11-23T18:40:39.178032-05:00",
+      "metadata": {
+        "branch": "23-wire-filter-sets",
+        "confidence": 80,
+        "prompt": "You should be able to save filter sets for the wire\nWhat else can we do to make it even more information-dense"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "Saved wire filter sets; more information density",
+      "updated_at": "2026-11-23T18:40:39.178032-05:00"
     },
     "ac44ccc9-8489-452c-816b-b65695f73975": {
       "author": "Bobby Grayson",
