@@ -120,6 +120,7 @@ export class Timeline {
       <div class="tl-help" hidden><h4>The timeline</h4><dl>${HELP.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
         <p>Windows are kept at full detail until pruned; the rest of the tape keeps every tick for 6 h, then one a minute for 7 days.</p></div>
       <aside class="tl-wins" hidden aria-label="Saved windows"></aside>
+      <div class="tl-undo" hidden role="status"></div>
       <div class="tl-badge" hidden></div>`;
     this.canvas = this.el.querySelector("canvas");
     this.tip = this.el.querySelector(".tl-tip");
@@ -129,6 +130,7 @@ export class Timeline {
     this.help = this.el.querySelector(".tl-help");
     this.winsEl = this.el.querySelector(".tl-wins");
     this.followBtn = this.el.querySelector(".tl-follow");
+    this.undoEl = this.el.querySelector(".tl-undo");
     this.el.addEventListener("click", (e) => this.onClick(e));
     this.el.addEventListener("submit", (e) => { e.preventDefault(); this.onSubmit(e.target); });
     this.el.addEventListener("change", (e) => { if (e.target.matches("[data-pick]")) this.renderPruneButton(); });
@@ -180,8 +182,12 @@ export class Timeline {
       case "wloop": if (w) { this.openWindow(w, false); this.play(true); } return;
       case "trim": return w && this.startTrim(w);
       case "rename": this.renaming = w?.id; return this.renderWins();
-      case "prune": return w && this.prune([w.id], `Prune “${w.title}”? Its frames go back to being thinned.`);
-      case "prune-picked": { const ids = this.picked(); return ids.length && this.prune(ids, `Prune ${ids.length} window${ids.length > 1 ? "s" : ""}? Their frames go back to being thinned.`); }
+      case "prune": return w && this.prune([w.id]);
+      case "prune-picked": { const ids = this.picked(); return ids.length && this.prune(ids); }
+      case "restore": return w && this.restore([w.id]);
+      case "undo": return this.restore(this.undoIds ?? []);
+      case "note": this.noting = w?.id; return this.renderWins();
+      case "link": return w && this.copyLink(w);
       case "pick-all": { const boxes = [...this.winsEl.querySelectorAll("[data-pick]")]; const on = boxes.some((x) => !x.checked); boxes.forEach((x) => { x.checked = on; }); return this.renderPruneButton(); }
       case "wins-close": return this.toggleWins(false);
     }
@@ -192,6 +198,10 @@ export class Timeline {
     if (form.dataset.form === "save" && this.sel) {
       this.write("save_window", { from: Math.round(this.sel.a), to: Math.round(this.sel.b), title, by: this.api.who?.() || null })
         .then((r) => { this.saving = false; this.sel = { a: r.window.from, b: r.window.to, id: r.window.id }; this.flash(`saved “${r.window.title}”: kept at full detail until pruned`); this.render(); this.api.onWindow?.(this.window()); });
+    } else if (form.dataset.form === "note") {
+      const w = this.windows.find((x) => x.id === +form.dataset.id);
+      const note = form.querySelector("textarea").value;
+      if (w) this.write("save_window", { id: w.id, from: w.from, to: w.to, title: w.title, note }).then(() => { this.noting = null; this.renderWins(); this.api.onWindow?.(this.window()); });
     } else if (form.dataset.form === "rename") {
       const w = this.windows.find((x) => x.id === +form.dataset.id);
       if (w) this.write("save_window", { id: w.id, from: w.from, to: w.to, title }).then(() => { this.renaming = null; this.renderWins(); });
@@ -212,8 +222,12 @@ export class Timeline {
         this.el.hidden = false;
         this.setWindows(r.windows ?? []);
         this.size(); this.refetch();
-        const t = new URLSearchParams(location.search).get("t");
-        if (t && !this.started) { const ms = /^\d+$/.test(t) ? +t : Date.parse(t); if (ms) this.seek(ms); }
+        const q = new URLSearchParams(location.search);
+        const t = q.get("t"), wid = q.get("w");
+        if (wid && !this.started) {
+          const w = this.active().find((x) => String(x.id) === wid);
+          if (w) setTimeout(() => this.openWindow(w), 300); else this.flash(`window ${wid} is not on the tape: pruned, or never saved here`);
+        } else if (t && !this.started) { const ms = /^\d+$/.test(t) ? +t : Date.parse(t); if (ms) this.seek(ms); }
         this.started = true;
         this.render();
         if (!store.get("obs.tl.helped")) { store.set("obs.tl.helped", "1"); this.help.hidden = false; setTimeout(() => { this.help.hidden = true; }, 9000); }
@@ -235,10 +249,13 @@ export class Timeline {
     return bus.push("tape", event, payload).catch((e) => { this.flash(`${event.replace("_", " ")}: ${e.message}`); throw e; });
   }
 
+  // saved and not pruned; the pruned are listed for an hour, to restore
+  active() { return this.windows.filter((w) => !w.pruned_at); }
+
   setWindows(list) {
     this.windows = list;
-    if (this.sel?.id && !list.some((w) => w.id === this.sel.id)) this.sel = { ...this.sel, id: null };
-    this.el.querySelector("[data-a=windows] .n").textContent = String(list.length);
+    if (this.sel?.id && !this.active().some((w) => w.id === this.sel.id)) this.sel = { ...this.sel, id: null };
+    this.el.querySelector("[data-a=windows] .n").textContent = String(this.active().length);
     this.renderWins(); this.renderSel(); this.draw();
   }
 
@@ -279,7 +296,7 @@ export class Timeline {
     const v = this.view();
     if (this.sel) {
       const w = this.sel.id && this.windows.find((x) => x.id === this.sel.id);
-      return { from: Math.round(this.sel.a), to: Math.round(this.sel.b), selected: true, title: w?.title ?? null };
+      return { from: Math.round(this.sel.a), to: Math.round(this.sel.b), selected: true, title: w?.title ?? null, note: w?.note ?? null, id: w?.id ?? null };
     }
     return { from: Math.round(v.from), to: Math.round(v.to), selected: false, live: this.viewEnd == null };
   }
@@ -509,9 +526,33 @@ export class Timeline {
       .then((r) => { this.trimming = null; this.sel = { a: r.window.from, b: r.window.to, id: r.window.id }; this.flash(`trimmed “${r.window.title}” to ${span(r.window.to - r.window.from)}`); this.render(); this.api.onWindow?.(this.window()); });
   }
 
-  prune(ids, question) {
-    if (!window.confirm(question)) return;
-    this.write("prune_windows", { ids }).then((r) => this.flash(`pruned ${r.pruned.length} window${r.pruned.length === 1 ? "" : "s"}`));
+  // no "are you sure": a prune can be undone for an hour, here for 12 s
+  // with one click, and from the tray's Recently pruned after that
+  prune(ids) {
+    this.write("prune_windows", { ids }).then((r) => {
+      const n = r.pruned.length;
+      this.undoIds = r.pruned;
+      this.undoEl.innerHTML = `Pruned ${n} window${n === 1 ? "" : "s"}. <button type="button" data-a="undo">Undo</button> <span class="dim">or restore from the tray within the hour</span>`;
+      this.undoEl.hidden = false;
+      clearTimeout(this.ut);
+      this.ut = setTimeout(() => { this.undoEl.hidden = true; }, 12_000);
+    });
+  }
+
+  restore(ids) {
+    if (!ids.length) return;
+    this.write("restore_windows", { ids }).then((r) => {
+      this.undoEl.hidden = true;
+      this.flash(r.restored.length ? `restored ${r.restored.length} window${r.restored.length === 1 ? "" : "s"}` : "too late: pruned over an hour ago");
+    });
+  }
+
+  copyLink(w) {
+    const u = new URL(location.href);
+    u.searchParams.delete("t"); u.searchParams.set("w", String(w.id));
+    const done = () => this.flash(`link to “${w.title}” copied`);
+    navigator.clipboard?.writeText(u.toString()).then(done, () => window.prompt("Copy the link to this window:", u.toString()));
+    if (!navigator.clipboard) window.prompt("Copy the link to this window:", u.toString());
   }
 
   toggleWins(open) {
@@ -541,7 +582,7 @@ export class Timeline {
 
   // ---- input -------------------------------------------------------------------
 
-  plotX() { return this.expanded ? GUTTER : 0; }
+  plotX() { return this.expanded ? this.gutter ?? GUTTER : 0; }
   plotW() { return Math.max(1, (this.canvas.clientWidth || 600) - this.plotX()); }
   X(t) { const v = this.view(); return this.plotX() + ((t - v.from) / (v.to - v.from)) * this.plotW(); }
   T(x) { const v = this.view(); return v.from + ((x - this.plotX()) / this.plotW()) * (v.to - v.from); }
@@ -561,7 +602,7 @@ export class Timeline {
     if (this.expanded && y >= L.laneY && y < L.laneY + L.lanes * LANE_H) {
       const lane = this.lanes[Math.floor((y - L.laneY) / LANE_H)];
       if (lane) {
-        if (x < GUTTER) return { laneLabel: lane };
+        if (x < this.plotX()) return { laneLabel: lane };
         const t = this.T(x);
         const sp = lane.spans.filter((s) => t >= s.a - this.pxMs(3) && t <= s.b + this.pxMs(3)).sort((p, q) => (p.sev === "alert" ? -1 : 1) - (q.sev === "alert" ? -1 : 1))[0];
         if (sp) return { span: sp, lane };
@@ -573,7 +614,7 @@ export class Timeline {
   windowAt(x, y) {
     if (!this.L || y > this.L.winY + this.L.winH + 4 || x < this.plotX()) return null;
     const t = this.T(x);
-    return this.windows.filter((w) => t >= w.from - this.pxMs(3) && t <= w.to + this.pxMs(3)).sort((p, q) => (p.to - p.from) - (q.to - q.from))[0] ?? null;
+    return this.active().filter((w) => t >= w.from - this.pxMs(3) && t <= w.to + this.pxMs(3)).sort((p, q) => (p.to - p.from) - (q.to - q.from))[0] ?? null;
   }
 
   markAt(x) {
@@ -704,8 +745,10 @@ export class Timeline {
     const n = this.expanded ? Math.min(LANES_SHOWN, Math.max(1, this.lanes.length)) : 0;
     const strip = 48 + (this.expanded ? 6 + n * LANE_H + (this.lanes.length > LANES_SHOWN ? 10 : 0) : 0);
     this.el.style.setProperty("--strip-h", `${strip}px`);
+    // a phone stacks the controls in two rows over the strip (tape.css)
     const phone = window.innerWidth <= 640;
-    document.body.style.setProperty("--tl", `${strip + (phone ? 50 : 14)}px`);
+    this.gutter = phone ? 74 : GUTTER;
+    document.body.style.setProperty("--tl", `${strip + (phone ? 88 : 14)}px`);
     this.el.classList.toggle("expanded", this.expanded);
     this.el.querySelector("[data-a=expand]").setAttribute("aria-pressed", String(this.expanded));
     this.draw();
@@ -752,20 +795,25 @@ export class Timeline {
   renderWins() {
     if (this.winsEl.hidden) return;
     const picked = new Set(this.picked());
-    const total = this.windows.reduce((a, w) => a + (w.frames ?? 0), 0);
-    this.winsEl.innerHTML = `<div class="tw-head"><h4>Windows</h4><span class="dim">${this.windows.length} saved · ${total} frames kept at full detail</span><button type="button" class="fi-x" data-a="wins-close" aria-label="Close">×</button></div>
-      ${this.windows.length ? `<ul>${this.windows.map((w) => `<li data-win="${w.id}" class="${this.sel?.id === w.id ? "on" : ""}">
+    const live = this.active(), gone = this.windows.filter((w) => w.pruned_at);
+    const total = live.reduce((a, w) => a + (w.frames ?? 0), 0);
+    const row = (w) => `<li data-win="${w.id}" class="${this.sel?.id === w.id ? "on" : ""}">
           <input type="checkbox" data-pick="${w.id}" aria-label="Pick ${esc(w.title)}"${picked.has(w.id) ? " checked" : ""}>
           <div class="tw-body">
             ${this.renaming === w.id ? `<form data-form="rename" data-id="${w.id}" class="tl-form"><input name="title" maxlength="120" value="${esc(w.title)}" aria-label="New title"><button type="submit" class="go">Rename</button></form>` : `<b>${esc(w.title)}</b>`}
             <span class="dim">${when(w.from)}–${hms(w.to)} · ${span(w.to - w.from)} · ${w.frames} frames${w.by ? ` · ${esc(w.by)}` : ""}</span>
+            ${this.noting === w.id ? `<form data-form="note" data-id="${w.id}" class="tl-note"><textarea maxlength="2000" rows="3" placeholder="what happened, what was done, what to remember" aria-label="Note">${esc(w.note ?? "")}</textarea><button type="submit" class="go">Save note</button></form>` : w.note ? `<span class="tw-note">${esc(w.note)}</span>` : ""}
           </div>
-          <div class="tw-acts"><button type="button" data-a="open">open</button><button type="button" data-a="wloop">loop</button><button type="button" data-a="trim">trim</button><button type="button" data-a="rename">rename</button><button type="button" data-a="prune" class="bad">prune</button></div>
-        </li>`).join("")}</ul>
+          <div class="tw-acts"><button type="button" data-a="open">open</button><button type="button" data-a="wloop">loop</button><button type="button" data-a="trim">trim</button><button type="button" data-a="rename">rename</button><button type="button" data-a="note">note</button><button type="button" data-a="link" title="Copy a link that opens this window">link</button><button type="button" data-a="prune" class="bad">prune</button></div>
+        </li>`;
+    this.winsEl.innerHTML = `<div class="tw-head"><h4>Windows</h4><span class="dim">${live.length} saved · ${total} frames kept at full detail</span><button type="button" class="fi-x" data-a="wins-close" aria-label="Close">×</button></div>
+      ${live.length ? `<ul>${live.map(row).join("")}</ul>
         <div class="tw-foot"><button type="button" data-a="pick-all">pick all</button><button type="button" data-a="prune-picked" class="bad">prune picked</button></div>`
-      : `<p class="dim">Nothing saved. Drag across the timeline, then Save window (or w): the stretch is kept at full detail, named, for everyone, until you prune it.</p>`}`;
+      : `<p class="dim">Nothing saved. Drag across the timeline, then Save window (or w): the stretch is kept at full detail, named, for everyone, until you prune it.</p>`}
+      ${gone.length ? `<h5>Recently pruned <span class="dim">· restorable for an hour, frames still kept</span></h5><ul class="tw-gone">${gone.map((w) => `<li data-win="${w.id}"><span></span><div class="tw-body"><b>${esc(w.title)}</b><span class="dim">${when(w.from)}–${hms(w.to)} · pruned ${span(Date.now() - w.pruned_at)} ago · final in ${span(Math.max(0, w.pruned_at + 3600e3 - Date.now()))}</span></div><div class="tw-acts"><button type="button" data-a="restore" class="go">restore</button></div></li>`).join("")}</ul>` : ""}`;
     this.renderPruneButton();
     if (this.renaming) this.winsEl.querySelector("form[data-form=rename] input")?.focus();
+    if (this.noting) this.winsEl.querySelector("form[data-form=note] textarea")?.focus();
   }
 
   renderPruneButton() {
@@ -913,7 +961,7 @@ export class Timeline {
 
     ctx.save(); ctx.beginPath(); ctx.rect(x0, 0, w - x0, h); ctx.clip();
     // saved windows: brackets along the top, labelled, tinting their stretch
-    for (const win of this.windows) {
+    for (const win of this.active()) {
       const a = this.X(win.from), b = this.X(win.to);
       if (b < x0 || a > w) continue;
       const on = this.sel?.id === win.id;

@@ -71,11 +71,16 @@ defmodule ObsFactor.Tape do
       created_at timestamptz NOT NULL DEFAULT now(),
       CHECK (to_at > from_at)
     )
-    """
+    """,
+    # pruning is undoable for an hour: pruned_at marks it, thinning still
+    # spares its frames, and the hour after it the row is deleted
+    "ALTER TABLE tape_windows ADD COLUMN IF NOT EXISTS pruned_at timestamptz"
   ]
 
+  @undo "interval '1 hour'"
+
   # a frame inside a saved window is kept, whatever its age
-  @unsaved "NOT EXISTS (SELECT 1 FROM tape_windows w WHERE tape_frames.at BETWEEN w.from_at AND w.to_at)"
+  @unsaved "NOT EXISTS (SELECT 1 FROM tape_windows w WHERE tape_frames.at BETWEEN w.from_at AND w.to_at AND (w.pruned_at IS NULL OR w.pruned_at > now() - interval '1 hour'))"
   @max_window_ms 31 * 86_400_000
 
   # what the board keeps of `ObsFactor.History.metrics/2`, per node
@@ -280,11 +285,16 @@ defmodule ObsFactor.Tape do
 
   # ---- windows ----------------------------------------------------------
 
-  @window_cols "id, from_at, to_at, title, note, by, created_at, (SELECT count(*) FROM tape_frames f WHERE f.at BETWEEN w.from_at AND w.to_at) AS frames"
+  @window_cols "id, from_at, to_at, title, note, by, created_at, pruned_at, (SELECT count(*) FROM tape_frames f WHERE f.at BETWEEN w.from_at AND w.to_at) AS frames"
 
-  @doc "Every saved window, newest stretch first: `{:ok, [window]}`."
+  @doc """
+  Every saved window, newest stretch first, and those pruned in the last
+  hour (`pruned_at` set: they can still be restored): `{:ok, [window]}`.
+  """
   def windows(db \\ @db) do
-    with {:ok, r} <- q(db, "SELECT #{@window_cols} FROM tape_windows w ORDER BY from_at DESC", []) do
+    sql = "SELECT #{@window_cols} FROM tape_windows w WHERE pruned_at IS NULL OR pruned_at > now() - #{@undo} ORDER BY from_at DESC"
+
+    with {:ok, r} <- q(db, sql, []) do
       {:ok, Enum.map(r.rows, &window_row/1)}
     end
   end
@@ -301,7 +311,10 @@ defmodule ObsFactor.Tape do
          {:ok, by} <- text(attrs["by"], 60, nil) do
       case attrs["id"] do
         id when is_integer(id) ->
-          write_window(db, "UPDATE tape_windows w SET from_at = $2, to_at = $3, title = $4, note = coalesce($5, note) WHERE id = $1 RETURNING #{@window_cols}",
+          # a note sent (even empty) replaces the note; none sent keeps it
+          set_note = if Map.has_key?(attrs, "note"), do: "$5", else: "coalesce($5, note)"
+
+          write_window(db, "UPDATE tape_windows w SET from_at = $2, to_at = $3, title = $4, note = #{set_note} WHERE id = $1 AND pruned_at IS NULL RETURNING #{@window_cols}",
             [id, dt(f), dt(t), title, note], id)
 
         nil ->
@@ -322,16 +335,27 @@ defmodule ObsFactor.Tape do
     end
   end
 
-  @doc "Prune windows by id. Their frames go back to being thinned. `{:ok, pruned_ids}`."
-  def prune_windows(ids, db \\ @db) when is_list(ids) do
+  @doc """
+  Prune windows by id: marked, not deleted. For an hour they can be
+  restored and their frames are still spared; after that the rows go and
+  the frames are thinned like any other. `{:ok, pruned_ids}`.
+  """
+  def prune_windows(ids, db \\ @db), do: mark(ids, "now()", "pruned_at IS NULL", db)
+
+  @doc "Undo a prune from the last hour. `{:ok, restored_ids}`."
+  def restore_windows(ids, db \\ @db), do: mark(ids, "NULL", "pruned_at > now() - #{@undo}", db)
+
+  defp mark(ids, value, where, db) when is_list(ids) do
     if ids != [] and Enum.all?(ids, &is_integer/1) do
-      with {:ok, r} <- q(db, "DELETE FROM tape_windows WHERE id = ANY($1) RETURNING id", [ids]) do
+      with {:ok, r} <- q(db, "UPDATE tape_windows SET pruned_at = #{value} WHERE id = ANY($1) AND #{where} RETURNING id", [ids]) do
         {:ok, Enum.map(r.rows, &hd/1)}
       end
     else
-      {:error, "prune takes a list of integer ids, got #{inspect(ids)}"}
+      {:error, "expected a list of integer window ids, got #{inspect(ids)}"}
     end
   end
+
+  defp mark(ids, _, _, _), do: {:error, "expected a list of integer window ids, got #{inspect(ids)}"}
 
   defp edges(%{"from" => f, "to" => t}) when is_integer(f) and is_integer(t) and t > f and t - f <= @max_window_ms,
     do: {:ok, f, t}
@@ -348,8 +372,8 @@ defmodule ObsFactor.Tape do
 
   defp text(other, _, _), do: {:error, "expected text, got #{inspect(other)}"}
 
-  defp window_row([id, f, t, title, note, by, created, frames]),
-    do: %{id: id, from: ms(f), to: ms(t), title: title, note: note, by: by, created_at: ms(created), frames: frames}
+  defp window_row([id, f, t, title, note, by, created, pruned, frames]),
+    do: %{id: id, from: ms(f), to: ms(t), title: title, note: note, by: by, created_at: ms(created), pruned_at: ms(pruned), frames: frames}
 
   @doc """
   Per node, how long it burned in `[from, to]` according to the tape: each
@@ -513,7 +537,8 @@ defmodule ObsFactor.Tape do
   def thin(state, now_ms) do
     with {:ok, a} <-
            q(state.db, "DELETE FROM tape_frames WHERE at < $1 AND NOT minute_mark AND #{@unsaved}", [dt(now_ms - state.fine_ms)]),
-         {:ok, b} <- q(state.db, "DELETE FROM tape_frames WHERE at < $1 AND #{@unsaved}", [dt(now_ms - state.keep_ms)]) do
+         {:ok, b} <- q(state.db, "DELETE FROM tape_frames WHERE at < $1 AND #{@unsaved}", [dt(now_ms - state.keep_ms)]),
+         {:ok, _} <- q(state.db, "DELETE FROM tape_windows WHERE pruned_at < now() - #{@undo}", []) do
       if a.num_rows + b.num_rows > 0,
         do:
           Logger.info("tape thinned: #{a.num_rows} fine frames, #{b.num_rows} old frames",

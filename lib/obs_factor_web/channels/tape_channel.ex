@@ -30,7 +30,9 @@ defmodule ObsFactorWeb.TapeChannel do
 
     * `save_window` `%{from, to, title, note, by}`, or with `id` to change
       one (trim its edges, rename it)
-    * `prune_windows` `%{ids}`
+    * `prune_windows` `%{ids}`: marked pruned; for an hour they are still
+      listed (with `pruned_at`) and their frames still kept
+    * `restore_windows` `%{ids}`: undo a prune from the last hour
 
   Times are unix milliseconds. A window may be at most 31 days.
   """
@@ -72,6 +74,9 @@ defmodule ObsFactorWeb.TapeChannel do
 
   def handle_in("prune_windows", %{"ids" => ids}, socket) when is_list(ids),
     do: {:reply, write(fn -> Tape.prune_windows(ids) end, :pruned), socket}
+
+  def handle_in("restore_windows", %{"ids" => ids}, socket) when is_list(ids),
+    do: {:reply, write(fn -> Tape.restore_windows(ids) end, :restored), socket}
 
   def handle_in(event, params, socket) do
     {:reply, if(Tape.enabled?(), do: read(event, params), else: {:error, %{error: "no tape: OBJECTIVES_PG_URL is not set"}}), socket}

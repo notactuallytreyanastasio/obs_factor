@@ -25,6 +25,8 @@ defmodule ObsFactor.TapeTest do
     Phoenix.PubSub.subscribe(ObsFactor.PubSub, topic)
     name = :"tape_#{System.unique_integer([:positive])}"
     start_supervised!({Tape, db: db, name: name, topic: topic, thin_first_ms: 3_600_000})
+    # the schema is made in handle_continue: a call after it has run
+    _ = :sys.get_state(name)
     %{db: db, tape: name}
   end
 
@@ -101,7 +103,25 @@ defmodule ObsFactor.TapeTest do
     assert {:error, "a window is" <> _} = Tape.save_window(%{"from" => @t0, "to" => @t0}, db)
     assert {:error, "no window" <> _} = Tape.save_window(%{"id" => -1, "from" => @t0, "to" => @t0 + 1}, db)
     assert {:ok, [^id]} = Tape.prune_windows([id], db)
+    # pruned, listed for an hour so it can be restored
+    assert {:ok, [%{id: ^id, pruned_at: p}]} = Tape.windows(db)
+    assert is_integer(p)
+    assert {:error, "no window" <> _} = Tape.save_window(%{"id" => id, "from" => @t0, "to" => @t0 + 1_000}, db)
+    assert {:ok, [^id]} = Tape.restore_windows([id], db)
+    assert {:ok, [%{pruned_at: nil}]} = Tape.windows(db)
+    # an hour on, a prune is final: not listed, cannot be restored
+    {:ok, _} = Tape.prune_windows([id], db)
+    Postgrex.query!(db, "UPDATE tape_windows SET pruned_at = now() - interval '61 minutes'", [])
     assert {:ok, []} = Tape.windows(db)
+    assert {:ok, []} = Tape.restore_windows([id], db)
+  end
+
+  test "a note sent replaces the note, even empty; none sent keeps it", %{db: db} do
+    {:ok, w} = Tape.save_window(%{"from" => @t0, "to" => @t0 + 10_000, "note" => "first"}, db)
+    {:ok, w} = Tape.save_window(%{"id" => w.id, "from" => @t0, "to" => @t0 + 10_000, "title" => "t"}, db)
+    assert w.note == "first"
+    {:ok, w} = Tape.save_window(%{"id" => w.id, "from" => @t0, "to" => @t0 + 10_000, "title" => "t", "note" => "  "}, db)
+    assert w.note == nil
   end
 
   test "thinning leaves every frame inside a saved window", %{db: db, tape: tape} do
@@ -111,6 +131,16 @@ defmodule ObsFactor.TapeTest do
     Tape.thin(%{db: db, fine_ms: 60_000, keep_ms: 60_000, logged_at: 0}, @t0 + 10 * 60_000)
     # everything is past keep: only the 5 frames in the window are left
     assert count.() == 5
+    # pruned a minute ago: still spared, it can be undone
+    {:ok, [w]} = Tape.windows(db)
+    {:ok, _} = Tape.prune_windows([w.id], db)
+    Tape.thin(%{db: db, fine_ms: 60_000, keep_ms: 60_000, logged_at: 0}, @t0 + 10 * 60_000)
+    assert count.() == 5
+    # pruned over an hour ago: the window goes on this pass, its frames on the next
+    Postgrex.query!(db, "UPDATE tape_windows SET pruned_at = now() - interval '61 minutes'", [])
+    Tape.thin(%{db: db, fine_ms: 60_000, keep_ms: 60_000, logged_at: 0}, @t0 + 10 * 60_000)
+    Tape.thin(%{db: db, fine_ms: 60_000, keep_ms: 60_000, logged_at: 0}, @t0 + 10 * 60_000)
+    assert count.() == 0
   end
 
   test "a frame comes back as it was recorded: the last at or before, or the first after", %{db: db, tape: tape} do

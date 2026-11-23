@@ -19,6 +19,7 @@ import { Processes } from "./processes.js"; // processes.js
 import { JumpList } from "./jump.js"; // jump.js
 import { scopeFromUrl, scopeSnapshot } from "./scope.js";
 import { Timeline } from "./timeline.js";
+import * as bus from "./bus.js";
 import { Fires } from "./fires.js";
 import { Board } from "./board.js";
 
@@ -854,7 +855,12 @@ board = new Board({
   closeOthers: () => { inspector.close(); toggleLegend(false); toggleSites(false); toggleBuilder(false); },
   onToggle: () => { dirty = true; },
 });
-window.__obsFactorTape = { timeline, fires, board };
+// nothing acts on the live system from a replayed moment (bus.js setGuard)
+bus.setGuard((topic, event) => {
+  if (event !== "action" || !timeline?.replaying) return null;
+  return `you are looking at ${new Date(timeline.cursor).toISOString().slice(11, 19)} UTC on the tape: an action would hit the live system as it is now. Go back to live (End) first.`;
+});
+window.__obsFactorTape = { timeline, fires, board, bus };
 
 connect({
   onSnapshot,
