@@ -504,6 +504,19 @@ export class Missions {
     }
   }
 
+  // The scope (scope.js) is known only from the first snapshot, which can
+  // arrive after the objectives: until then everything counted as in scope.
+  // main.js calls this when the set of ids in scope changes.
+  rescope() {
+    this.renderButton();
+    if (!this.toast.hidden) {
+      if (this.shown().some(undone)) this.notice();
+      else this.toast.hidden = true;
+    }
+    if (this.open) this.render();
+    if (this.lens) this.setLens(true);
+  }
+
   // ---- the notice on load -----------------------------------------------------
 
   notice() {
