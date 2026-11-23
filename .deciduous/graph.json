@@ -30,6 +30,16 @@
       "to_change_id": "1190c87e-b14c-4370-9f5f-0a4b00a2b943",
       "weight": 1.0
     },
+    "0d45b773f7eb8d6f4341": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T12:26:00.379200-05:00",
+      "edge_id": "0d45b773f7eb8d6f4341",
+      "edge_type": "leads_to",
+      "from_change_id": "ac50d3e7-13e9-447c-8766-de62a11e4e62",
+      "rationale": "verification",
+      "to_change_id": "239a017d-3abd-4a68-81ed-4f3bfd509c5f",
+      "weight": 1.0
+    },
     "10d573f50eb8ed242e6f": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-18T17:31:49.884476-05:00",
@@ -48,6 +58,16 @@
       "from_change_id": "4b66b967-2680-4bab-828a-18a3f3eeb36a",
       "rationale": "cleanup",
       "to_change_id": "4307693b-b453-45f6-96e2-8f5f6023f2f1",
+      "weight": 1.0
+    },
+    "1e05567b8f372440e86b": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T12:25:51.683053-05:00",
+      "edge_id": "1e05567b8f372440e86b",
+      "edge_type": "leads_to",
+      "from_change_id": "509ea063-c74a-410f-a435-2457c3f994c0",
+      "rationale": "option",
+      "to_change_id": "a299a523-e932-46a8-89ee-a0c47a1e19ff",
       "weight": 1.0
     },
     "275dfc9502ec055663c6": {
@@ -240,6 +260,16 @@
       "to_change_id": "d243b111-a926-42e7-82e5-11afe447dcb1",
       "weight": 1.0
     },
+    "50c81cb01543d098231e": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T12:26:00.234047-05:00",
+      "edge_id": "50c81cb01543d098231e",
+      "edge_type": "leads_to",
+      "from_change_id": "ac50d3e7-13e9-447c-8766-de62a11e4e62",
+      "rationale": "implementation",
+      "to_change_id": "be220f49-cc86-4b3e-a498-c1d8dd6ebc21",
+      "weight": 1.0
+    },
     "53d3e4118cded4958b0a": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-18T17:31:50.049838-05:00",
@@ -360,6 +390,16 @@
       "to_change_id": "8e3d7085-0e1d-434a-aa9b-853adc4485fc",
       "weight": 1.0
     },
+    "88aa7b579827e70f13d4": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T12:25:51.987694-05:00",
+      "edge_id": "88aa7b579827e70f13d4",
+      "edge_type": "leads_to",
+      "from_change_id": "22271761-97b3-4937-b94f-43573f934851",
+      "rationale": "rejected: second schema, unstructured duplicates",
+      "to_change_id": "ac50d3e7-13e9-447c-8766-de62a11e4e62",
+      "weight": 1.0
+    },
     "8a5de29ce6e704fbddbe": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T02:06:02.954230-05:00",
@@ -460,6 +500,16 @@
       "to_change_id": "9f57e789-4465-4655-84ac-ef144f53d491",
       "weight": 1.0
     },
+    "d19ce0583a2bcac388d2": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T12:25:51.759142-05:00",
+      "edge_id": "d19ce0583a2bcac388d2",
+      "edge_type": "leads_to",
+      "from_change_id": "509ea063-c74a-410f-a435-2457c3f994c0",
+      "rationale": "option",
+      "to_change_id": "22271761-97b3-4937-b94f-43573f934851",
+      "weight": 1.0
+    },
     "d27eb761db79c4d57d02": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T01:49:19.701032-05:00",
@@ -488,6 +538,16 @@
       "from_change_id": "f93f665e-4a76-4e9d-b8db-f30ca20cce2a",
       "rationale": "transport",
       "to_change_id": "e17918ba-d1bb-4495-a012-b7bf945ae46d",
+      "weight": 1.0
+    },
+    "e1a360ca5e884bbef6bd": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T12:26:00.306709-05:00",
+      "edge_id": "e1a360ca5e884bbef6bd",
+      "edge_type": "leads_to",
+      "from_change_id": "ac50d3e7-13e9-447c-8766-de62a11e4e62",
+      "rationale": "implementation",
+      "to_change_id": "59646be1-4441-4153-9013-6228da514c9c",
       "weight": 1.0
     },
     "e56ed32cc3201e086fde": {
@@ -548,6 +608,26 @@
       "from_change_id": "8e3d7085-0e1d-434a-aa9b-853adc4485fc",
       "rationale": "workstream",
       "to_change_id": "33c8b078-45bd-4560-b610-20eb2282632c",
+      "weight": 1.0
+    },
+    "fc3b8705ad1d1a67c7cf": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T12:26:00.530474-05:00",
+      "edge_id": "fc3b8705ad1d1a67c7cf",
+      "edge_type": "leads_to",
+      "from_change_id": "239a017d-3abd-4a68-81ed-4f3bfd509c5f",
+      "rationale": "result",
+      "to_change_id": "b936e77d-3937-4a18-bdf9-20bc063ac7ed",
+      "weight": 1.0
+    },
+    "fd7a14fced770a2dee6b": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T12:25:51.914547-05:00",
+      "edge_id": "fd7a14fced770a2dee6b",
+      "edge_type": "leads_to",
+      "from_change_id": "a299a523-e932-46a8-89ee-a0c47a1e19ff",
+      "rationale": "chosen: one schema across the box, no duplicate text lines",
+      "to_change_id": "ac50d3e7-13e9-447c-8766-de62a11e4e62",
       "weight": 1.0
     }
   },
@@ -656,6 +736,33 @@
       "status": "pending",
       "title": "Production live: 8 sources ok, 14 sites answer 200 after an 11 s Caddy recreate; a 75 s, 3 req/s traffic run (238 requests, 0 errors) showed routes, percentiles, client classes and metered path belts on the real factory",
       "updated_at": "2026-11-19T03:14:13.691604-05:00"
+    },
+    "22271761-97b3-4937-b94f-43573f934851": {
+      "author": "Bobby Grayson",
+      "change_id": "22271761-97b3-4937-b94f-43573f934851",
+      "created_at": "2026-11-23T12:25:47.230345-05:00",
+      "metadata": {
+        "branch": "14-structured-logs",
+        "confidence": 30
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "Keep Phoenix.Logger and add a second JSON schema of our own",
+      "updated_at": "2026-11-23T12:25:47.230345-05:00"
+    },
+    "239a017d-3abd-4a68-81ed-4f3bfd509c5f": {
+      "author": "Bobby Grayson",
+      "change_id": "239a017d-3abd-4a68-81ed-4f3bfd509c5f",
+      "created_at": "2026-11-23T12:25:56.348704-05:00",
+      "metadata": {
+        "branch": "14-structured-logs",
+        "commit": "54ce93ce0dddcbb8a80756c0cd67cdc171f0c21a",
+        "confidence": 90
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Structured log tests and contract 'Logs: stdout' section",
+      "updated_at": "2026-11-23T12:25:56.348704-05:00"
     },
     "29758875-68e8-4a1b-bd85-21ae49a4cf64": {
       "author": "Bobby Grayson",
@@ -813,6 +920,20 @@
       "title": "Frontend: per-subdomain buildings, bus belts with class-coloured items, container storage, gauges, floor and backdrop",
       "updated_at": "2026-11-19T01:35:44.661538-05:00"
     },
+    "509ea063-c74a-410f-a435-2457c3f994c0": {
+      "author": "Bobby Grayson",
+      "change_id": "509ea063-c74a-410f-a435-2457c3f994c0",
+      "created_at": "2026-11-23T12:25:43.560365-05:00",
+      "metadata": {
+        "branch": "14-structured-logs",
+        "confidence": 90,
+        "prompt": "make sure all the logging is structured and prepared for apm-likek agrgegation"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "Structured logs for APM-like aggregation",
+      "updated_at": "2026-11-23T12:25:43.560365-05:00"
+    },
     "53d3622a-0085-40a1-ab81-a236f95a4677": {
       "author": "Bobby Grayson",
       "change_id": "53d3622a-0085-40a1-ab81-a236f95a4677",
@@ -837,6 +958,20 @@
       "status": "pending",
       "title": "Deploy obs_factor to production",
       "updated_at": "2026-11-19T00:21:05.769152-05:00"
+    },
+    "59646be1-4441-4153-9013-6228da514c9c": {
+      "author": "Bobby Grayson",
+      "change_id": "59646be1-4441-4153-9013-6228da514c9c",
+      "created_at": "2026-11-23T12:25:56.248882-05:00",
+      "metadata": {
+        "branch": "14-structured-logs",
+        "commit": "0c3f09af823034d829b76d8e9f7d87fcd47651f9",
+        "confidence": 90
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Stable event names and fields at every Logger call; explorer Event/Node facets",
+      "updated_at": "2026-11-23T12:25:56.248882-05:00"
     },
     "5bf6b46d-8f76-4b1d-9e4b-985850f09996": {
       "author": "Bobby Grayson",
@@ -991,6 +1126,19 @@
       "title": "Postgres is at 96 of 100 connections on the box",
       "updated_at": "2026-11-18T17:31:49.448131-05:00"
     },
+    "a299a523-e932-46a8-89ee-a0c47a1e19ff": {
+      "author": "Bobby Grayson",
+      "change_id": "a299a523-e932-46a8-89ee-a0c47a1e19ff",
+      "created_at": "2026-11-23T12:25:47.143207-05:00",
+      "metadata": {
+        "branch": "14-structured-logs",
+        "confidence": 85
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "Reuse FactoryReport.JSONFormatter in prod; replace Phoenix.Logger with a telemetry handler; event + fields as Logger metadata",
+      "updated_at": "2026-11-23T12:25:47.143207-05:00"
+    },
     "a8aff016-9314-430c-a931-8fc4b8efca78": {
       "author": "Bobby Grayson",
       "change_id": "a8aff016-9314-430c-a931-8fc4b8efca78",
@@ -1028,6 +1176,19 @@
       "status": "pending",
       "title": "Box runs services the compose file no longer lists",
       "updated_at": "2026-11-18T17:31:49.527026-05:00"
+    },
+    "ac50d3e7-13e9-447c-8766-de62a11e4e62": {
+      "author": "Bobby Grayson",
+      "change_id": "ac50d3e7-13e9-447c-8766-de62a11e4e62",
+      "created_at": "2026-11-23T12:25:51.841750-05:00",
+      "metadata": {
+        "branch": "14-structured-logs",
+        "confidence": 85
+      },
+      "node_type": "decision",
+      "status": "pending",
+      "title": "factory_report's JSON shape on stdout in prod; ObsFactorWeb.Log replaces Phoenix.Logger",
+      "updated_at": "2026-11-23T12:25:51.841750-05:00"
     },
     "ae50c84e-402c-455b-9262-d82a4ae1c654": {
       "author": "Bobby Grayson",
@@ -1067,6 +1228,19 @@
       "title": "Floor redrawn: 13 buildings by style, rails coloured per destination, items by status class, memory gauges, in-flight crates, Postgres container yard, inspector host breakdown; checked in headless Chrome on both fixtures and on the lab observer",
       "updated_at": "2026-11-19T01:49:19.753107-05:00"
     },
+    "b936e77d-3937-4a18-bdf9-20bc063ac7ed": {
+      "author": "Bobby Grayson",
+      "change_id": "b936e77d-3937-4a18-bdf9-20bc063ac7ed",
+      "created_at": "2026-11-23T12:26:00.460194-05:00",
+      "metadata": {
+        "branch": "14-structured-logs",
+        "confidence": 90
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "Local prod release writes only JSON lines in factory_report shape; 332 tests (1.18.4) and 95 package tests pass",
+      "updated_at": "2026-11-23T12:26:00.460194-05:00"
+    },
     "ba1720ab-a2d8-4f83-9159-50c1432e174f": {
       "author": "Bobby Grayson",
       "change_id": "ba1720ab-a2d8-4f83-9159-50c1432e174f",
@@ -1093,6 +1267,20 @@
       "status": "pending",
       "title": "Deploy the per-subdomain floor, access log and reports to production",
       "updated_at": "2026-11-19T03:14:13.576502-05:00"
+    },
+    "be220f49-cc86-4b3e-a498-c1d8dd6ebc21": {
+      "author": "Bobby Grayson",
+      "change_id": "be220f49-cc86-4b3e-a498-c1d8dd6ebc21",
+      "created_at": "2026-11-23T12:25:56.163988-05:00",
+      "metadata": {
+        "branch": "14-structured-logs",
+        "commit": "df3b45801e6927d9f9bed174e8e289e822a7e402",
+        "confidence": 90
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "JSON formatter in prod; http/socket/channel events from telemetry",
+      "updated_at": "2026-11-23T12:25:56.163988-05:00"
     },
     "c19be70a-eabf-4266-ae27-f5bd48f6c1c0": {
       "author": "Bobby Grayson",
