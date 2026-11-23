@@ -35,6 +35,10 @@ defmodule ObsFactorWeb.TapeChannel do
     * `prune_windows` `%{ids}`: marked pruned; for an hour they are still
       listed (with `pruned_at`) and their frames still kept
     * `restore_windows` `%{ids}`: undo a prune from the last hour
+    * `save_filter` `%{name, spec, by}` (with `id`: change one) and
+      `delete_filter` `%{id}`: the wire's saved filter sets
+      (`ObsFactor.WireFilters`), followed by a `filters` push
+      `%{filters: list}` to everyone; the join reply carries `filters` too
 
   Times are unix milliseconds. A window may be at most 31 days.
   """
@@ -50,7 +54,8 @@ defmodule ObsFactorWeb.TapeChannel do
       if Tape.enabled?() do
         case Tape.range() do
           {:ok, r} ->
-            %{range: r, tick_ms: Application.get_env(:obs_factor, :tick_ms), windows: ok_or(Tape.windows(), [])}
+            %{range: r, tick_ms: Application.get_env(:obs_factor, :tick_ms), windows: ok_or(Tape.windows(), []),
+              filters: ok_or(ObsFactor.WireFilters.list(), [])}
           {:error, e} -> %{error: "tape: " <> Tape.message(e)}
         end
       else
@@ -66,6 +71,11 @@ defmodule ObsFactorWeb.TapeChannel do
     {:noreply, socket}
   end
 
+  def handle_info({:wire_filters, list}, socket) do
+    push(socket, "filters", %{filters: list})
+    {:noreply, socket}
+  end
+
   def handle_info({:tape_windows, list}, socket) do
     push(socket, "windows", %{windows: list})
     {:noreply, socket}
@@ -76,6 +86,12 @@ defmodule ObsFactorWeb.TapeChannel do
 
   def handle_in("prune_windows", %{"ids" => ids}, socket) when is_list(ids),
     do: {:reply, write(fn -> Tape.prune_windows(ids) end, :pruned), socket}
+
+  def handle_in("save_filter", params, socket) when is_map(params),
+    do: {:reply, filters(fn -> ObsFactor.WireFilters.save(params) end, :filter), socket}
+
+  def handle_in("delete_filter", %{"id" => id}, socket),
+    do: {:reply, filters(fn -> ObsFactor.WireFilters.delete(id) end, :deleted), socket}
 
   def handle_in("restore_windows", %{"ids" => ids}, socket) when is_list(ids),
     do: {:reply, write(fn -> Tape.restore_windows(ids) end, :restored), socket}
@@ -124,6 +140,24 @@ defmodule ObsFactorWeb.TapeChannel do
       case fun.() do
         {:ok, v} ->
           with {:ok, list} <- Tape.windows(), do: Phoenix.PubSub.broadcast(ObsFactor.PubSub, Tape.topic(), {:tape_windows, list})
+          {:ok, %{key => v}}
+
+        {:error, e} ->
+          {:error, %{error: Tape.message(e)}}
+      end
+    else
+      {:error, %{error: "no tape: OBJECTIVES_PG_URL is not set"}}
+    end
+  end
+
+  # a write to the filter sets, then everyone gets the whole list
+  defp filters(fun, key) do
+    if Tape.enabled?() do
+      case fun.() do
+        {:ok, v} ->
+          with {:ok, list} <- ObsFactor.WireFilters.list(),
+               do: Phoenix.PubSub.broadcast(ObsFactor.PubSub, Tape.topic(), {:wire_filters, list})
+
           {:ok, %{key => v}}
 
         {:error, e} ->

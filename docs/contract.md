@@ -198,7 +198,7 @@ objectives database: every tick for 6 h, then one a minute for 7 days,
 except inside a saved window (`tape_windows`), which keeps every frame
 until it is pruned. Writes on `tape`: `save_window` `{from, to, title,
 note, by}` (with `id`: change one, which is how it is trimmed or
-renamed) → `{window}`; `prune_windows` `{ids}` → `{pruned}` (marked, not deleted: listed with `pruned_at` and its frames still kept for an hour, then gone); `restore_windows` `{ids}` → `{restored}` (an undo within that hour); after either,
+renamed) → `{window}`; `prune_windows` `{ids}` → `{pruned}` (marked, not deleted: listed with `pruned_at` and its frames still kept for an hour, then gone); `restore_windows` `{ids}` → `{restored}` (an undo within that hour); `save_filter` `{name, spec: {apps, sevs, kinds, q}, by}` (with `id`: change one) → `{filter}` and `delete_filter` `{id}` → `{deleted}`: the wire's saved filter sets (`ObsFactor.WireFilters`, table `wire_filters`), followed by `filters` `{filters}` to every viewer and carried in the join reply; after either,
 every viewer gets `windows` `{windows}`, and the join reply carries
 `windows` too.
 Channel write on `observer:*`: `action` `{path, params, by}` on the topic's

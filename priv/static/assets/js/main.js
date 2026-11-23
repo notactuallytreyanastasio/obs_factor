@@ -851,6 +851,7 @@ fires = new Fires({
 });
 board = new Board({
   timeline,
+  who: () => missions.who || null,
   go: (id) => { if (outerSnap?.nodes.some((n) => n.id === id)) { if (insideOf) leave(); select(id, true); } },
   closeOthers: () => { inspector.close(); toggleLegend(false); toggleSites(false); toggleBuilder(false); },
   onToggle: () => { dirty = true; },

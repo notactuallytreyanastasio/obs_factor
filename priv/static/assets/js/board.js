@@ -50,6 +50,23 @@ const FMT = {
   commits: (v) => `${num(v)}/s`, errors: (v) => num(v), util: (v) => `${Math.round(v * 100)}%`, atoms: (v) => num(v),
 };
 const SEV_RANK = { alert: 0, warn: 1, info: 2 };
+const EMPTY = () => ({ apps: [], sevs: [], kinds: [], q: "" });
+const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} } };
+const AIR_KEY = "obs.wire.onair";
+
+// does a wire item pass a filter spec (ObsFactor.WireFilters)? an empty
+// part passes everything
+export function matches(spec, w) {
+  if (!spec) return true;
+  if (spec.apps?.length && !spec.apps.includes(w.app)) return false;
+  if (spec.sevs?.length && !spec.sevs.includes(w.sev)) return false;
+  if (spec.kinds?.length && !spec.kinds.includes(w.kind)) return false;
+  const q = (spec.q ?? "").trim().toLowerCase();
+  if (q && !`${w.head} ${w.text ?? ""} ${w.member ?? ""} ${w.label ?? ""}`.toLowerCase().includes(q)) return false;
+  return true;
+}
+const sameSpec = (a, b) => JSON.stringify(norm(a)) === JSON.stringify(norm(b));
+const norm = (s) => ({ apps: [...(s?.apps ?? [])].sort(), sevs: [...(s?.sevs ?? [])].sort(), kinds: [...(s?.kinds ?? [])].sort(), q: (s?.q ?? "").trim() });
 
 export class Board {
   constructor(api) {
@@ -59,7 +76,10 @@ export class Board {
     this.shown = null; this.shownAt = null;
     this.story = 0;
     this.tab = "wire";
-    this.filter = { app: null, sev: null };
+    this.filter = EMPTY(); // the Wire tab's filter
+    this.sets = []; // saved filter sets, shared (ObsFactor.WireFilters)
+    this.setId = null; // the saved set the filter was loaded from
+    this.air = store.get(AIR_KEY); // the set on air: the chyron and crawl follow it (this viewer only)
     this.el = document.getElementById("board");
     this.btn = document.getElementById("boardbtn");
     this.index = document.getElementById("indexrow");
@@ -68,6 +88,12 @@ export class Board {
     this.btn.textContent = "Board";
     this.btn.addEventListener("click", () => this.toggle());
     this.el.addEventListener("click", (e) => this.onClick(e));
+    this.el.addEventListener("input", (e) => {
+      if (e.target.name !== "wq") return;
+      this.filter.q = e.target.value;
+      this.renderWireList(); // 500 items at most: no need to wait for a pause
+    });
+    this.el.addEventListener("submit", (e) => { e.preventDefault(); this.saveSet(e.target); });
     this.news.addEventListener("click", (e) => {
       const w = e.target.closest("[data-wire]");
       if (w) return this.openItem(this.wire.find((x) => String(x.id ?? x.key) === w.dataset.wire));
@@ -80,9 +106,13 @@ export class Board {
     });
     setInterval(() => { this.story++; this.renderChyron(); }, ROTATE_MS);
     setInterval(() => this.renderClock(), 1000);
-    bus.subscribe("tape", (ev, t) => { if (ev === "tick") this.onTick(t); }, {
+    bus.subscribe("tape", (ev, t) => {
+      if (ev === "tick") this.onTick(t);
+      else if (ev === "filters") this.setSets(t.filters);
+    }, {
       onJoin: (r) => {
         if (r.error) return;
+        this.setSets(r.filters ?? []);
         document.body.classList.add("has-news");
         this.fetch(Date.now());
       },
@@ -106,12 +136,53 @@ export class Board {
     const tab = e.target.closest("[data-tab]");
     if (tab) { this.tab = tab.dataset.tab; return this.renderMonitor(); }
     const f = e.target.closest("[data-f]");
-    if (f) { const [k, v] = f.dataset.f.split(":"); this.filter[k] = this.filter[k] === v || !v ? null : v; return this.renderMonitor(); }
+    if (f) {
+      const i = f.dataset.f.indexOf(":"), k = f.dataset.f.slice(0, i), v = f.dataset.f.slice(i + 1);
+      if (k === "all") this.filter = EMPTY();
+      else { const l = this.filter[k]; this.filter[k] = l.includes(v) ? l.filter((x) => x !== v) : [...l, v]; }
+      return this.renderMonitor();
+    }
+    const set = e.target.closest("[data-set]");
+    if (set) {
+      const s = this.sets.find((x) => String(x.id) === set.dataset.set);
+      const act = e.target.closest("[data-sa]")?.dataset.sa;
+      if (!s) return;
+      if (act === "air") { this.air = this.air === String(s.id) ? null : String(s.id); store.set(AIR_KEY, this.air); this.render(); return; }
+      if (act === "del") { if (window.confirm(`Delete the filter set “${s.name}” for everyone?`)) bus.push("tape", "delete_filter", { id: s.id }).catch((x) => window.alert(x.message)); return; }
+      // a click on the set itself loads it; again, clears it
+      if (this.setId === s.id && sameSpec(this.filter, s.spec)) { this.setId = null; this.filter = EMPTY(); }
+      else { this.setId = s.id; this.filter = { ...EMPTY(), ...structuredClone(s.spec) }; }
+      return this.renderMonitor();
+    }
+    const sa = e.target.closest("[data-sa]");
+    if (sa?.dataset.sa === "saveas") { this.naming = true; this.renderMonitor(); this.el.querySelector("form[data-form=set] input")?.focus(); return; }
+    if (sa?.dataset.sa === "update") { const cur = this.sets.find((x) => x.id === this.setId); if (cur) bus.push("tape", "save_filter", { id: cur.id, name: cur.name, spec: this.filter }).catch((x) => window.alert(x.message)); return; }
+    if (sa?.dataset.sa === "cancel") { this.naming = false; return this.renderMonitor(); }
     const w = e.target.closest("[data-wire]");
     if (w) return this.openItem(this.wire.find((x) => String(x.id ?? x.key) === w.dataset.wire));
     const r = e.target.closest("[data-node]");
     if (r) this.api.go(r.dataset.node);
   }
+
+  setSets(list) {
+    this.sets = list;
+    if (this.air && !list.some((s) => String(s.id) === this.air)) { this.air = null; store.set(AIR_KEY, null); }
+    if (this.setId && !list.some((s) => s.id === this.setId)) this.setId = null;
+    this.render();
+    if (this.open) this.renderMonitor(true);
+  }
+
+  saveSet(form) {
+    if (form.dataset.form !== "set") return;
+    const name = form.querySelector("input[name=name]").value;
+    bus.push("tape", "save_filter", { name, spec: this.filter, by: this.api.who?.() || null })
+      .then((r) => { this.naming = false; this.setId = r.filter.id; this.renderMonitor(); })
+      .catch((x) => window.alert(x.message));
+  }
+
+  // the set on air: what the chyron and the crawl show of the wire
+  airSet() { return this.air ? this.sets.find((s) => String(s.id) === this.air) ?? null : null; }
+  aired() { const s = this.airSet(); return s ? this.wireUpTo().filter((w) => matches(s.spec, w)) : this.wireUpTo(); }
 
   // a wire item: replay its moment (5 s before), and go to its app
   openItem(it) {
@@ -152,7 +223,7 @@ export class Board {
       this.wire = [...fresh, ...this.wire].slice(0, 500);
       this.story = 0; // the newest story leads
       this.renderChyron();
-      if (this.open && this.tab === "wire") this.renderMonitor();
+      if (this.open && this.tab === "wire") this.renderMonitor(false);
     }
   }
 
@@ -233,7 +304,7 @@ export class Board {
     this.renderIndex();
     this.renderChyron();
     this.renderCrawl();
-    if (this.open) this.renderMonitor();
+    if (this.open) this.renderMonitor(false);
   }
 
   renderIndex() {
@@ -278,7 +349,7 @@ export class Board {
   // the stories: the wire's last 10 minutes at the moment on screen, worst first
   stories() {
     const at = this.shownAt ?? Date.now();
-    return this.wireUpTo().filter((w) => w.at >= at - STORY_MS)
+    return this.aired().filter((w) => w.at >= at - STORY_MS)
       .sort((a, b) => (SEV_RANK[a.sev] ?? 3) - (SEV_RANK[b.sev] ?? 3) || b.at - a.at).slice(0, 8);
   }
 
@@ -289,6 +360,10 @@ export class Board {
     bug.textContent = replay ? "REPLAY" : "LIVE";
     bug.classList.toggle("replay", replay);
     const head = this.news.querySelector(".nw-head"), chy = this.news.querySelector(".nw-chyron");
+    const air = this.airSet();
+    const tag = this.news.querySelector(".nw-tag");
+    tag.textContent = air ? `BEAM · ${air.name.toUpperCase()}` : "BEAM";
+    tag.classList.toggle("air", !!air);
     const st = this.stories();
     if (!st.length) {
       const beams = this.keys("beam:");
@@ -315,7 +390,7 @@ export class Board {
 
   renderCrawl() {
     const parts = [];
-    const recent = this.wireUpTo().slice(0, 6);
+    const recent = this.aired().slice(0, 6);
     for (const k of this.keys("beam:")) {
       const m = this.latest(k);
       const [p, p0] = this.move(k, "procs");
@@ -353,28 +428,82 @@ export class Board {
     return `<svg class="sp" viewBox="0 0 80 16" preserveAspectRatio="none"><path d="${d}"/></svg>`;
   }
 
-  renderMonitor() {
+  // force: a person did something here (a click, a save, a set arriving);
+  // without it, a live tick, which must not pull an input out from under
+  // someone typing in the board: then only the wire list is redrawn
+  renderMonitor(force = true) {
     if (!this.shown) { this.el.innerHTML = ""; return; }
     const at = this.shownAt ? hms(this.shownAt) : "";
     const tabs = [["wire", `Wire <b>${this.wireUpTo().length}</b>`], ["beam", `BEAM <b>${this.keys("beam:").length}</b>`], ["db", "DB"]];
     const head = `<div class="bd-head"><h3>Board</h3><div class="bd-tabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${this.tab === k}">${l}</button>`).join("")}</div>
       <span class="bd-at">${this.api.timeline.replaying ? "REPLAY" : "LIVE"} ${at}</span><button type="button" class="fi-x" data-a="close" aria-label="Close">×</button></div>`;
+    const active = this.el.contains(document.activeElement) && typing(document.activeElement) ? document.activeElement : null;
+    if (active && !force) { if (this.tab === "wire") this.renderWireList(); return; }
+    // the search box keeps its cursor across a redraw
+    const keep = active?.name === "wq" ? [active.selectionStart, active.selectionEnd] : null;
     const body = this.tab === "wire" ? this.wireTab() : this.tab === "beam" ? this.beamTab() : this.dbTab();
     this.el.innerHTML = head + body;
+    if (this.tab === "wire") this.renderWireList();
+    if (keep) { const i = this.el.querySelector("input[name=wq]"); i?.focus(); i?.setSelectionRange(...keep); }
   }
 
   wireTab() {
     const all = this.wireUpTo();
-    const apps = [...new Set(all.map((w) => w.app).filter(Boolean))];
     const f = this.filter;
-    const items = all.filter((w) => (!f.app || w.app === f.app) && (!f.sev || w.sev === f.sev)).slice(0, 200);
-    const chip = (k, v, l) => `<button type="button" class="bd-chip${f[k] === v ? " on" : ""}" data-f="${k}:${esc(v)}">${esc(l)}</button>`;
-    return `<div class="bd-filters">${chip("app", "", "all")}${apps.map((a) => chip("app", a, this.label(a))).join("")}<span class="sep"></span>${chip("sev", "alert", "alerts")}${chip("sev", "warn", "warnings")}${chip("sev", "info", "info")}</div>
-      ${items.length ? `<ol class="bd-wire">${items.map((w) => `<li class="${esc(w.sev)}" data-wire="${esc(String(w.id ?? w.key))}" title="Replay this moment">
-          <span class="t">${hms(w.at)}</span><span class="k">${esc(w.kind)}</span>
-          <div><b>${esc(w.label ?? w.app ?? "")}</b> ${esc(w.head)}${w.member ? ` <span class="m">${esc(shortNode(w.member))}</span>` : ""}<div class="x">${esc(w.text ?? "")}</div></div></li>`).join("")}</ol>`
-        : `<p class="bd-empty">Nothing on the wire${f.app || f.sev ? " for this filter" : " in the last 6 hours up to this moment"}. It reports restarts, joins and partitions, leaders moving, run queues, memory and atom jumps, mailboxes of 100+, logged errors, failing or surging Repo queries, and the apps' databases.</p>`}`;
+    const count = (pred) => all.filter(pred).length;
+    const chip = (k, v, l, n) => `<button type="button" class="bd-chip${f[k].includes(v) ? " on" : ""}" data-f="${k}:${esc(v)}">${esc(l)}${n != null ? ` <i>${n}</i>` : ""}</button>`;
+    const apps = [...new Set(all.map((w) => w.app).filter(Boolean))];
+    const kinds = [...new Set(all.map((w) => w.kind))].sort();
+    const cur = this.sets.find((x) => x.id === this.setId);
+    const dirty = cur && !sameSpec(f, cur.spec);
+    const any = f.apps.length || f.sevs.length || f.kinds.length || f.q.trim();
+    const sets = this.sets.map((x) => `<span class="bd-set${x.id === this.setId ? " on" : ""}${String(x.id) === this.air ? " aired" : ""}" data-set="${x.id}" title="${esc(this.describe(x.spec))}${x.by ? ` · saved by ${esc(x.by)}` : ""}">
+        <button type="button" class="nm">${esc(x.name)} <i>${count((w) => matches(x.spec, w))}</i></button><button type="button" class="air" data-sa="air" title="${String(x.id) === this.air ? "Off air: the chyron and crawl show the whole wire" : "On air: the chyron and crawl show only this set (on this screen)"}">${String(x.id) === this.air ? "ON AIR" : "air"}</button><button type="button" class="del" data-sa="del" aria-label="Delete ${esc(x.name)}">×</button></span>`).join("");
+    return `<div class="bd-sets">${sets || `<span class="bd-hint">No saved sets yet. Filter below, then Save as set.</span>`}</div>
+      <div class="bd-filters">
+        <input name="wq" type="search" placeholder="search head, detail, node" value="${esc(f.q)}" aria-label="Search the wire" spellcheck="false">
+        ${chip("sevs", "alert", "alerts", count((w) => w.sev === "alert"))}${chip("sevs", "warn", "warnings", count((w) => w.sev === "warn"))}${chip("sevs", "info", "info", count((w) => w.sev === "info"))}
+      </div>
+      <div class="bd-filters">${apps.map((a) => chip("apps", a, this.label(a), count((w) => w.app === a))).join("")}</div>
+      ${kinds.length ? `<div class="bd-filters kinds">${kinds.map((k) => chip("kinds", k, k, count((w) => w.kind === k))).join("")}</div>` : ""}
+      <div class="bd-setbar">
+        ${this.naming ? `<form data-form="set" class="tl-form"><input name="name" maxlength="60" placeholder="name this set" value="${esc(this.suggest())}" aria-label="Set name"><button type="submit" class="go">Save</button><button type="button" data-sa="cancel">Cancel</button></form>`
+          : `${any ? `<button type="button" data-f="all:">clear</button>` : ""}${dirty ? `<button type="button" class="go" data-sa="update">Update “${esc(cur.name)}”</button>` : ""}${any && (!cur || dirty) ? `<button type="button" data-sa="saveas">Save as set</button>` : ""}`}
+        <span class="bd-n"></span>
+      </div>
+      <ol class="bd-wire"></ol>
+      <p class="bd-empty" hidden></p>`;
   }
+
+  // the list under the filter: drawn on its own so typing a search keeps
+  // the cursor in the box
+  renderWireList() {
+    const ol = this.el.querySelector("ol.bd-wire");
+    if (!ol) return;
+    const all = this.wireUpTo();
+    const items = all.filter((w) => matches(this.filter, w)).slice(0, 300);
+    ol.innerHTML = items.map((w) => `<li class="${esc(w.sev)}" data-wire="${esc(String(w.id ?? w.key))}" title="Replay this moment">
+          <span class="t">${hms(w.at)}</span><span class="k">${esc(w.kind)}</span>
+          <div><b>${esc(w.label ?? w.app ?? "")}</b> ${esc(w.head)}${w.member ? ` <span class="m">${esc(shortNode(w.member))}</span>` : ""}<div class="x">${esc(w.text ?? "")}</div></div></li>`).join("");
+    const n = this.el.querySelector(".bd-n");
+    if (n) n.textContent = `${items.length} of ${all.length}`;
+    const empty = this.el.querySelector(".bd-empty");
+    empty.hidden = items.length > 0;
+    empty.textContent = all.length
+      ? "Nothing on the wire matches this filter."
+      : "Nothing on the wire in the last 6 hours up to this moment. It reports restarts, joins and partitions, leaders moving, run queues, memory and atom jumps, mailboxes of 100+, logged errors, failing or surging Repo queries, and the apps' databases.";
+  }
+
+  describe(spec) {
+    const p = [];
+    if (spec.apps?.length) p.push(spec.apps.map((a) => this.label(a)).join(", "));
+    if (spec.sevs?.length) p.push(spec.sevs.join("/"));
+    if (spec.kinds?.length) p.push(spec.kinds.join(", "));
+    if (spec.q) p.push(`“${spec.q}”`);
+    return p.join(" · ") || "everything";
+  }
+
+  suggest() { return this.describe(this.filter).slice(0, 60); }
 
   beamTab() {
     const keys = this.keys("beam:");
