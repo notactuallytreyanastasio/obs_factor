@@ -273,7 +273,7 @@ defmodule ObsFactor.ObserverProxy do
     outcome = if ok?, do: "ok", else: "#{status}: #{body["error"]}"
     path_text = path |> Enum.join("/") |> String.slice(0, 300)
 
-    Logger.warning("action #{path_text}#{if args != "", do: " " <> args} on #{where} by #{by || "nobody said"}: #{outcome}",
+    Logger.warning("action #{if path_text == "", do: "(no path)", else: path_text}#{if args != "", do: " " <> args} on #{where} by #{by || "nobody said"}: #{outcome}",
       [source: "actions", node_id: id] ++ if(by, do: [by: by], else: [])
     )
 

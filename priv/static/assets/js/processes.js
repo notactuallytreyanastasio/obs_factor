@@ -346,6 +346,8 @@ export class Processes {
       this.api.onOpen?.();
       this.unsubSnap = bus.subscribe("snapshots", (ev) => { if (ev === "snapshot") this.resync(); }, { onJoin: () => this.resync() });
       this.unsubActions = bus.subscribe("actions", (ev, a) => { if (ev === "action") this.takeAction(a); });
+      // the socket's state: while it is not connected nothing here is live
+      this.unsubState = bus.onState((st) => { this.link = st; this.render(); });
       this.resync();
     } else {
       // leave every feed this panel watched
@@ -353,6 +355,7 @@ export class Processes {
       this.closeDetail();
       this.unsubSnap?.(); this.unsubSnap = null;
       this.unsubActions?.(); this.unsubActions = null;
+      this.unsubState?.(); this.unsubState = null;
       this.closeModal();
     }
     this.api.redraw?.();
@@ -441,8 +444,10 @@ export class Processes {
     this.rows = rows;
 
     // the source strip: every source, how it is doing
+    const down = this.notLive();
     this.srcEl.innerHTML = subs.length ? subs.map((s) => {
       const name = esc(srcName(s.src));
+      if (down) return `<div class="pr-src bad"><b>${name}</b> not live: ${esc(down)}${s.data ? ` <span class="unk">— rows below are from ${esc(timeOf(s.data, s))}</span>` : ""}</div>`;
       if (s.refused) return `<div class="pr-src bad"><b>${name}</b> refused: ${esc(s.refused)}</div>`;
       if (s.error) return `<div class="pr-src bad"><b>${name}</b> ${esc(s.error)}${s.data ? ` <span class="unk">— rows below are from ${esc(timeOf(s.data, s))}</span>` : ""}</div>`;
       if (!s.data) return `<div class="pr-src wait"><b>${name}</b> <span class="unk">waiting for the first read…</span></div>`;
@@ -450,8 +455,8 @@ export class Processes {
       return `<div class="pr-src ok"><b>${name}</b> <span class="unk">${esc(d.node)} · top ${(d.procs ?? []).length} of ${num(d.total)} by ${esc(METRICS[d.sort]?.label ?? d.sort)}${d.walked < d.total ? `, walked ${num(d.walked)}` : ""} · ${esc(d.took_ms)} ms</span></div>`;
     }).join("") : `<div class="pr-src bad">${this.scope === "all" ? "No building on the floor reports its inside, so there is no BEAM to read. Try the observer." : "Nothing to read in this scope."}</div>`;
 
-    const live = subs.filter((s) => s.data && !s.error).length;
-    this.sumEl.textContent = `${rows.length} of ${all.length} shown · ${live} of ${subs.length} source${subs.length === 1 ? "" : "s"} live`;
+    const live = down ? 0 : subs.filter((s) => s.data && !s.error).length;
+    this.sumEl.textContent = `${rows.length} of ${all.length} shown · ${live} of ${subs.length} source${subs.length === 1 ? "" : "s"} live${down ? ` (not live: ${down})` : ""}`;
 
     for (const th of this.el.querySelectorAll("th[data-col]")) {
       const on = th.dataset.col === this.col;
@@ -631,16 +636,24 @@ export class Processes {
     this.detailEl.innerHTML = "";
   }
 
+  // null while the socket is connected, else what it is doing, e.g. "reconnecting: websocket closed"
+  notLive() {
+    const st = this.link ?? bus.state();
+    return st.state === "connected" ? null : `${st.state}${st.detail ? `: ${st.detail}` : ""}`;
+  }
+
   renderDetail() {
     const d = this.detail;
     if (!d) { this.detailEl.hidden = true; return; }
+    const down = this.notLive();
     this.detailEl.hidden = false;
     const p = d.data ?? null;
     const r = d.row;
     const kv = (k, v) => `<dt>${esc(k)}</dt><dd>${v}</dd>`;
     const list = (xs, n, f) => (xs?.length ? `${xs.slice(0, 12).map(f).join(", ")}${n > 12 ? ` <span class="unk">+${n - 12}</span>` : ""}` : `<span class="unk">none</span>`);
     const who = (x) => esc(x.pid ?? x.port ?? x.name ?? JSON.stringify(x));
-    const state = d.refused ? `<p class="pr-bad">Refused: ${esc(d.refused)}</p>`
+    const state = down ? `<p class="pr-bad">Not live (${esc(down)}): actions are off until the socket is back${p ? ` <span class="unk">— below is as of ${esc(timeOf(p, d))}</span>` : ""}</p>`
+      : d.refused ? `<p class="pr-bad">Refused: ${esc(d.refused)}</p>`
       : d.error ? `<p class="pr-bad">${esc(d.error)}${p ? ` <span class="unk">— below is as of ${esc(timeOf(p, d))}</span>` : ""}</p>`
       : !p ? `<p class="unk">Reading ${esc(d.pid)}…</p>` : "";
     const name = p?.registered_name ?? r?.name ?? null;
@@ -666,7 +679,7 @@ export class Processes {
       <h5>Stack</h5>
       <ol class="pr-stack mono">${(p.current_stacktrace ?? []).map((f) => `<li>${esc(f.mfa)} <span class="unk">${esc(f.file ?? "")}${f.line ? `:${f.line}` : ""}</span></li>`).join("") || "<li class=unk>empty</li>"}</ol>` : "";
     const res = d.result ? `<p class="${d.result.ok ? "pr-ok" : "pr-bad"}">${esc(d.result.text)}</p>` : "";
-    const busy = !!d.busy;
+    const busy = !!d.busy || !!down;
     this.detailEl.innerHTML = `
       <div class="pr-dhead">
         <button type="button" class="pr-back" data-back aria-label="Back to the list">‹ list</button>
@@ -680,7 +693,7 @@ export class Processes {
         <button type="button" class="danger" data-act="kill"${busy ? " disabled" : ""}>Kill</button>
         ${d.src.onFloor ? `<button type="button" data-fly>Fly to ${esc(d.src.label)}</button>` : ""}
       </div>
-      ${busy ? `<p class="unk">${esc(d.busy)}…</p>` : res}
+      ${d.busy ? `<p class="unk">${esc(d.busy)}…</p>` : res}
       ${body}`;
   }
 
@@ -696,7 +709,7 @@ export class Processes {
 
   confirm(act) {
     const d = this.detail;
-    if (!d) return;
+    if (!d || this.notLive()) return;
     const name = d.data?.registered_name ?? d.row?.name ?? d.data?.initial_call ?? d.row?.initial ?? "no registered name";
     const what = {
       gc: { title: "Garbage-collect", btn: "GC it", text: "Runs a full garbage collection in the process now. It keeps running; its memory may drop." },
