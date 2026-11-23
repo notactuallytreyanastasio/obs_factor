@@ -188,7 +188,7 @@ export class Board {
     this.index.innerHTML = tiles.map(([l, key, [now, then], title]) =>
       `<span class="ix"${title ? ` title="${esc(title)}"` : ""}><b>${l}</b><em>${now == null ? "–" : FMT[key](now)}</em>${this.delta(key, now, then)}</span>`).join("") +
       `<span class="ix fire${alerts ? " on" : ""}"><b>FIRES</b><em>${alerts}</em><i class="bd-d ${warns ? "dn" : "flat"}">${warns ? `${warns} smoke` : "·"}</i></span>` +
-      `<span class="ix calm${calm?.burning ? " burning" : ""}"><b>${calm?.burning ? "BURNING" : "CALM"}</b><em>${calm ? ago(calm.ms) : "–"}</em></span>`;
+      `<span class="ix calm${calm?.burning ? " burning" : ""}"><b>${calm?.burning ? "BURNING" : "CALM"}</b><em>${calm ? ago(calm.ms) + (calm.atLeast ? "+" : "") : "–"}</em></span>`;
   }
 
   // how long the floor has been calm, or burning, at the moment on screen:
@@ -202,8 +202,9 @@ export class Board {
     const burning = b[b.length - 1][2] > 0;
     let i = b.length - 1;
     while (i > 0 && (b[i - 1][2] > 0) === burning) i--;
-    // the run reaches the start of the window: it is at least that long
-    return { burning, ms: at - b[i][0] };
+    // a run that reaches back to the first column is at least that long
+    // ("8m+"): the tape, or the window, starts there
+    return { burning, ms: at - b[i][0], atLeast: i === 0 };
   }
 
   label(id) { return this.shown?.nodes.find((n) => n.id === id)?.label ?? id; }
@@ -224,7 +225,7 @@ export class Board {
       const pts = this.upTo();
       const rps = this.value(pts, "internet", "rps");
       chy.dataset.level = "calm";
-      head.innerHTML = `<b>ALL QUIET</b> <span>${c && !c.burning ? `calm for ${ago(c.ms)}` : "no fire on the floor"}${rps != null ? ` · ${num(rps)} req/s coming in` : ""} · ${s.nodes.length} buildings</span>`;
+      head.innerHTML = `<b>ALL QUIET</b> <span>${c && !c.burning ? `calm for ${ago(c.ms)}${c.atLeast ? "+" : ""}` : "no fire on the floor"}${rps != null ? ` · ${num(rps)} req/s coming in` : ""} · ${s.nodes.length} buildings</span>`;
       return;
     }
     const f = fires[this.story % fires.length];
