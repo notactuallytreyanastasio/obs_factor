@@ -356,11 +356,15 @@ defmodule ObsFactor.AccessLog do
     room = if Map.has_key?(paths, @other), do: @max_paths + 1, else: @max_paths
     key = if Map.has_key?(paths, path) or map_size(paths) < room, do: path, else: @other
     errors = if r.status in 500..599, do: 1, else: 0
-    slot = duration_bucket(r.duration)
+    # A 101 is a websocket: Caddy logs it when the connection closes, with
+    # the whole connection's life as its duration. That is not how long a
+    # response took, and one closed after 108 s made Marginalia's p95 108k
+    # ms in production (2026-11-23). It is counted, not timed.
+    timed = fn hist -> if r.status == 101, do: hist, else: bump(hist, duration_bucket(r.duration)) end
 
     paths =
-      Map.update(paths, key, {1, errors, %{slot => 1}}, fn {n, e, hist} ->
-        {n + 1, e + errors, bump(hist, slot)}
+      Map.update(paths, key, {1, errors, timed.(%{})}, fn {n, e, hist} ->
+        {n + 1, e + errors, timed.(hist)}
       end)
 
     via = if how == :via, do: bump(via, status_class(r.status)), else: via
@@ -502,6 +506,8 @@ defmodule ObsFactor.AccessLog do
     end
   end
 
+  # nil: no timed request (only websockets, see node/3)
+  defp ms(nil), do: nil
   defp ms(value), do: Float.round(value, 2)
 
   defp clients(buckets) do
