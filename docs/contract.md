@@ -851,9 +851,17 @@ Reads (GET):
 | `ets` | | `{"count","limit": 500,"cut","tables": [{"id","name","named","type","protection","size","memory_bytes","owner","owner_name"}]}` by memory |
 | `ports` | | `{"count","limit": 500,"cut","ports": [{"id","name","os_pid","connected","input_bytes","output_bytes"}]}` by traffic |
 
-A process summary: `{"pid","registered_name","current_function","initial_call","status","message_queue_len","memory","reductions","links"}`.
-A tree node is a summary plus `{"id" (inspect of the child id),"type": "worker"|"supervisor","children": [node] | null,"not_walked": null | "depth limit 2" | ...}`;
-a child that is not running is `{"id","type","pid": null,"status": "not running"}`;
+A process summary: `{"pid","registered_name","current_function","initial_call","status","message_queue_len","memory","reductions","links"}`;
+in a `procs` answer with `interval_ms` > 0 each one also carries
+`reductions_delta` (reductions between the two samples) and
+`reductions_per_s` (that, per second, rounded); with `interval_ms` 0 neither
+key is there.
+A tree node is a summary plus `{"id" (inspect of the child id),"type": "worker"|"supervisor"}`;
+only a supervisor also has `"children": [node] | null` and
+`"not_walked": null | "depth limit 2" | ...` (a worker has neither key);
+a child that is not running is `{"id","type","pid": null,"status","children": null,"not_walked": null}`
+with `status` `"not running"` or `"restarting"`; a supervisor child that
+died while it was walked is `{"id","type","pid","status": "dead","children": null,"not_walked": null}`;
 children past 25 per supervisor are one `{"group": true,"count","memory","message_queue_len_max"}`.
 `which_children` is sent only to processes proc_lib started as supervisors,
 1 s timeout each. Strings are cut at 200 characters, lists at 100. Message
