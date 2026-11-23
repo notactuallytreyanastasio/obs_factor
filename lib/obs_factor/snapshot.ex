@@ -388,7 +388,9 @@ defmodule ObsFactor.Snapshot do
             host_facts(hosts) ++ if(t.kind == :proxy, do: access_facts(env), else: []),
         inside: inside(t, report, env),
         # Not part of the status: the app may be fine and merely not reporting.
-        attention: attention ++ Rules.report(t.label, report) ++ Rules.cluster(t.label, report && report[:members])
+        attention:
+          attention ++ Rules.report(t.label, report) ++ Rules.cluster(t.label, report && report[:members]) ++
+            Rules.replicas(t.label, c)
     }
     |> Map.put(:active_now, active_now)
   end
