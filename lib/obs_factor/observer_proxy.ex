@@ -73,10 +73,16 @@ defmodule ObsFactor.ObserverProxy do
 
   @doc """
   Who is acting, as the pass-through accepts it: non-printing characters
-  removed, cut at 80 characters; nil for anything that is not a string.
+  removed, surrounding blanks trimmed, cut at 80 characters; nil for
+  anything that is not a string or is empty after that (so a blank name is
+  "nobody said", and a POST with it is refused).
   """
-  def clean_by(by) when is_binary(by),
-    do: by |> String.replace(~r/[^[:print:]]/u, "") |> String.slice(0, 80)
+  def clean_by(by) when is_binary(by) do
+    case by |> String.replace(~r/[^[:print:]]/u, "") |> String.trim() |> String.slice(0, 80) do
+      "" -> nil
+      clean -> clean
+    end
+  end
 
   def clean_by(_), do: nil
 
@@ -248,13 +254,21 @@ defmodule ObsFactor.ObserverProxy do
   defp report_token, do: Application.get_env(:obs_factor, :sources, [])[:report_token]
   defp actions_token, do: Application.get_env(:obs_factor, :observer_actions_token)
 
-  # Every POST, refused or done: one warning line here (LogRing, source
-  # "actions") and one message on the "actions" topic for every viewer.
-  defp record_action(id, path, params, opts, {status, body}) do
+  @doc """
+  Records one action, refused or done: one warning line (LogRing, source
+  "actions") and one `{:action, map}` on `actions_topic/0` for every viewer.
+  `call/5` does this for every POST; anything else that acts on behalf of a
+  viewer (a refusal before `call/5` is reached, `POST /api/builds`) calls
+  it directly. `opts`: `member:`, `by:`, `keys:` (the params shown, default
+  reason, supervisor, child_id, level). `path` is a list of segments.
+  """
+  def record_action(id, path, params, opts, {status, body}) do
     member = if is_binary(opts[:member]) and opts[:member] != "", do: opts[:member]
     by = opts[:by]
     where = if member, do: "#{id} (#{member})", else: id
-    args = params |> Map.take(~w(reason supervisor child_id level)) |> Enum.map_join(" ", fn {k, v} -> "#{k}=#{inspect(v)}" end)
+    shown = if is_map(params), do: Map.take(params, opts[:keys] || ~w(reason supervisor child_id level)), else: %{}
+    body = if is_map(body), do: body, else: %{}
+    args = shown |> Enum.map_join(" ", fn {k, v} -> "#{k}=#{inspect(v)}" end)
     ok? = status in 200..299
     outcome = if ok?, do: "ok", else: "#{status}: #{body["error"]}"
     path_text = path |> Enum.join("/") |> String.slice(0, 300)
@@ -269,7 +283,7 @@ defmodule ObsFactor.ObserverProxy do
        "node" => id,
        "member" => member,
        "path" => path_text,
-       "params" => Map.take(params, ~w(reason supervisor child_id level)),
+       "params" => shown,
        "by" => by,
        "status" => status,
        "result" => if(ok?, do: body),

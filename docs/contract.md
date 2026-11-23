@@ -949,8 +949,18 @@ Every POST, done or refused, is recorded twice on the observer:
 
   `member` is `nil` unless given; `params` holds only `reason`,
   `supervisor`, `child_id`, `level`; `by` is `nil` when nobody said (that
-  request was refused); exactly one of `result` (the 2xx body) and `error`
-  (the message) is non-nil. Reads are not broadcast.
+  request was refused); a `by` that is blank once non-printing characters
+  are removed and it is trimmed counts as nobody said; exactly one of
+  `result` (the 2xx body) and `error` (the message) is non-nil. Reads are
+  not broadcast. A channel `action` push the channel refuses itself (no
+  `path`, `params` not an object) is recorded the same way, with `path`
+  `""` when it gave none and `params` `%{}` when they were not an object.
+
+`POST /api/builds` is recorded the same way: `node` `"builder"`, `path`
+`"builds"`, `params` the job's `name`, `mode`, `repo`, `ref`, `label`,
+`by` from `x-factory-by` or `"by"` in the body (`nil` when nobody said; a
+build does not need a name), `result` the builder's 2xx body or `error`
+its refusal (404 no builder, 502 unreachable, the builder's 4xx).
 
 ### On the bus: `observer:<node_id>:<member or ->:<view>` *(2026-11-22)*
 

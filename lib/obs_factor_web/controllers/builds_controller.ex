@@ -7,12 +7,36 @@ defmodule ObsFactorWeb.BuildsController do
   """
   use ObsFactorWeb, :controller
 
-  alias ObsFactor.BuilderClient
+  alias ObsFactor.{BuilderClient, ObserverProxy}
 
+  # Starting a build is an action like any observer action: done or refused,
+  # it is logged (source "actions") and broadcast on "actions" with who asked
+  # (x-factory-by, or "by" in the body; nil when nobody said).
   def create(conn, params) do
-    forward(conn, fn url, token ->
-      BuilderClient.post(url, token, "/builder/api/jobs", Map.take(params, ~w(name mode repo ref label)))
-    end)
+    job = Map.take(params, ~w(name mode repo ref label))
+
+    by =
+      case get_req_header(conn, "x-factory-by") do
+        [by | _] when by != "" -> by
+        _ -> params["by"]
+      end
+      |> ObserverProxy.clean_by()
+
+    result =
+      case BuilderClient.config()[:url] do
+        nil ->
+          {404, %{"error" => "no builder configured (BUILDER_URL)"}}
+
+        url ->
+          case BuilderClient.post(url, BuilderClient.config()[:token], "/builder/api/jobs", job) do
+            {:ok, status, body} -> {status, body}
+            {:error, msg} -> {502, %{"error" => "builder: #{msg}"}}
+          end
+      end
+
+    ObserverProxy.record_action("builder", ["builds"], job, [by: by, keys: ~w(name mode repo ref label)], result)
+    {status, body} = result
+    conn |> put_status(status) |> json(body)
   end
 
   def show(conn, %{"id" => id}) do

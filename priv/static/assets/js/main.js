@@ -448,6 +448,9 @@ $("build-form").addEventListener("submit", async (e) => {
   err.hidden = true;
   const body = { name: f.name.value.trim(), mode: f.mode.value };
   if (body.mode === "github") { body.repo = f.repo.value.trim(); body.ref = f.ref.value.trim(); }
+  // who is asking, as every action says it (the name missions.js keeps); the
+  // request is broadcast on "actions" with it, or as "nobody said"
+  try { const who = localStorage.getItem("obs_factor.who"); if (who) body.by = who; } catch { /* no storage: nobody said */ }
   $("build-go").disabled = true;
   try {
     const r = await fetch("/api/builds", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify(body) });

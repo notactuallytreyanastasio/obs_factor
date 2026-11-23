@@ -288,6 +288,25 @@ defmodule ObsFactorWeb.ObserverFeedsTest do
       assert_receive {:action, %{"status" => 403, "by" => "eve"}}
       assert Process.alive?(victim)
     end
+
+    test "a payload the channel refuses itself is still recorded on actions, and a blank by is nobody" do
+      {:ok, _, socket} = join("observer:observer:-:system")
+      Phoenix.PubSub.subscribe(ObsFactor.PubSub, "actions")
+
+      ref = push(socket, "action", %{"params" => %{}, "by" => "rc"})
+      assert_reply ref, :error, %{status: 400, error: "action needs {path, params, by}" <> _}
+      assert_receive {:action, %{"status" => 400, "by" => "rc", "path" => "", "error" => "action needs" <> _}}
+
+      ref = push(socket, "action", %{"path" => "proc/0.50.0/gc", "params" => [1], "by" => "rc"})
+      assert_reply ref, :error, %{status: 400, error: "action params must be an object, got [1]"}
+      assert_receive {:action, %{"status" => 400, "path" => "proc/0.50.0/gc", "params" => %{}}}
+
+      for blank <- ["\u0007", "   ", " \u0007 "] do
+        ref = push(socket, "action", %{"path" => "proc/0.50.0/gc", "params" => %{}, "by" => blank})
+        assert_reply ref, :error, %{status: 400, error: "say who is acting" <> _}
+        assert_receive {:action, %{"status" => 400, "by" => nil}}
+      end
+    end
   end
 
   describe "a sub-app over HTTP" do

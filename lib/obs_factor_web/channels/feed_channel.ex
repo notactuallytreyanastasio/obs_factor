@@ -11,6 +11,8 @@ defmodule ObsFactorWeb.FeedChannel do
   """
   use ObsFactorWeb, :channel
 
+  alias ObsFactor.ObserverProxy
+
   @impl true
   def join(topic, _params, socket) do
     case ObsFactor.Feeds.Views.spec(topic) do
@@ -46,51 +48,50 @@ defmodule ObsFactorWeb.FeedChannel do
   # `ObsFactor.ObserverProxy.call/5` exactly as `POST /api/nodes/:id/observer/*path`
   # does: forwarded with OBSERVER_ACTIONS_TOKEN and x-factory-by, logged,
   # broadcast on "actions", and every feed of that node and member refetched.
-  # Replied with the engine's 2xx body, else `{error, status}`.
+  # Replied with the engine's 2xx body, else `{error, status}`. A payload
+  # refused here (no path, params not an object, not an object at all) is
+  # recorded on "actions" too, with what could be read of it.
   @impl true
-  def handle_in("action", payload, %{topic: "observer:" <> _ = topic} = socket)
-      when is_map(payload) do
+  def handle_in("action", payload, %{topic: "observer:" <> _ = topic} = socket) do
     {:ok, node, member, _view} = ObsFactor.Feeds.ObserverViews.parse(topic)
+    path = if is_map(payload), do: payload["path"]
+    params = if is_map(payload), do: Map.get(payload, "params") || %{}
+    by = if is_map(payload), do: ObserverProxy.clean_by(payload["by"])
 
-    case payload do
-      %{"path" => path} when is_binary(path) and path != "" ->
-        params = Map.get(payload, "params") || %{}
-        by = ObsFactor.ObserverProxy.clean_by(payload["by"])
+    result =
+      cond do
+        not is_binary(path) or path == "" ->
+          {400,
+           %{
+             "error" =>
+               "action needs {path, params, by}, e.g. {\"path\": \"proc/0.238.0/gc\", \"by\": \"you\"}; got #{inspect(payload, limit: 5)}"
+           }}
 
-        if is_map(params) do
-          case ObsFactor.ObserverProxy.call(
-                 "POST",
-                 node,
-                 String.split(path, "/"),
-                 Map.delete(params, "by"),
-                 member: member,
-                 by: by
-               ) do
-            {status, body} when status in 200..299 ->
-              {:reply, {:ok, body}, socket}
+        not is_map(params) ->
+          {400, %{"error" => "action params must be an object, got #{inspect(params, limit: 5)}"}}
 
-            {status, body} ->
-              {:reply, {:error, %{error: body["error"] || "status #{status}", status: status}},
-               socket}
-          end
-        else
-          {:reply,
-           {:error,
-            %{
-              error: "action params must be an object, got #{inspect(params, limit: 5)}",
-              status: 400
-            }}, socket}
-        end
+        true ->
+          nil
+      end
 
-      _ ->
-        {:reply,
-         {:error,
-          %{
-            error:
-              "action needs {path, params, by}, e.g. {\"path\": \"proc/0.238.0/gc\", \"by\": \"you\"}; got #{inspect(payload, limit: 5)}",
-            status: 400
-          }}, socket}
-    end
+    {status, body} =
+      case result do
+        # refused here, before the proxy: recorded like every other action
+        {_, _} = refused ->
+          segments = if is_binary(path) and path != "", do: String.split(path, "/"), else: []
+          ObserverProxy.record_action(node, segments, params, [member: member, by: by], refused)
+          refused
+
+        nil ->
+          ObserverProxy.call("POST", node, String.split(path, "/"), Map.delete(params, "by"),
+            member: member,
+            by: by
+          )
+      end
+
+    if status in 200..299,
+      do: {:reply, {:ok, body}, socket},
+      else: {:reply, {:error, %{error: body["error"] || "status #{status}", status: status}}, socket}
   end
 
   def handle_in(event, _payload, socket),
