@@ -15,7 +15,8 @@ defmodule ObsFactor.Tape do
 
   Every tick is kept for `fine_ms` (6 hours); older than that, only the
   first frame of each minute (`minute_mark`); older than `keep_ms` (7 days),
-  nothing. On the production box that is about 50 MB of fine frames and
+  nothing. Except inside a saved window (`tape_windows`, `save_window/2`):
+  there every frame is kept until the window is pruned. On the production box that is about 50 MB of fine frames and
   110 MB of minute frames. Thinning runs every 10 minutes.
 
   ## Where
@@ -57,8 +58,25 @@ defmodule ObsFactor.Tape do
     """,
     # the board (board.js): a few numbers per node, so a stretch of the tape
     # can be charted without unpacking a frame (added 2026-11-23)
-    "ALTER TABLE tape_frames ADD COLUMN IF NOT EXISTS metrics jsonb"
+    "ALTER TABLE tape_frames ADD COLUMN IF NOT EXISTS metrics jsonb",
+    # windows: stretches someone saved. Their frames are never thinned.
+    """
+    CREATE TABLE IF NOT EXISTS tape_windows (
+      id bigserial PRIMARY KEY,
+      from_at timestamptz NOT NULL,
+      to_at timestamptz NOT NULL,
+      title text NOT NULL,
+      note text,
+      by text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      CHECK (to_at > from_at)
+    )
+    """
   ]
+
+  # a frame inside a saved window is kept, whatever its age
+  @unsaved "NOT EXISTS (SELECT 1 FROM tape_windows w WHERE tape_frames.at BETWEEN w.from_at AND w.to_at)"
+  @max_window_ms 31 * 86_400_000
 
   # what the board keeps of `ObsFactor.History.metrics/2`, per node
   @board_keys ~w(rps err_rps p95_ms avg_ms in_flight cpu_cores mem_bytes commits_per_s connections cpu_used_cores mem_used_bytes disk_used_pct)a
@@ -233,6 +251,107 @@ defmodule ObsFactor.Tape do
   end
 
   @doc """
+  The error lanes: for each node and severity, the runs of frames in
+  `[from, to]` where it had an attention line, a gap of more than 90 s
+  ending a run (a minute frame is 60 s from the next). `[node, severity,
+  from, to, frames, text]` (text: the last line of the run), oldest first,
+  at most 3000.
+  """
+  def lanes(from_ms, to_ms, db \\ @db) do
+    sql = """
+    WITH e AS (
+      SELECT f.at, x->>'node' AS node, x->>'severity' AS sev, x->>'text' AS text
+      FROM tape_frames f, jsonb_array_elements(f.fires) x
+      WHERE f.at >= $1 AND f.at <= $2
+    ),
+    g AS (
+      SELECT *, CASE WHEN lag(at) OVER w IS NULL OR at - lag(at) OVER w > interval '90 seconds' THEN 1 ELSE 0 END AS brk
+      FROM e WINDOW w AS (PARTITION BY node, sev ORDER BY at)
+    ),
+    r AS (SELECT *, sum(brk) OVER (PARTITION BY node, sev ORDER BY at) AS run FROM g)
+    SELECT node, sev, min(at), max(at), count(*), (array_agg(text ORDER BY at DESC))[1]
+    FROM r GROUP BY node, sev, run ORDER BY min(at) LIMIT 3000
+    """
+
+    with {:ok, %{rows: rows}} <- q(db, sql, [dt(from_ms), dt(to_ms)]) do
+      {:ok, Enum.map(rows, fn [n, s, a, b, c, t] -> [n, s, ms(a), ms(b), c, t] end)}
+    end
+  end
+
+  # ---- windows ----------------------------------------------------------
+
+  @window_cols "id, from_at, to_at, title, note, by, created_at, (SELECT count(*) FROM tape_frames f WHERE f.at BETWEEN w.from_at AND w.to_at) AS frames"
+
+  @doc "Every saved window, newest stretch first: `{:ok, [window]}`."
+  def windows(db \\ @db) do
+    with {:ok, r} <- q(db, "SELECT #{@window_cols} FROM tape_windows w ORDER BY from_at DESC", []) do
+      {:ok, Enum.map(r.rows, &window_row/1)}
+    end
+  end
+
+  @doc """
+  Save a window (`%{"from", "to", "title", "note", "by"}`), or change one
+  (`"id"` too: its edges, which is how one is trimmed, its title, its
+  note). `{:ok, window}` or `{:error, reason}`.
+  """
+  def save_window(attrs, db \\ @db) do
+    with {:ok, f, t} <- edges(attrs),
+         {:ok, title} <- text(attrs["title"], 120, "untitled window"),
+         {:ok, note} <- text(attrs["note"], 2000, nil),
+         {:ok, by} <- text(attrs["by"], 60, nil) do
+      case attrs["id"] do
+        id when is_integer(id) ->
+          write_window(db, "UPDATE tape_windows w SET from_at = $2, to_at = $3, title = $4, note = coalesce($5, note) WHERE id = $1 RETURNING #{@window_cols}",
+            [id, dt(f), dt(t), title, note], id)
+
+        nil ->
+          write_window(db, "INSERT INTO tape_windows AS w (from_at, to_at, title, note, by) VALUES ($1, $2, $3, $4, $5) RETURNING #{@window_cols}",
+            [dt(f), dt(t), title, note, by], nil)
+
+        other ->
+          {:error, "a window id is an integer, got #{inspect(other)}"}
+      end
+    end
+  end
+
+  defp write_window(db, sql, params, id) do
+    case q(db, sql, params) do
+      {:ok, %{rows: [row]}} -> {:ok, window_row(row)}
+      {:ok, %{rows: []}} -> {:error, "no window #{id}: pruned already?"}
+      {:error, e} -> {:error, message(e)}
+    end
+  end
+
+  @doc "Prune windows by id. Their frames go back to being thinned. `{:ok, pruned_ids}`."
+  def prune_windows(ids, db \\ @db) when is_list(ids) do
+    if ids != [] and Enum.all?(ids, &is_integer/1) do
+      with {:ok, r} <- q(db, "DELETE FROM tape_windows WHERE id = ANY($1) RETURNING id", [ids]) do
+        {:ok, Enum.map(r.rows, &hd/1)}
+      end
+    else
+      {:error, "prune takes a list of integer ids, got #{inspect(ids)}"}
+    end
+  end
+
+  defp edges(%{"from" => f, "to" => t}) when is_integer(f) and is_integer(t) and t > f and t - f <= @max_window_ms,
+    do: {:ok, f, t}
+
+  defp edges(a), do: {:error, "a window is from and to, integer unix ms, from first, at most 31 days: got #{inspect(Map.take(a, ["from", "to"]))}"}
+
+  defp text(nil, _, default), do: {:ok, default}
+  defp text(s, max, default) when is_binary(s) do
+    case String.trim(s) do
+      "" -> {:ok, default}
+      t -> {:ok, String.slice(t, 0, max)}
+    end
+  end
+
+  defp text(other, _, _), do: {:error, "expected text, got #{inspect(other)}"}
+
+  defp window_row([id, f, t, title, note, by, created, frames]),
+    do: %{id: id, from: ms(f), to: ms(t), title: title, note: note, by: by, created_at: ms(created), frames: frames}
+
+  @doc """
   Per node, how long it burned in `[from, to]` according to the tape: each
   frame counts until the next one (at most 2 minutes, so a gap is not a
   fire). `[%{node, severity, ms, first, last, text}]`.
@@ -393,8 +512,8 @@ defmodule ObsFactor.Tape do
   @doc false
   def thin(state, now_ms) do
     with {:ok, a} <-
-           q(state.db, "DELETE FROM tape_frames WHERE at < $1 AND NOT minute_mark", [dt(now_ms - state.fine_ms)]),
-         {:ok, b} <- q(state.db, "DELETE FROM tape_frames WHERE at < $1", [dt(now_ms - state.keep_ms)]) do
+           q(state.db, "DELETE FROM tape_frames WHERE at < $1 AND NOT minute_mark AND #{@unsaved}", [dt(now_ms - state.fine_ms)]),
+         {:ok, b} <- q(state.db, "DELETE FROM tape_frames WHERE at < $1 AND #{@unsaved}", [dt(now_ms - state.keep_ms)]) do
       if a.num_rows + b.num_rows > 0,
         do:
           Logger.info("tape thinned: #{a.num_rows} fine frames, #{b.num_rows} old frames",

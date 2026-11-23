@@ -835,7 +835,10 @@ timeline = new Timeline({
   onFrame: (snapshot) => display(snapshot),
   onLive: () => { if (liveSnap) display(liveSnap); },
   onMode: (replaying, at) => { document.body.classList.toggle("replaying", replaying); topbar.setReplay(replaying ? at : null); },
-  onWindow: () => fires.setWindow(),
+  onWindow: () => fires?.setWindow(),
+  openFires: () => fires?.toggle(true),
+  label: (id) => outerSnap?.nodes.find((n) => n.id === id)?.label ?? id,
+  who: () => missions.who || null,
   onNode: (id) => { if (outerSnap?.nodes.some((n) => n.id === id)) { if (insideOf) leave(); select(id, true); } },
 });
 fires = new Fires({

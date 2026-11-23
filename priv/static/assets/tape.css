@@ -34,7 +34,7 @@ body.has-tape { --tl: 62px; --safe-b: calc(env(safe-area-inset-bottom, 0px) + va
 #timeline:not(.replaying) .tl-live .dot { background: var(--working); box-shadow: 0 0 8px var(--working); animation: pulse 2s ease-in-out infinite; }
 #timeline.replaying .tl-live { color: #ffd166; border-color: rgba(255, 209, 102, 0.55); }
 
-.tl-strip { position: relative; flex: 1; min-width: 0; height: 48px; }
+.tl-strip { position: relative; flex: 1; min-width: 0; height: var(--strip-h, 48px); }
 .tl-strip canvas { width: 100%; height: 100%; display: block; cursor: crosshair; touch-action: none; border-radius: 6px; background: rgba(255, 255, 255, 0.025); }
 .tl-tip {
   position: absolute; bottom: calc(100% + 8px); width: 220px; z-index: 2; pointer-events: none;
@@ -51,13 +51,81 @@ body.has-tape { --tl: 62px; --safe-b: calc(env(safe-area-inset-bottom, 0px) + va
 .tl-spans button[aria-pressed="true"] { color: var(--text); border-color: rgba(127, 224, 255, 0.6); background: rgba(127, 224, 255, 0.1); }
 
 .tl-sel {
-  position: absolute; bottom: calc(100% + 8px); right: 12px; display: flex; align-items: center; gap: 6px;
+  position: absolute; bottom: calc(100% + 8px + var(--news, 0px)); right: 12px; display: flex; align-items: center; gap: 6px;
   background: var(--panel-solid); border: 1px solid rgba(127, 224, 255, 0.5); border-radius: 10px; padding: 5px 6px 5px 10px;
   font: 12px var(--mono); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
 }
 .tl-sel[hidden] { display: none; }
 .tl-sel .dim { color: var(--muted); }
 .tl-sel button { height: 28px; }
+
+/* the right-hand tools: windows, lanes, help */
+.tl-side { display: flex; align-items: center; gap: 4px; flex: none; }
+.tl-tool { height: 34px; min-width: 34px; padding: 0 9px; border-radius: 8px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.04);
+  color: var(--text); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: 600 12px var(--sans); }
+.tl-tool:hover { background: rgba(255, 255, 255, 0.1); }
+.tl-tool.sq { width: 34px; padding: 0; }
+.tl-tool svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2; stroke-linecap: round; fill: none; }
+.tl-tool[aria-pressed="true"], .tl-tool[aria-expanded="true"] { border-color: rgba(127, 224, 255, 0.6); background: rgba(127, 224, 255, 0.12); color: #e8fbff; }
+.tl-tool .n { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; display: inline-grid; place-items: center; font: 700 11px var(--mono); background: rgba(127, 224, 255, 0.18); color: #bff0ff; }
+.tl-follow { position: absolute; right: 4px; top: 18px; z-index: 2; height: 22px; padding: 0 8px; border-radius: 6px; cursor: pointer;
+  border: 1px solid rgba(61, 220, 132, 0.6); background: rgba(10, 30, 20, 0.9); color: #c9ffe0; font: 600 11px var(--mono); }
+.tl-follow[hidden] { display: none; }
+
+/* the way back to now: always one click away while replaying */
+.tl-back {
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(100% + 64px + var(--news, 0px)); z-index: 3; display: inline-flex; align-items: center; gap: 10px;
+  height: 38px; padding: 0 14px; border-radius: 19px; cursor: pointer; font: 13px var(--sans); color: #c9ffe0;
+  background: rgba(8, 36, 22, 0.95); border: 1px solid rgba(61, 220, 132, 0.75); box-shadow: 0 0 24px rgba(61, 220, 132, 0.3);
+}
+.tl-back[hidden] { display: none; }
+.tl-back:hover { background: rgba(14, 56, 34, 0.98); }
+.tl-back b { color: #fff; letter-spacing: 0.04em; }
+.tl-back .dim { color: #8fd9b0; font-family: var(--mono); font-size: 12px; }
+.tl-back kbd, .tl-help kbd { font: 11px var(--mono); padding: 1px 5px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.25); color: var(--muted); }
+#timeline.trimming { border-top-color: rgba(255, 209, 102, 0.7); }
+
+.tl-help {
+  position: absolute; right: 12px; bottom: calc(100% + 10px + var(--news, 0px)); z-index: 4; width: min(400px, calc(100vw - 24px));
+  background: var(--panel-solid); border: 1px solid rgba(127, 224, 255, 0.45); border-radius: 12px; padding: 12px 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+}
+.tl-help[hidden] { display: none; }
+.tl-help h4 { margin: 0 0 8px; font: 800 11px var(--sans); letter-spacing: 0.16em; text-transform: uppercase; color: #7fe0ff; }
+.tl-help dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 12px; }
+.tl-help dt { font: 700 12px var(--mono); color: var(--text); white-space: nowrap; }
+.tl-help dd { margin: 0; color: var(--muted); }
+.tl-help p { margin: 10px 0 0; color: var(--dim); font-size: 11px; }
+
+/* saved windows */
+.tl-wins {
+  position: absolute; right: 12px; bottom: calc(100% + 10px + var(--news, 0px)); z-index: 4; width: min(560px, calc(100vw - 24px)); max-height: min(60vh, 520px); overflow: auto;
+  background: var(--panel-solid); border: 1px solid rgba(127, 224, 255, 0.45); border-radius: 12px; padding: 10px 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55); font-size: 12px;
+}
+.tl-wins[hidden] { display: none; }
+.tw-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.tw-head h4 { margin: 0; font: 800 11px var(--sans); letter-spacing: 0.16em; text-transform: uppercase; color: #7fe0ff; }
+.tw-head .dim { flex: 1; color: var(--muted); font-family: var(--mono); font-size: 11px; }
+.tl-wins ul { list-style: none; margin: 0; padding: 0; }
+.tl-wins li { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 6px 6px; border-radius: 8px; border: 1px solid transparent; }
+.tl-wins li:hover { background: rgba(255, 255, 255, 0.04); border-color: var(--line); }
+.tl-wins li.on { border-color: rgba(127, 224, 255, 0.5); background: rgba(127, 224, 255, 0.06); }
+.tw-body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tw-body b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tw-body .dim { color: var(--dim); font-family: var(--mono); font-size: 11px; }
+.tw-acts { display: flex; gap: 3px; flex-wrap: wrap; justify-content: flex-end; }
+.tw-acts button, .tw-foot button, .tl-sel button, .tl-form button { height: 26px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.04); color: var(--text); cursor: pointer; font: 600 11px var(--sans); }
+.tw-acts button:hover, .tw-foot button:hover { background: rgba(255, 255, 255, 0.1); }
+button.bad { color: #ffb4ad; border-color: rgba(255, 90, 90, 0.4); }
+button.bad:hover { background: rgba(229, 50, 45, 0.18) !important; }
+button.bad:disabled { opacity: 0.4; cursor: default; }
+button.go { color: #071018; background: #7fe0ff !important; border-color: #7fe0ff !important; }
+.tw-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.tl-wins p.dim { color: var(--muted); margin: 6px 0; }
+.tl-form { display: inline-flex; gap: 6px; align-items: center; }
+.tl-form input { height: 26px; min-width: 220px; padding: 0 8px; border-radius: 6px; border: 1px solid rgba(127, 224, 255, 0.5); background: #0b1220; color: var(--text); font: 12px var(--mono); }
+.tl-sel .tag { font: 800 9px var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: #071018; background: #7fe0ff; padding: 2px 5px; border-radius: 4px; }
+.tl-sel .tag.trim { background: #ffd166; }
+.k-win { color: #7fe0ff; font-weight: 700; } .k-warn { color: #ffc46b; font-weight: 700; }
 
 /* REPLAY 14:03:25: the moment on screen, over the floor */
 .tl-badge {
@@ -192,8 +260,9 @@ body.inside #fires { top: calc(var(--top) + var(--strip, 0px) + 60px); }
 @media (max-width: 640px) {
   body.has-tape { --tl: 98px; }
   #timeline { flex-wrap: wrap; align-content: center; gap: 6px 8px; padding: 6px 10px; }
-  .tl-strip { order: 3; flex-basis: 100%; height: 44px; }
-  .tl-spans { margin-left: auto; }
+  .tl-strip { order: 3; flex-basis: 100%; }
+  .tl-side { margin-left: auto; }
+  .tl-form input { min-width: 120px; }
   .tl-spans button { min-width: 36px; padding: 0 4px; }
   .tl-spans button:not([aria-pressed="true"]) { display: none; }
   .tl-b, .tl-speed, .tl-live, .tl-spans button { height: 30px; }

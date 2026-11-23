@@ -626,6 +626,14 @@ defmodule ObsFactor.AccessLogTest do
       assert AccessLog.percentile(%{40 => 1}, 0.5) == AccessLog.bucket_ms(40)
     end
 
+    test "a websocket (101) is counted but not timed: its duration is the connection's life" do
+      lines = for(ms <- 1..19, do: line("a.test", "/", 200, ms / 1000)) ++ [line("a.test", "/live/websocket", 101, 108.0)]
+      {data, _} = step(Fixtures.access_state(), lines, Fixtures.now_ms())
+      assert %{p95_ms: p95, p99_ms: p99} = data.nodes["blimp-blog"].latency
+      assert p95 < 25 and p99 < 25
+      assert %{count: 1, p95_ms: nil} = Enum.find(routes(data, "blimp-blog"), &(&1.path == "/live/websocket"))
+    end
+
     test "a node's latency and a route's p95 over its requests" do
       # 100 requests: 1..100 ms, and one slow path that is its own row.
       lines =

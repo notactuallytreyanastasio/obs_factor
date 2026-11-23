@@ -20,7 +20,7 @@ defmodule ObsFactor.TapeTest do
   setup do
     db = :"tape_test_db_#{System.unique_integer([:positive])}"
     start_supervised!(Supervisor.child_spec({Postgrex, ObsFactor.Postgres.opts(@url, name: db, pool_size: 2, statement_timeout: "5000")}, id: db))
-    Postgrex.query!(db, "DROP TABLE IF EXISTS tape_frames, objective_events, objectives", [])
+    Postgrex.query!(db, "DROP TABLE IF EXISTS tape_windows, tape_frames, objective_events, objectives", [])
     topic = "tape_test_#{System.unique_integer([:positive])}"
     Phoenix.PubSub.subscribe(ObsFactor.PubSub, topic)
     name = :"tape_#{System.unique_integer([:positive])}"
@@ -40,6 +40,7 @@ defmodule ObsFactor.TapeTest do
   end
 
   defp alert(node, text), do: %{node: node, severity: "alert", text: text}
+  defp warn(node, text), do: %{node: node, severity: "warn", text: text}
 
   # record and wait for the write (the broadcast follows the insert)
   defp put(tape, at, s) do
@@ -72,6 +73,44 @@ defmodule ObsFactor.TapeTest do
     assert [[@t0, %{"caddy" => %{"rps" => 0}}] | _] = all
     {:ok, some} = Tape.series(@t0, @t0 + 60_000, 4, db)
     assert length(some) <= 4 and List.last(some) == List.last(all)
+  end
+
+  test "lanes: each building's runs, a gap over 90 s ends one, alert and warning apart", %{db: db, tape: tape} do
+    put(tape, @t0, snap([alert("app", "5xx 1"), warn("db", "slow")]))
+    put(tape, @t0 + 5_000, snap([alert("app", "5xx 2")]))
+    put(tape, @t0 + 60_000, snap([]))
+    put(tape, @t0 + 200_000, snap([alert("app", "5xx 3")]))
+
+    {:ok, lanes} = Tape.lanes(@t0, @t0 + 300_000, db)
+    assert [
+             ["app", "alert", @t0, a_end, 2, "5xx 2"],
+             ["db", "warn", @t0, @t0, 1, "slow"],
+             ["app", "alert", b, b, 1, "5xx 3"]
+           ] = Enum.sort_by(lanes, &{Enum.at(&1, 2), Enum.at(&1, 0) == "db"})
+    assert a_end == @t0 + 5_000 and b == @t0 + 200_000
+  end
+
+  test "windows: saved, trimmed, renamed, pruned; bad edges refused", %{db: db, tape: tape} do
+    put(tape, @t0 + 5_000, snap([]))
+    {:ok, w} = Tape.save_window(%{"from" => @t0, "to" => @t0 + 10_000, "title" => "  links down  ", "by" => "bg"}, db)
+    assert %{title: "links down", by: "bg", frames: 1, from: @t0} = w
+    {:ok, w2} = Tape.save_window(%{"id" => w.id, "from" => @t0 + 6_000, "to" => @t0 + 10_000, "title" => "trimmed"}, db)
+    assert %{id: id, from: f, frames: 0, title: "trimmed", by: "bg"} = w2
+    assert id == w.id and f == @t0 + 6_000
+    assert {:ok, [%{id: ^id}]} = Tape.windows(db)
+    assert {:error, "a window is" <> _} = Tape.save_window(%{"from" => @t0, "to" => @t0}, db)
+    assert {:error, "no window" <> _} = Tape.save_window(%{"id" => -1, "from" => @t0, "to" => @t0 + 1}, db)
+    assert {:ok, [^id]} = Tape.prune_windows([id], db)
+    assert {:ok, []} = Tape.windows(db)
+  end
+
+  test "thinning leaves every frame inside a saved window", %{db: db, tape: tape} do
+    for i <- 0..23, do: put(tape, @t0 + i * 5_000, snap([]))
+    {:ok, _} = Tape.save_window(%{"from" => @t0 + 50_000, "to" => @t0 + 70_000}, db)
+    count = fn -> Postgrex.query!(db, "SELECT count(*) FROM tape_frames", []).rows |> hd() |> hd() end
+    Tape.thin(%{db: db, fine_ms: 60_000, keep_ms: 60_000, logged_at: 0}, @t0 + 10 * 60_000)
+    # everything is past keep: only the 5 frames in the window are left
+    assert count.() == 5
   end
 
   test "a frame comes back as it was recorded: the last at or before, or the first after", %{db: db, tape: tape} do
