@@ -10,6 +10,7 @@ import { esc } from "./fmt.js";
 import { BeamPanel } from "./beam.js";
 import { Tour } from "./tour.js";
 import { LogExplorer } from "./logs.js";
+import { Missions } from "./missions.js";
 
 const $ = (id) => document.getElementById(id);
 const canvas = $("floor");
@@ -47,6 +48,8 @@ function freeArea() {
   const w = window.innerWidth, h = window.innerHeight;
   const top = $("topbar").offsetHeight + ($("attention").hidden ? 0 : $("attention").offsetHeight) + ($("insidebar").hidden ? 0 : $("insidebar").offsetHeight);
   let x = 0, y = top, fw = w, fh = h - top;
+  // missions.js: the panel on the left, beside the floor, on a desktop
+  if (missions.open && w >= 760) { const r = missions.el.getBoundingClientRect(); x = r.right; fw = w - x; }
   if (inspector.open) {
     const r = inspector.el.getBoundingClientRect();
     if (w >= 760) fw = r.left - x;
@@ -194,6 +197,7 @@ function showView() {
     $("inside-kind").textContent = [i.kind, ...Object.entries(i.versions).map(([k, v]) => `${k} ${v}`)].join(" · ");
   }
   if (inspector.open) inspector.update(inspectOuter ? outerSnap : snap);
+  missions.applyLens(); // the lens follows the view: the floor, or the floor under the inside
   dirty = true;
   return changed;
 }
@@ -373,14 +377,14 @@ function toggleLegend(open) {
   const lg = $("legend");
   lg.hidden = !(open ?? lg.hidden);
   $("legendbtn").setAttribute("aria-expanded", String(!lg.hidden));
-  if (!lg.hidden) { toggleSites(false); toggleBuilder(false); beam.toggle(false); }
+  if (!lg.hidden) { toggleSites(false); toggleBuilder(false); beam.toggle(false); missions.toggle(false); }
 }
 $("legendbtn").addEventListener("click", () => toggleLegend());
 function toggleSites(open) {
   const el = $("sites");
   el.hidden = !(open ?? el.hidden);
   $("sitesbtn").setAttribute("aria-expanded", String(!el.hidden));
-  if (!el.hidden) { toggleLegend(false); toggleBuilder(false); beam.toggle(false); }
+  if (!el.hidden) { toggleLegend(false); toggleBuilder(false); beam.toggle(false); missions.toggle(false); }
 }
 $("sitesbtn").addEventListener("click", () => toggleSites());
 
@@ -405,7 +409,7 @@ function toggleBuilder(open) {
   const el = $("builder");
   el.hidden = !(open ?? el.hidden);
   $("buildbtn").setAttribute("aria-expanded", String(!el.hidden));
-  if (!el.hidden) { toggleLegend(false); toggleSites(false); beam.toggle(false); renderPlan(); el.querySelector("input[name=name]").focus(); }
+  if (!el.hidden) { toggleLegend(false); toggleSites(false); beam.toggle(false); missions.toggle(false); renderPlan(); el.querySelector("input[name=name]").focus(); }
 }
 $("buildbtn").addEventListener("click", () => toggleBuilder());
 
@@ -445,9 +449,44 @@ $("build-form").addEventListener("submit", async (e) => {
 // ---- under the hood, and the tour ---------------------------------------
 
 const beam = new BeamPanel({
-  onOpen: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); inspector.close(); },
+  onOpen: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); missions.toggle(false); inspector.close(); },
   onExplore: (preset) => logs.open(preset),
 });
+
+// ---- missions (missions.js) ---------------------------------------------
+// Objectives to check and cross off. Go leaves the inside first; Flag pins
+// the selected building, or, inside one, the building we are in.
+const missions = new Missions({
+  snap: () => snap,
+  outer: () => outerSnap,
+  insideOf: () => insideOf,
+  scenes: () => [scene, under],
+  go: (id) => {
+    if (!outerSnap) return "no snapshot yet";
+    if (!outerSnap.nodes.some((n) => n.id === id)) return `${id} is not on the floor in the current snapshot`;
+    // leave() starts a fly from close in to the fitted floor: go from there
+    let z = null;
+    if (insideOf) { leave(); z = Math.max(fly ? fly.to.z : scene.cam.z, 0.85); }
+    if (window.innerWidth < 760) missions.toggle(false);
+    select(id, true);
+    if (z) centreOn(id, z);
+    return null;
+  },
+  target: () => {
+    if (!outerSnap) return null;
+    if (insideOf) {
+      if (!inspectOuter && !scene.selected) return null;
+      const b = outerSnap.nodes.find((n) => n.id === insideOf);
+      const part = !inspectOuter && snap.nodes.find((n) => n.id === scene.selected);
+      return { id: insideOf, label: b?.label ?? insideOf, part: part ? part.label : null };
+    }
+    const n = scene.selected && outerSnap.nodes.find((x) => x.id === scene.selected);
+    return n ? { id: n.id, label: n.label, part: null } : null;
+  },
+  onOpen: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); if (window.innerWidth < 760) inspector.close(); },
+  redraw: () => { dirty = true; },
+});
+// ---- end missions ---------------------------------------------------------
 $("logsbtn").addEventListener("click", () => { toggleMenu(false); logs.open(); });
 $("beambtn").addEventListener("click", () => beam.toggle());
 
@@ -465,12 +504,13 @@ const tour = new Tour({
   select: (id, flyTo = false) => select(id, flyTo),
   centreOn: (id) => centreOn(id),
   closeInspector: () => inspector.close(),
-  closeAll: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); inspector.close(); logs.close(); },
+  closeAll: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); missions.toggle(false); inspector.close(); logs.close(); },
   panel: (name, open) => ({ legend: toggleLegend, sites: toggleSites })[name](open),
   fitAll: () => fitAll(true),
   nodeRect,
   beam,
   logs,
+  missions,
 });
 $("tourbtn").addEventListener("click", () => tour.start());
 $("beambtn2").addEventListener("click", () => { toggleMenu(false); beam.toggle(true); });
@@ -520,7 +560,7 @@ connect({
 
 let lastCam = "";
 const stats = { frames: 0, ms: 0, worst: 0 };
-window.__obsFactor = { stats, scene, under, tour, beam, logs };
+window.__obsFactor = { stats, scene, under, tour, beam, logs, missions };
 
 function frame(now) {
   requestAnimationFrame(frame);

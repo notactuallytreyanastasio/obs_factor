@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#0b0e17">
   <title>obs_factor</title>
   <link rel="stylesheet" href="/assets/app.css">
+  <link rel="stylesheet" href="/assets/missions.css">
   <script type="module" src="/assets/js/main.js"></script>
 </head>
 <body class="factory">
@@ -22,6 +23,8 @@
       <span class="sep" aria-hidden="true">·</span><time id="utc">--:--:--</time> UTC
       <span id="stale"></span>
     </div>
+    <!-- missions.js: hidden until /api/objectives answers, and kept hidden only when there is no store -->
+    <button type="button" class="ms-btn" id="missionsbtn" hidden aria-expanded="false" aria-controls="missions">Missions <b class="n">0</b></button>
     <button class="iconbtn" id="menubtn" aria-label="Menu" aria-expanded="false">
       <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
     </button>
@@ -112,6 +115,8 @@
     </form>
   </aside>
 
+  <aside id="missions" hidden aria-label="Missions: what the floor raised, to check and cross off"></aside>
+
   <aside id="beam" hidden aria-label="Under the hood: the observer's own BEAM"></aside>
 
   <aside id="inspector" hidden aria-label="Inspector">
@@ -119,6 +124,7 @@
     <button class="iconbtn close" id="inspector-close" aria-label="Close">
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
     </button>
+    <button type="button" class="ms-flagbtn" id="inspector-flag" hidden title="Pin an objective on this building (key f)">Flag</button>
     <div id="inspector-body"></div>
   </aside>
 </body>

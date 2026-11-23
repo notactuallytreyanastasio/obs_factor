@@ -51,7 +51,7 @@ only by agreement, and say so when you do.
 | `ACCESS_LOG` | Caddy's JSON access log, read-only (Access log) | `/caddy-logs/access.log` |
 | `REPORT_TOKEN` | optional bearer token sent to every `report` URL (Reports) | |
 | `CHECK_ORIGIN` | optional: page origins allowed to open the websocket, comma-separated; unset = the host of `PHX_HOST` (Live: one socket) | `//localhost,//127.0.0.1` |
-| `OBJECTIVES_PG_URL` | optional: the objectives database (writable, its own role) | |
+| `OBJECTIVES_PG_URL` | optional: the objectives store, a database and role of its own (`deploy/objectives-db.sql`); unset, `/api/objectives` is 503 | `postgres://obs_factor_app:pw@db/obs_factor` |
 
 Tick is 5 s. History is in memory: 5 s resolution for 1 h, 1 min for 24 h.
 
@@ -388,6 +388,43 @@ itself.
 The whole job log from the builder's file (`/builder/api/jobs/:id/log`), up
 to its last 20000 lines: `{"id", "log": [{"t", "step", "line"}]}`. The job
 in `GET /api/builds/:id` carries only the last 400. Unknown job is 404.
+
+## `/api/objectives` *(2026-11-22)*
+
+Mission objectives (`ObsFactor.Objectives`): what the floor raised, kept
+until someone has looked. Same session as every `/api` route (401 without).
+
+- `GET /api/objectives` → `{"objectives": [...]}`: every undone objective
+  and those done in the last 24 h, newest first.
+- `POST /api/objectives` with `{node, title, note, by}` → 201 and the new
+  objective: a pin (`source: "pin"`, `severity: "warn"`). A pin never clears
+  itself.
+- `POST /api/objectives/:id` with `{action: "look" | "done" | "reopen", note, by}`
+  → 200 and the objective after it.
+
+An objective: `{id, key, source: "rule" | "pin", node, severity: "alert" | "warn",
+title, first_text, state, opened_at, last_seen_at, cleared_at, done_at,
+done_by, looking_by, note, seen_count, evidence, events: [{at, kind, by, note}]}`.
+`node` is a floor node id, or null for what is not a building (a failing
+source). `evidence` is the node's `{label, status, reason, headline}` when
+the rule first saw it. `events` are the last 20, oldest first; kinds are
+`seen`, `came back`, `cleared itself`, `pinned`, `looking`, `crossed off`,
+`reopened`.
+
+States: `open` → `looking` (look) → `done` (cross off). A rule objective not
+seen for 60 s goes `open`/`looking` → `cleared`; seen again it is `open`
+with `seen_count + 1`. One undone objective per `key` (the node and the text
+with every number blanked), so a rule with a changing number is one
+objective. `by` is a name the person typed, not an identity.
+
+Errors, each `{"error": text}`: 503 `no objectives store: OBJECTIVES_PG_URL is not set`
+when the observer has no store (the page hides Missions when the
+`objectives` join reply's error starts with this),
+503 with Postgres's reason when it has one but cannot use it, 404
+`no such objective`, 409 `cannot <action> an objective that is <state>` or
+`this came back since and is open as a newer objective` (reopen yields to
+a newer one), 400 for an action outside the three or an id that is not an
+integer.
 
 ## Building apps *(builder prototype, 2026-11-19)*
 

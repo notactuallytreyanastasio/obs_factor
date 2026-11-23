@@ -77,6 +77,23 @@ function steps(api) {
       },
     },
     {
+      // missions.js; skipped when the observer has no objectives store (OBJECTIVES_PG_URL unset)
+      title: "Missions: what to check before you leave",
+      skip: () => api.missions.configured !== true,
+      target: () => $("missions"),
+      enter: async () => { api.closeAll(); api.missions.toggle(true); await waitFor(() => api.missions.loaded, 3000); },
+      body: () => {
+        const M = api.missions;
+        const u = M.list.filter((o) => o.state !== "done");
+        const cleared = u.filter((o) => o.state === "cleared").length;
+        const pins = u.filter((o) => o.source === "pin").length;
+        return `The strip above forgets: it is recomputed every tick. This doesn't. Every alert and warning becomes an objective in Postgres (${code("ObsFactor.Objectives")}, ${code("GET /api/objectives")}), kept until a person crosses it off with a note.
+          ${M.error ? `<p class="note err">The store is failing right now, and the panel says so: ${esc(M.error)}</p>` : ""}
+          <p>${M.loaded ? "Right now" : "Nothing read yet"}: <b>${u.length}</b> undone${cleared ? `, ${cleared} of them cleared by themselves and not yet checked` : ""}${pins ? `, ${pins} flagged by hand` : ""}.</p>
+          ${code("I'm on it")} tells everyone you are looking; ${code("f")} on a selected building flags it; ${code("l")} is the issues lens, the floor veiled except what is on the list. ${code("Before you leave")} writes the handover.`;
+      },
+    },
+    {
       title: "Reading the lamps",
       target: () => q("#legend .lg-grid"),
       enter: async () => api.panel("legend", true),

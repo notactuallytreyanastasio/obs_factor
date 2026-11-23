@@ -205,6 +205,52 @@ Not there: container logs. They'd need `/containers/{id}/logs` through
 can carry secrets. The two logs the tour shows are the builder's job log
 and the observer's own.
 
+### Missions: what to check before you leave
+
+The attention strip is recomputed every tick and forgets. **Missions** (top
+bar, with the count of undone objectives, red when one is an alert) is the
+part that remembers: every alert and warning the rules raise becomes an
+objective in Postgres (`ObsFactor.Objectives`), kept until a person crosses
+it off with a note. One that goes away by itself for a minute is *cleared*,
+not done, and stays on the list as "cleared itself — check and cross off".
+
+- **Go** flies to the building (leaving the inside of one first); an
+  objective whose building is not in the current snapshot says so.
+- **I'm on it** shows "looking — name" to everyone; **Cross off** asks for
+  a note; **Reopen** undoes it. The name is asked once and kept in
+  localStorage: there is one password, so it is a label, not an identity.
+- **Flag** (in the inspector, or `f` with a building selected) pins an
+  objective on a building by hand. Inside a building it pins the building.
+- **Issues lens** (`l`): everything under a veil except the buildings with
+  an undone objective. Inside a building it lights the floor underneath.
+- **Before you leave**: still open, cleared but unchecked, and what you
+  crossed off this session with your notes, and a plain-text handover to
+  copy. Log out offers it when you crossed something off.
+
+The panel is live over the page's one socket: the `objectives` channel's
+join reply is the list, each change anyone makes arrives as an `objective`
+push, and I'm on it / Cross off / Reopen / Flag are `act` and `pin` pushes
+on the same channel. The list changes when the broadcast comes back, not
+from the reply, so two browsers cross off in step. The debrief also lists
+what came over the `actions` topic since the tab opened (empty until
+something publishes there). No request is made on a timer; the one GET of
+`/api/objectives` is a resync after the store was unreadable at join and a
+change then arrived.
+
+It needs `OBJECTIVES_PG_URL`, a database and role of its own
+(`deploy/objectives-db.sql`, run as its header says). Unset, the Missions
+control is hidden and `/api/objectives` answers 503 `no objectives store`;
+set but unreachable, the control shows `!` and the panel the error. For
+`mix phx.server` on the laptop:
+`OBJECTIVES_PG_URL=postgres://postgres:postgres@localhost/obs_factor_dev`.
+
+Checked in headless Chrome against a dev server at 1440×900 and 390×844 on
+2026-11-22 with the Docker lab down, so the rule objectives were the failing
+sources and the down apps, not cluster alerts. The inside-a-building path
+was checked with a snapshot given a made-up inside, since no building had a
+working report. `deploy.sh` does not check for this database: it is optional,
+and its wiring check treats every key it knows as required.
+
 ### Building apps (prototype)
 
 "Build new app" in the factory makes a new hostname and, optionally, an app
