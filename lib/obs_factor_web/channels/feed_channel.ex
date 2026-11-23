@@ -23,7 +23,7 @@ defmodule ObsFactorWeb.FeedChannel do
       send(self(), :after_join)
       {:ok, last || %{}, assign(socket, :joined_with, last)}
     else
-      {:error, reason} -> {:error, %{reason: reason}}
+      {:error, reason} -> ObsFactorWeb.Log.refuse(reason)
     end
   end
 

@@ -27,7 +27,7 @@ defmodule ObsFactorWeb.LogsChannel do
          assign(socket, :last_id, last)}
 
       :error ->
-        {:error, %{reason: "after must be a non-negative integer"}}
+        ObsFactorWeb.Log.refuse("after must be a non-negative integer")
     end
   end
 

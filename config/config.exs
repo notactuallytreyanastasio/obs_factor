@@ -30,7 +30,31 @@ config :obs_factor, ObsFactorWeb.Endpoint,
 # Configure Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
-  metadata: [:request_id]
+  metadata: [:request_id, :event]
+
+# Structured logs (docs/contract.md, "Logs"). Every event the app emits
+# carries `event` and the fields below as Logger metadata. In prod (and so
+# the lab container, which runs the prod release) stdout is one JSON object
+# per line in factory_report's shape, the same as the other apps on the box:
+# {"time","level","msg","app","module","request_id","page", ...these fields}.
+# Dev and test keep the text formatter. ObsFactor.LogRing reads the same
+# metadata for the log explorer's facets.
+log_fields =
+  ~w(event source node member action target args by objective_id job mode fqdn
+     method path route handler transport channel topic status took_ms
+     reason error previous_error kind stacktrace)a
+
+log_formatter = {FactoryReport.JSONFormatter, %{app: "obs_factor", metadata: log_fields}}
+config :obs_factor, :log_formatter, log_formatter
+
+if config_env() == :prod do
+  config :logger, :default_handler, formatter: log_formatter
+end
+
+# ObsFactorWeb.Log writes one structured event per request, socket connect
+# and channel join. Phoenix's own text lines for those would be a second,
+# unstructured copy of each.
+config :phoenix, :logger, false
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason

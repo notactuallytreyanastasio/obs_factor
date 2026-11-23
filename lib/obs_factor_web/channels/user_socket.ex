@@ -11,7 +11,6 @@ defmodule ObsFactorWeb.UserSocket do
   missing, invalid or expired token is refused (HTTP 403 on the upgrade).
   """
   use Phoenix.Socket
-  require Logger
 
   channel "snapshots", ObsFactorWeb.SnapshotsChannel
   channel "objectives", ObsFactorWeb.ObjectivesChannel
@@ -41,8 +40,9 @@ defmodule ObsFactorWeb.UserSocket do
       {:ok, sid} ->
         {:ok, assign(socket, :sid, sid)}
 
+      # logged as socket.refused, reason "token invalid" etc. (ObsFactorWeb.Log)
       {:error, reason} ->
-        Logger.warning("socket refused: token #{reason}")
+        _ = ObsFactorWeb.Log.refuse("token #{reason}", :connect)
         {:error, reason}
     end
   end
