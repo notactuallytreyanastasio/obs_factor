@@ -102,6 +102,10 @@ defmodule ObsFactor.ObjectivesTest do
   test "no such objective, and nothing stored for one" do
     assert Objectives.key("db", "Postgres 96 of 100, 3.5 ms") == "db|Postgres # of #, # ms"
     assert Objectives.key(nil, "source docker failing") == "-|source docker failing"
+    # addresses, pids and versions are identities: two partitions stay two
+    assert Objectives.key("m", "m@172.22.0.2 and m@172.22.0.3 are not connected") !=
+             Objectives.key("m", "m@172.22.0.3 and m@172.22.0.5 are not connected")
+    assert Objectives.key("m", "kill 0.2542.0: 96% of 4.8 MB") == "m|kill 0.2542.0: #% of # MB"
   end
 
   test "every change is broadcast with the public row and its events", %{s: s} do

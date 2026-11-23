@@ -147,7 +147,13 @@ defmodule ObsFactor.Objectives do
     do: GenServer.call(server, {:act, id, action, attrs})
 
   @doc "The identity of what a rule said: the node and the text, numbers blanked."
-  def key(node, text), do: "#{node || "-"}|" <> Regex.replace(~r/\d+(?:[.,]\d+)?/, text, "#")
+  # A number that is part of a dotted run (an address, a pid, a version) is
+  # an identity, not a measurement, and stays: "172.22.0.2 and 172.22.0.3
+  # are not connected" and "172.22.0.3 and 172.22.0.5 ..." are two
+  # partitions. Blanking those merged them into one objective (seen on the
+  # lab cluster, 2026-11-23).
+  def key(node, text),
+    do: "#{node || "-"}|" <> Regex.replace(~r/(?<![\d.])\d+(?:[.,]\d+)?(?![\d.])/, text, "#")
 
   # ---- the server --------------------------------------------------------
 
