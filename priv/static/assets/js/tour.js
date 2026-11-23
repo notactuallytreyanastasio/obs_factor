@@ -284,6 +284,18 @@ function steps(api) {
       },
     },
     {
+      title: "Every BEAM's processes, in one table",
+      target: () => q("#procs"),
+      enter: async () => { api.closeAll(); api.procs.toggle(true); api.procs.setScope("all"); await waitFor(() => q("#procs tbody tr") || q("#procs .pr-src.bad"), 5000); },
+      body: () => {
+        const srcs = [...document.querySelectorAll("#procs .pr-src")].map((e) => e.textContent.replace(/\s+/g, " ").trim());
+        const rows = document.querySelectorAll("#procs tbody tr").length;
+        return `${code("Processes")} reads the top 50 of every building with a ${code("factory_report")} engine (one source per cluster member; the observer's own VM is a scope of its own) from ${code("observer:<node>:<member>:procs:<sort>")} feeds on the socket: ${esc(rows)} rows from ${esc(srcs.length)} sources right now.
+          ${srcs.length ? `<p>${srcs.map((t) => esc(t)).join("<br>")}</p>` : ""}
+          A source that can't be read is its own red line with the reason. Type ${code("/")} to search (${code("mq:>100 node:marginalia*")}), click a column to re-sort every source, and ${code("⌘K")} / ${code("Ctrl+K")} jumps to any building, objective or process seen.`;
+      },
+    },
+    {
       title: "That's the whole stack",
       body: () => `From a lamp on a building, to the rule that set it, to the source it came from, to the process that read it, to that process's log line. When something looks wrong upstairs, the same path works backwards.
         <p>Restart the tour with the <b>Tour</b> button, or open the page with ${code("?tour")}.</p>`,

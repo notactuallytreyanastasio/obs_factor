@@ -601,6 +601,7 @@ const tour = new Tour({
   logs,
   missions,
   apps: { enterObserver: () => enterObserver(), get apps() { return apps; } },
+  get procs() { return procs; },
 });
 $("tourbtn").addEventListener("click", () => tour.start());
 $("beambtn2").addEventListener("click", () => { toggleMenu(false); beam.toggle(true); });
