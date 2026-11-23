@@ -192,7 +192,7 @@ each column; empty columns left out: a gap in the tape); `frame` `{at}` →
 it; `next` nil at the live edge); `series` `{from, to, points}` → `{series: [[at, {node: {key: n}}]]}` (the board's
 numbers, at most `points` frames, every k-th, the newest always in); `marks` `{from, to}` → `{marks: [[at, kind,
 objective_id, node, severity, title, by]]}` (objective events, newest 600);
-`lanes` `{from, to}` → `{lanes: [[node, severity, from, to, frames, text]]}` (each building's runs of alerts and warnings, a gap over 90 s ending one); `windows` → `{windows: [window]}`; `insights` `{from, to}` → `ObsFactor.Insights.compute/2` (`score`, `calm`,
+`lanes` `{from, to}` → `{lanes: [[node, severity, from, to, frames, text]]}` (each building's runs of alerts and warnings, a gap over 90 s ending one); `windows` → `{windows: [window]}`; `wire` `{from, to}` → `{wire: [item]}` (the BEAM wire, `ObsFactor.Wire`: `{id, at, app, label, member, kind, sev, head, text}`, newest first, at most 500; also pushed on each `tick` as `wire`); `insights` `{from, to}` → `ObsFactor.Insights.compute/2` (`score`, `calm`,
 `hot`, `repeat`, `peaks`, `worst`). The tape is `tape_frames` in the
 objectives database: every tick for 6 h, then one a minute for 7 days,
 except inside a saved window (`tape_windows`), which keeps every frame
