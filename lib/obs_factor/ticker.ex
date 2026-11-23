@@ -1,7 +1,7 @@
 defmodule ObsFactor.Ticker do
   @moduledoc """
   Builds one snapshot per tick from the latest source results, stores it for
-  `GET /api/snapshot`, records it into `ObsFactor.History` and broadcasts it
+  `GET /api/snapshot`, records it into `ObsFactor.History` and onto the tape (`ObsFactor.Tape`) and broadcasts it
   (already JSON-encoded, once) on `ObsFactor.PubSub` topic `"snapshots"` as
   `{:snapshot, json}`: the "snapshots" channel and `GET /api/stream` forward
   that binary as it is. A failed build is broadcast as
@@ -46,6 +46,7 @@ defmodule ObsFactor.Ticker do
       Store.put_snapshot({:ok, json})
       History.record(DateTime.to_unix(now, :millisecond), History.metrics(snapshot, sources))
       Phoenix.PubSub.broadcast(ObsFactor.PubSub, @topic, {:snapshot, json})
+      ObsFactor.Tape.record(DateTime.to_unix(now, :millisecond), json, ObsFactor.Tape.summary(snapshot))
       ObsFactor.Objectives.observe(snapshot.attention, Map.new(snapshot.nodes, &{&1.id, &1}))
       memory
     rescue

@@ -1,0 +1,399 @@
+defmodule ObsFactor.Tape do
+  @moduledoc """
+  The tape: every snapshot the ticker builds, kept in Postgres so the floor
+  can be replayed as it was. `ObsFactor.History` keeps numbers per node for
+  the charts; it cannot redraw a building that was on fire, a belt that was
+  red or the attention strip at 03:12. The tape keeps the snapshot itself.
+
+  ## What is kept
+
+  One row per tick in `tape_frames`: the snapshot's JSON, gzipped (a 100 KB
+  snapshot of the production box is about 11 KB), and beside it a summary
+  that the timeline and the insights read without unpacking a frame:
+  alerts, warnings, buildings down or blocked, requests and 5xx per second
+  through the proxies, and the attention lines themselves (`fires`).
+
+  Every tick is kept for `fine_ms` (6 hours); older than that, only the
+  first frame of each minute (`minute_mark`); older than `keep_ms` (7 days),
+  nothing. On the production box that is about 50 MB of fine frames and
+  110 MB of minute frames. Thinning runs every 10 minutes.
+
+  ## Where
+
+  The objectives database (OBJECTIVES_PG_URL), through the same pool: the
+  tape and the missions are read together (a fire on the timeline is an
+  objective's event). No store, no tape: `record/2` does nothing and the
+  `tape` channel answers with why.
+
+  Writing is a cast: the ticker never waits on Postgres. A failed insert is
+  logged once a minute and the frame is lost; the tape has a gap there,
+  which the timeline draws as one.
+
+  Every frame written is broadcast on `ObsFactor.PubSub` topic `"tape"` as
+  `{:tape_frame, summary}`, so a timeline grows its live edge.
+  """
+  use GenServer
+  require Logger
+
+  @db ObsFactor.ObjectivesDB
+  @topic "tape"
+  @thin_every_ms 10 * 60_000
+  @minute 60_000
+
+  @ddl [
+    """
+    CREATE TABLE IF NOT EXISTS tape_frames (
+      at timestamptz PRIMARY KEY,
+      body bytea NOT NULL,
+      minute_mark boolean NOT NULL,
+      alerts integer NOT NULL,
+      warns integer NOT NULL,
+      down integer NOT NULL,
+      blocked integer NOT NULL,
+      rps real,
+      err_rps real,
+      fires jsonb NOT NULL
+    )
+    """
+  ]
+
+  def topic, do: @topic
+  def db, do: @db
+
+  def child_spec(opts), do: %{id: __MODULE__, start: {__MODULE__, :start_link, [opts]}}
+
+  def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: Keyword.get(opts, :name, __MODULE__))
+
+  def enabled?(server \\ __MODULE__), do: GenServer.whereis(server) != nil
+
+  # ---- writing -----------------------------------------------------------
+
+  @doc """
+  What the timeline needs of a snapshot without unpacking it. Requests and
+  5xx are summed over the proxies' hosts (every request comes in through
+  one); nil when a proxy's rate is unknown.
+  """
+  def summary(snapshot) do
+    attention = Map.get(snapshot, :attention, [])
+    nodes = snapshot.nodes
+    hosts = for n <- nodes, n.kind == "proxy", h <- n.hosts || [], do: h
+
+    sum = fn key ->
+      vals = Enum.map(hosts, &Map.get(&1, key))
+      if hosts == [] or Enum.any?(vals, &(not is_number(&1))), do: nil, else: Enum.sum(vals) / 1
+    end
+
+    %{
+      alerts: Enum.count(attention, &(&1.severity == "alert")),
+      warns: Enum.count(attention, &(&1.severity == "warn")),
+      down: Enum.count(nodes, &(&1.status == "down")),
+      blocked: Enum.count(nodes, &(&1.status == "blocked")),
+      rps: sum.(:rps),
+      err_rps: sum.(:err_rps),
+      fires:
+        for(a <- attention, a.severity in ["alert", "warn"], do: %{node: a.node, severity: a.severity, text: a.text})
+        |> Enum.take(40)
+    }
+  end
+
+  @doc "Record one tick: its time, its JSON, its `summary/1`. Never blocks."
+  def record(at_ms, json, summary, server \\ __MODULE__) do
+    if enabled?(server), do: GenServer.cast(server, {:record, at_ms, json, summary})
+    :ok
+  end
+
+  # ---- reading (in the caller, through the pool) ---------------------------
+
+  @doc "`{:ok, %{from, to, frames}}` (ms; nils when empty) or `{:error, reason}`."
+  def range(db \\ @db) do
+    with {:ok, %{rows: [[from, to, n]]}} <-
+           q(db, "SELECT min(at), max(at), count(*) FROM tape_frames", []) do
+      {:ok, %{from: ms(from), to: ms(to), frames: n}}
+    end
+  end
+
+  @doc """
+  The timeline strip: `[from, to)` cut into `buckets` columns, each
+  `[t, frames, alerts, warns, down, err_rps, rps]` (worst alerts, warnings,
+  down and 5xx in the column; mean requests). Empty columns are left out:
+  a gap on the tape.
+  """
+  def index(from_ms, to_ms, buckets, db \\ @db) when to_ms > from_ms and buckets in 1..2000 do
+    step = max(1, div(to_ms - from_ms, buckets))
+
+    sql = """
+    SELECT floor((extract(epoch FROM at) * 1000 - $1) / $2)::bigint AS b, count(*),
+           max(alerts), max(warns), max(down), max(err_rps), avg(rps)
+    FROM tape_frames WHERE at >= $3 AND at < $4
+    GROUP BY b ORDER BY b
+    """
+
+    with {:ok, %{rows: rows}} <- q(db, sql, [from_ms, step, dt(from_ms), dt(to_ms)]) do
+      {:ok,
+       %{
+         from: from_ms,
+         to: to_ms,
+         step: step,
+         buckets: for([b, n, a, w, d, e, r] <- rows, do: [from_ms + b * step, n, a, w, d, round3(e), round3(r)])
+       }}
+    end
+  end
+
+  @doc """
+  The frame at `at_ms`: the last one at or before it, or the first after
+  it when the tape starts later. `{:ok, at_ms, json, next_ms}` (`next_ms`:
+  the frame after it, nil at the live edge, so a player knows when the
+  picture next changes), `:none` or `{:error, reason}`.
+  """
+  def frame(at_ms, db \\ @db) do
+    sql = """
+    WITH f AS (
+      (SELECT at, body FROM tape_frames WHERE at <= $1 ORDER BY at DESC LIMIT 1)
+      UNION ALL
+      (SELECT at, body FROM tape_frames WHERE at > $1 ORDER BY at LIMIT 1)
+      LIMIT 1
+    )
+    SELECT f.at, f.body, (SELECT min(t.at) FROM tape_frames t WHERE t.at > f.at) FROM f
+    """
+
+    case q(db, sql, [dt(at_ms)]) do
+      {:ok, %{rows: [[at, body, next]]}} -> {:ok, ms(at), :zlib.gunzip(body), ms(next)}
+      {:ok, %{rows: []}} -> :none
+      {:error, _} = e -> e
+    end
+  end
+
+  @doc """
+  What happened to the objectives in `[from, to]`, for the markers on the
+  timeline: `[at, kind, objective_id, node, severity, title, by]`, oldest
+  first, at most 600 (the newest).
+  """
+  def marks(from_ms, to_ms, db \\ @db) do
+    sql = """
+    SELECT * FROM (
+      SELECT e.at, e.kind, o.id, o.node, o.severity, o.title, e.by
+      FROM objective_events e JOIN objectives o ON o.id = e.objective_id
+      WHERE e.at >= $1 AND e.at <= $2
+        AND e.kind IN ('seen', 'came back', 'pinned', 'looking', 'crossed off', 'cleared itself', 'reopened')
+      ORDER BY e.at DESC LIMIT 600
+    ) m ORDER BY at
+    """
+
+    with {:ok, %{rows: rows}} <- q(db, sql, [dt(from_ms), dt(to_ms)]) do
+      {:ok, Enum.map(rows, fn [at | rest] -> [ms(at) | rest] end)}
+    end
+  end
+
+  @doc """
+  Per node, how long it burned in `[from, to]` according to the tape: each
+  frame counts until the next one (at most 2 minutes, so a gap is not a
+  fire). `[%{node, severity, ms, first, last, text}]`.
+  """
+  def burn(from_ms, to_ms, db \\ @db) do
+    sql = """
+    WITH f AS (
+      SELECT at, fires,
+             greatest(least(coalesce(lead(at) OVER (ORDER BY at), least(now(), $2)) - at, interval '2 minutes'), interval '0') AS dur
+      FROM tape_frames WHERE at >= $1 AND at <= $2
+    )
+    SELECT e->>'node', e->>'severity', extract(epoch FROM sum(dur)) * 1000, min(f.at), max(f.at),
+           (array_agg(e->>'text' ORDER BY f.at DESC))[1]
+    FROM f, jsonb_array_elements(f.fires) e
+    GROUP BY 1, 2
+    """
+
+    with {:ok, %{rows: rows}} <- q(db, sql, [dt(from_ms), dt(to_ms)]) do
+      {:ok,
+       for [node, sev, total, first, last, text] <- rows do
+         %{node: node, severity: sev, ms: round(to_f(total)), first: ms(first), last: ms(last), text: text}
+       end}
+    end
+  end
+
+  @doc """
+  The calm and the worst of `[from, to]`: the share of tape time with no
+  alert, the last frame with one (ever), and the worst moments by 5xx and
+  by alerts.
+  """
+  def weather(from_ms, to_ms, db \\ @db) do
+    span = """
+    WITH f AS (
+      SELECT at, alerts,
+             greatest(least(coalesce(lead(at) OVER (ORDER BY at), least(now(), $2)) - at, interval '2 minutes'), interval '0') AS dur
+      FROM tape_frames WHERE at >= $1 AND at <= $2
+    )
+    SELECT extract(epoch FROM sum(dur)) * 1000, extract(epoch FROM sum(dur) FILTER (WHERE alerts = 0)) * 1000, count(*)
+    FROM f
+    """
+
+    peaks = """
+    SELECT at, err_rps, alerts, down FROM tape_frames
+    WHERE at >= $1 AND at <= $2 AND err_rps > 0 ORDER BY err_rps DESC LIMIT 40
+    """
+
+    worst = """
+    SELECT at, alerts, warns, down FROM tape_frames
+    WHERE at >= $1 AND at <= $2 AND (alerts > 0 OR down > 0) ORDER BY alerts + down DESC, at DESC LIMIT 1
+    """
+
+    args = [dt(from_ms), dt(to_ms)]
+
+    with {:ok, %{rows: [[total, calm, n]]}} <- q(db, span, args),
+         {:ok, %{rows: [[last_alert]]}} <- q(db, "SELECT max(at) FROM tape_frames WHERE alerts > 0", []),
+         {:ok, %{rows: peak_rows}} <- q(db, peaks, args),
+         {:ok, %{rows: worst_rows}} <- q(db, worst, args) do
+      {:ok,
+       %{
+         frames: n,
+         tape_ms: round(to_f(total)),
+         calm_ms: round(to_f(calm)),
+         last_alert: ms(last_alert),
+         # one peak per minute: a burst of five ticks is one peak
+         peaks:
+           peak_rows
+           |> Enum.uniq_by(fn [at | _] -> div(ms(at), @minute) end)
+           |> Enum.take(3)
+           |> Enum.map(fn [at, e, a, d] -> %{at: ms(at), err_rps: round3(e), alerts: a, down: d} end),
+         worst:
+           case worst_rows do
+             [[at, a, w, d]] -> %{at: ms(at), alerts: a, warns: w, down: d}
+             [] -> nil
+           end
+       }}
+    end
+  end
+
+  # ---- the server --------------------------------------------------------
+
+  @impl true
+  def init(opts) do
+    state = %{
+      db: Keyword.get(opts, :db, @db),
+      topic: Keyword.get(opts, :topic, @topic),
+      fine_ms: Keyword.get(opts, :fine_ms, 6 * 3_600_000),
+      keep_ms: Keyword.get(opts, :keep_ms, 7 * 86_400_000),
+      minute: nil,
+      ready: false,
+      logged_at: 0
+    }
+
+    Process.send_after(self(), :thin, Keyword.get(opts, :thin_first_ms, 60_000))
+    {:ok, state, {:continue, :schema}}
+  end
+
+  @impl true
+  def handle_continue(:schema, state), do: {:noreply, schema(state)}
+
+  defp schema(state) do
+    case Enum.reduce_while(@ddl, :ok, fn sql, :ok ->
+           case q(state.db, sql, []) do
+             {:ok, _} -> {:cont, :ok}
+             e -> {:halt, e}
+           end
+         end) do
+      :ok -> %{state | ready: true}
+      {:error, e} -> complain(state, "tape: cannot create its table", e)
+    end
+  end
+
+  @impl true
+  def handle_cast({:record, at_ms, json, summary}, %{ready: false} = state) do
+    state = schema(state)
+    if state.ready, do: handle_cast({:record, at_ms, json, summary}, state), else: {:noreply, state}
+  end
+
+  def handle_cast({:record, at_ms, json, summary}, state) do
+    minute = div(at_ms, @minute)
+    mark = minute != state.minute
+
+    sql = """
+    INSERT INTO tape_frames (at, body, minute_mark, alerts, warns, down, blocked, rps, err_rps, fires)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (at) DO NOTHING
+    """
+
+    params = [
+      dt(at_ms),
+      :zlib.gzip(json),
+      mark,
+      summary.alerts,
+      summary.warns,
+      summary.down,
+      summary.blocked,
+      summary.rps,
+      summary.err_rps,
+      summary.fires
+    ]
+
+    case q(state.db, sql, params) do
+      {:ok, _} ->
+        tick = summary |> Map.drop([:fires]) |> Map.merge(%{at: at_ms, fires: length(summary.fires)})
+        Phoenix.PubSub.broadcast(ObsFactor.PubSub, state.topic, {:tape_frame, tick})
+        {:noreply, %{state | minute: minute}}
+
+      {:error, e} ->
+        {:noreply, complain(state, "tape: a frame was not written", e)}
+    end
+  end
+
+  @impl true
+  def handle_info(:thin, state) do
+    Process.send_after(self(), :thin, @thin_every_ms)
+    {:noreply, thin(state, System.system_time(:millisecond))}
+  end
+
+  @doc false
+  def thin(state, now_ms) do
+    with {:ok, a} <-
+           q(state.db, "DELETE FROM tape_frames WHERE at < $1 AND NOT minute_mark", [dt(now_ms - state.fine_ms)]),
+         {:ok, b} <- q(state.db, "DELETE FROM tape_frames WHERE at < $1", [dt(now_ms - state.keep_ms)]) do
+      if a.num_rows + b.num_rows > 0,
+        do:
+          Logger.info("tape thinned: #{a.num_rows} fine frames, #{b.num_rows} old frames",
+            event: "tape.thinned",
+            fine: a.num_rows,
+            old: b.num_rows
+          )
+
+      state
+    else
+      {:error, e} -> complain(state, "tape: thinning failed", e)
+    end
+  end
+
+  # once a minute, not once a tick
+  defp complain(state, what, e) do
+    now = System.monotonic_time(:millisecond)
+
+    if now - state.logged_at > 60_000 do
+      Logger.error("#{what}: #{message(e)}", event: "tape.failed", reason: message(e))
+      %{state | logged_at: now}
+    else
+      state
+    end
+  end
+
+  # ---- helpers -------------------------------------------------------------
+
+  defp q(db, sql, params) do
+    Postgrex.query(db, sql, params)
+  catch
+    :exit, reason -> {:error, reason}
+  end
+
+  defp dt(ms), do: DateTime.from_unix!(ms, :millisecond)
+  defp ms(nil), do: nil
+  defp ms(%DateTime{} = d), do: DateTime.to_unix(d, :millisecond)
+
+  defp to_f(nil), do: 0.0
+  defp to_f(%Decimal{} = d), do: Decimal.to_float(d)
+  defp to_f(n), do: n / 1
+
+  defp round3(nil), do: nil
+  defp round3(%Decimal{} = d), do: d |> Decimal.to_float() |> round3()
+  defp round3(n), do: Float.round(n / 1, 3)
+
+  def message(%{message: m}) when is_binary(m), do: m
+  def message(%Postgrex.Error{} = e), do: Exception.message(e)
+  def message(m) when is_binary(m), do: m
+  def message(other), do: inspect(other)
+end

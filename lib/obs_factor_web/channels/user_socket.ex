@@ -16,6 +16,7 @@ defmodule ObsFactorWeb.UserSocket do
   channel "objectives", ObsFactorWeb.ObjectivesChannel
   channel "logs", ObsFactorWeb.LogsChannel
   channel "actions", ObsFactorWeb.ActionsChannel
+  channel "tape", ObsFactorWeb.TapeChannel
   channel "observer:*", ObsFactorWeb.FeedChannel
   channel "history:*", ObsFactorWeb.FeedChannel
   channel "builds:*", ObsFactorWeb.FeedChannel
