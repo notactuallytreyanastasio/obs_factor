@@ -10,7 +10,7 @@ body.has-tape { --tl: 62px; --safe-b: calc(env(safe-area-inset-bottom, 0px) + va
 #timeline {
   position: fixed; left: 0; right: 0; bottom: env(safe-area-inset-bottom, 0px); height: var(--tl, 62px); z-index: 21;
   display: flex; align-items: center; gap: 10px; padding: 0 12px;
-  background: linear-gradient(180deg, rgba(10, 13, 22, 0.92), rgba(7, 9, 18, 0.98));
+  background: linear-gradient(180deg, #0a0d16, #070912);
   border-top: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
   font: 13px var(--sans); user-select: none;
 }
@@ -259,7 +259,7 @@ body.inside #fires { top: calc(var(--top) + var(--strip, 0px) + 60px); }
 /* ---- small screens ------------------------------------------------------------- */
 @media (max-width: 640px) {
   body.has-tape { --tl: 98px; }
-  #timeline { flex-wrap: wrap; align-content: center; gap: 6px 8px; padding: 6px 10px; }
+  #timeline { flex-wrap: wrap; align-content: flex-start; gap: 6px 8px; padding: 8px 10px; }
   .tl-strip { order: 3; flex-basis: 100%; }
   .tl-side { margin-left: auto; }
   .tl-form input { min-width: 120px; }
@@ -270,4 +270,32 @@ body.inside #fires { top: calc(var(--top) + var(--strip, 0px) + 60px); }
 @media (prefers-reduced-motion: reduce) {
   body.alarm::after, .tl-badge .rec::before, .fi-btn[data-level="alert"] svg, #timeline:not(.replaying) .tl-live .dot { animation: none; }
   #firebanner.in { animation: none; }
+}
+
+/* ---- undo, notes, the recently pruned (timeline.js) --------------------------- */
+.tl-undo {
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(100% + 110px + var(--news, 0px)); z-index: 5;
+  display: inline-flex; align-items: center; gap: 10px; padding: 8px 10px 8px 14px; border-radius: 10px; font: 13px var(--sans);
+  background: var(--panel-solid); border: 1px solid rgba(255, 209, 102, 0.6); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+}
+.tl-undo[hidden] { display: none; }
+.tl-undo button { height: 28px; padding: 0 12px; border-radius: 7px; border: 0; background: #ffd166; color: #1a1300; font: 800 12px var(--sans); cursor: pointer; }
+.tl-undo .dim { color: var(--dim); font-size: 11px; }
+.tw-note { color: #c3c9d8; font-size: 12px; white-space: pre-wrap; border-left: 2px solid rgba(127, 224, 255, 0.4); padding-left: 7px; margin-top: 2px; }
+.tl-note { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.tl-note textarea { width: 100%; box-sizing: border-box; resize: vertical; padding: 6px 8px; border-radius: 6px; border: 1px solid rgba(127, 224, 255, 0.5); background: #0b1220; color: var(--text); font: 12px var(--sans); }
+.tl-note button { align-self: flex-start; height: 26px; padding: 0 10px; border-radius: 6px; cursor: pointer; font: 600 11px var(--sans); }
+.tl-wins h5 { margin: 12px 0 4px; font: 700 10px var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.tl-wins h5 .dim { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--dim); }
+.tw-gone li { opacity: 0.75; }
+.fi-note { margin: 0 0 8px; padding: 6px 9px; border-left: 2px solid rgba(127, 224, 255, 0.5); background: rgba(127, 224, 255, 0.05); color: #c3c9d8; font-size: 12px; white-space: pre-wrap; }
+
+/* actions hit the live system: while the past is on screen they say so */
+body.replaying .ap-acts button, body.replaying #procs [data-act] { opacity: 0.45; cursor: not-allowed; }
+@media (max-width: 640px) {
+  .tl-wins { left: 8px; right: 8px; width: auto; }
+  .tw-acts button { height: 30px; }
+  .tl-wins li { grid-template-columns: auto 1fr; }
+  .tl-wins .tw-acts { grid-column: 1 / -1; justify-content: flex-start; }
+  .tl-undo { left: 8px; right: 8px; transform: none; flex-wrap: wrap; }
 }

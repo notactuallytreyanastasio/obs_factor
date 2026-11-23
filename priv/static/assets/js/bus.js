@@ -197,7 +197,16 @@ export function subscribe(topic, onEvent, { params = {}, onJoin, onError } = {})
   };
 }
 
+// A guard on pushes: guard(topic, event, payload) returns a reason to
+// refuse, or nothing. main.js uses it so that an action (kill, gc, restart)
+// is not sent while a moment of the tape is on screen: what is on screen is
+// the past, and the action would hit the present.
+let guard = null;
+export function setGuard(fn) { guard = fn; }
+
 export function push(topic, event, payload = {}) {
+  const no = guard?.(topic, event, payload);
+  if (no) return Promise.reject(new Error(no));
   const t = topics.get(topic);
   if (!t) return Promise.reject(new Error(`push to ${topic}: not subscribed`));
   return new Promise((resolve, reject) => {

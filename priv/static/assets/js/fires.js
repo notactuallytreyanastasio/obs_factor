@@ -130,7 +130,7 @@ export class Fires {
     if (!this.open) return;
     const w = this.window ?? this.api.timeline.window();
     const head = `<div class="fi-head"><h3>Fires</h3><span class="fi-win">${w.title ? `window “${esc(w.title)}”` : w.selected ? "selected" : w.live ? "last" : "in view"} ${span(w.to - w.from)}${w.selected || !w.live ? ` · ${hms(w.from)}–${hms(w.to)}` : ""}</span>
-      <button type="button" class="fi-x" data-a="refresh" title="Read again">↻</button><button type="button" class="fi-x" data-a="close" aria-label="Close">×</button></div>`;
+      <button type="button" class="fi-x" data-a="refresh" title="Read again">↻</button><button type="button" class="fi-x" data-a="close" aria-label="Close">×</button></div>${w.note ? `<p class="fi-note">${esc(w.note)}</p>` : ""}`;
     if (this.error && !this.data) { this.el.innerHTML = `${head}<p class="fi-err">${esc(this.error)}</p>`; return; }
     if (!this.data) { this.el.innerHTML = `${head}<p class="fi-dim">reading the tape…</p>`; return; }
     const d = this.data, s = d.score;
