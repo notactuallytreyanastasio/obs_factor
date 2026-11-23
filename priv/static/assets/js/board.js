@@ -222,6 +222,10 @@ export class Board {
 
   label(id) { return this.shown?.nodes.find((n) => n.id === id)?.label ?? id; }
 
+  // a member's name: node@.c.d for a cluster member, the app's label for
+  // an app on one undistributed node (its key is just the app's id)
+  nodeName(key, app) { const k = key.slice(5); return k.includes("@") ? shortNode(k) : this.label(app); }
+
   // ---- drawing -----------------------------------------------------------
 
   render() {
@@ -316,7 +320,7 @@ export class Board {
       const m = this.latest(k);
       const [p, p0] = this.move(k, "procs");
       const star = (m.leads ?? []).filter((n) => !/Swoosh/.test(n)).map((n) => `★${shortName(n).split(".").pop().toUpperCase()}`).join(" ");
-      parts.push(`<span class="cr" data-node="${esc(m.app)}"><b>${esc(shortNode(k.slice(5)).toUpperCase())}</b>${star ? ` <em>${esc(star)}</em>` : ""} ${FMT.procs(p)} procs ${this.delta("procs", p, p0)} · rq ${num(m.rq)}/${num(m.sched)} · ${bytes(m.mem)} · ${num(m.reds)} red/s${isNum(m.mbox) ? ` · mbox ${num(m.mbox)}` : ""} · ⇄${num(m.peers ?? 0)}</span>`);
+      parts.push(`<span class="cr" data-node="${esc(m.app)}"><b>${esc(this.nodeName(k, m.app).toUpperCase())}</b>${star ? ` <em>${esc(star)}</em>` : ""} ${FMT.procs(p)} procs ${this.delta("procs", p, p0)} · rq ${num(m.rq)}/${num(m.sched)} · ${bytes(m.mem)} · ${num(m.reds)} red/s${isNum(m.mbox) ? ` · mbox ${num(m.mbox)}` : ""} · ⇄${num(m.peers ?? 0)}</span>`);
     }
     for (const k of this.keys("repo:")) {
       const m = this.latest(k);
@@ -381,7 +385,7 @@ export class Board {
       list.map(([k, m]) => {
         const [p, p0] = this.move(k, "procs");
         const hot = isNum(m.rq) && isNum(m.sched) && m.rq > m.sched;
-        return `<tr data-node="${esc(app)}"><td class="nm" title="${esc(k.slice(5))}">${esc(shortNode(k.slice(5)))}${(m.leads ?? []).filter((n) => !/Swoosh/.test(n)).map((n) => ` <em title="leads ${esc(n)}">★${esc(shortName(n).split(".").pop())}</em>`).join("")}</td>
+        return `<tr data-node="${esc(app)}"><td class="nm" title="${esc(k.slice(5))}">${esc(this.nodeName(k, app))}${(m.leads ?? []).filter((n) => !/Swoosh/.test(n)).map((n) => ` <em title="leads ${esc(n)}">★${esc(shortName(n).split(".").pop())}</em>`).join("")}</td>
           <td class="r">${num(p)} ${this.delta("procs", p, p0)}</td><td>${this.spark(k, "procs")}</td>
           <td class="r${hot ? " bad" : ""}">${num(m.rq)}/${num(m.sched)}</td><td class="r">${bytes(m.mem)}</td><td class="r">${bytes(m.bin)}</td>
           <td class="r">${num(m.reds)}/s</td><td class="r${(m.mbox ?? 0) >= 100 ? " bad" : ""}" title="${esc(shortName(m.mbox_name ?? ""))}">${isNum(m.mbox) ? num(m.mbox) : "–"}</td>
