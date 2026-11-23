@@ -4,7 +4,9 @@ defmodule ObsFactorWeb.ObjectivesChannel do
   or `%{error: reason}` (no store, Postgres down: the join still succeeds,
   so the changes arrive once it is back). Then an `objective` push with the
   public row for every change, whoever made it (`ObsFactor.Objectives`
-  "Live").
+  "Live"). When the store starts failing, a `list` push `%{error: reason}`
+  (keep the rows, say they may be stale); when it answers again, a `list`
+  push with the whole `%{objectives: list}`.
 
   Writes, as pushes answered with `{:ok, row}` or `{:error, %{error: reason}}`:
 
@@ -38,6 +40,17 @@ defmodule ObsFactorWeb.ObjectivesChannel do
 
   def handle_info({:objective, row}, socket) do
     push(socket, "objective", row)
+    {:noreply, socket}
+  end
+
+  # the store failing, or answering again: a `list` push, as at join
+  def handle_info({:objectives_error, reason}, socket) do
+    push(socket, "list", %{error: reason})
+    {:noreply, socket}
+  end
+
+  def handle_info({:objectives_list, list}, socket) do
+    push(socket, "list", %{objectives: list})
     {:noreply, socket}
   end
 

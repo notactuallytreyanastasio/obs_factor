@@ -41,6 +41,12 @@ defmodule ObsFactor.Objectives do
   returns, with its events: a new one, one that came back or cleared
   itself, a pin, a look / done / reopen, and the `last_seen_at` write that
   happens at most every 30 s while a rule still sees it.
+
+  The store's own state goes out on the same topic: `{:objectives_error,
+  reason}` when a query starts failing (or fails for another reason), and
+  `{:objectives_list, list}` with the whole `list/0` once it answers again.
+  The store is probed with `SELECT 1` every 5 s (option `:probe_ms`), so a
+  Postgres that goes away while nothing changes is still noticed.
   """
   use GenServer
   require Logger
@@ -149,11 +155,34 @@ defmodule ObsFactor.Objectives do
   def init(opts) do
     db = Keyword.fetch!(opts, :db)
     topic = Keyword.get(opts, :topic, "objectives")
-    {:ok, %{db: db, topic: topic, live: %{}, ready: false, error: nil, logged_at: 0}, {:continue, :start}}
+    probe_ms = Keyword.get(opts, :probe_ms, 5_000)
+    {:ok, %{db: db, topic: topic, probe_ms: probe_ms, live: %{}, ready: false, error: nil, logged_at: 0}, {:continue, :start}}
   end
 
   @impl true
-  def handle_continue(:start, state), do: {:noreply, start(state)}
+  def handle_continue(:start, state) do
+    Process.send_after(self(), :probe, state.probe_ms)
+    {:noreply, start(state)}
+  end
+
+  # A Postgres that goes away while nothing changes is noticed here, and one
+  # that comes back too.
+  @impl true
+  def handle_info(:probe, state) do
+    Process.send_after(self(), :probe, state.probe_ms)
+
+    state =
+      if state.ready do
+        case query(state.db, "SELECT 1", []) do
+          {:ok, _} -> recovered(state)
+          {:error, e} -> failed(state, e)
+        end
+      else
+        start(state)
+      end
+
+    {:noreply, state}
+  end
 
   # The schema, then every undone row into memory. Retried on the next tick
   # while Postgres is not there.
@@ -161,7 +190,7 @@ defmodule ObsFactor.Objectives do
     with :ok <- Enum.reduce_while(@ddl, :ok, fn sql, :ok -> step(query(state.db, sql, [])) end),
          {:ok, rows} <- select(state.db, "WHERE state <> 'done'", []) do
       now = now_ms()
-      Enum.reduce(rows, %{state | ready: true, error: nil, live: %{}}, &put_live(&2, &1, now))
+      rows |> Enum.reduce(%{state | ready: true, live: %{}}, &put_live(&2, &1, now)) |> recovered()
     else
       {:error, reason} -> failed(state, reason)
     end
@@ -208,18 +237,10 @@ defmodule ObsFactor.Objectives do
   end
 
   def handle_call(:list, _from, state) do
-    reply =
-      with {:ok, undone} <- select(state.db, "WHERE state <> 'done'", []),
-           {:ok, done} <-
-             select(state.db, "WHERE state = 'done' AND done_at > now() - make_interval(hours => $1)", [@recent_hours]),
-           ids = Enum.map(undone ++ done, & &1.id),
-           {:ok, events} <- events(state.db, ids) do
-        # what is in memory is newer than the database for last_seen
-        undone = Enum.map(undone, fn r -> %{r | last_seen_at: last_seen(state, r)} end)
-        {:ok, Enum.map(undone ++ done, &Map.put(public(&1), :events, Map.get(events, &1.id, [])))}
-      end
-
-    {:reply, reply, state}
+    case read_list(state) do
+      {:ok, _} = ok -> {:reply, ok, recovered(state)}
+      {:error, e} = err -> {:reply, err, failed(state, e)}
+    end
   end
 
   def handle_call({:pin, attrs}, _from, state) do
@@ -233,7 +254,7 @@ defmodule ObsFactor.Objectives do
         event(state.db, row.id, "pinned", clip(attrs["by"]), clip(attrs["note"], 1000))
         row = if n = clip(attrs["note"], 1000), do: update!(state.db, row.id, "note = $2", [n]), else: row
         announce(state, row)
-        {:reply, {:ok, public(row)}, put_live(state, row, now)}
+        {:reply, {:ok, public(row)}, state |> put_live(row, now) |> recovered()}
 
       {:error, e} ->
         {:reply, {:error, message(e)}, state}
@@ -270,9 +291,21 @@ defmodule ObsFactor.Objectives do
     case result do
       {:ok, row} ->
         announce(state, row)
-        {:reply, {:ok, public(row)}, sync_live(state, row)}
+        {:reply, {:ok, public(row)}, state |> sync_live(row) |> recovered()}
 
       {:error, e} -> {:reply, {:error, message(e)}, state}
+    end
+  end
+
+  defp read_list(state) do
+    with {:ok, undone} <- select(state.db, "WHERE state <> 'done'", []),
+         {:ok, done} <-
+           select(state.db, "WHERE state = 'done' AND done_at > now() - make_interval(hours => $1)", [@recent_hours]),
+         ids = Enum.map(undone ++ done, & &1.id),
+         {:ok, events} <- events(state.db, ids) do
+      # what is in memory is newer than the database for last_seen
+      undone = Enum.map(undone, fn r -> %{r | last_seen_at: last_seen(state, r)} end)
+      {:ok, Enum.map(undone ++ done, &Map.put(public(&1), :events, Map.get(events, &1.id, [])))}
     end
   end
 
@@ -442,15 +475,33 @@ defmodule ObsFactor.Objectives do
 
   # ---- small things ------------------------------------------------------
 
+  # The store's state on the topic: the first failure (or a different one)
+  # as {:objectives_error, msg}, the first success after it as the whole list.
   defp failed(state, reason) do
     msg = message(reason)
     now = now_ms()
+
+    if msg != state.error, do: Phoenix.PubSub.broadcast(ObsFactor.PubSub, state.topic, {:objectives_error, msg})
 
     if now - state.logged_at > 60_000 do
       Logger.error("objectives: #{msg}", source: "objectives")
       %{state | error: msg, logged_at: now}
     else
       %{state | error: msg}
+    end
+  end
+
+  defp recovered(%{error: nil} = state), do: state
+
+  defp recovered(state) do
+    case read_list(state) do
+      {:ok, list} ->
+        Logger.info("objectives: the store answers again (it had failed: #{state.error})", source: "objectives")
+        Phoenix.PubSub.broadcast(ObsFactor.PubSub, state.topic, {:objectives_list, list})
+        %{state | error: nil}
+
+      {:error, e} ->
+        failed(state, e)
     end
   end
 

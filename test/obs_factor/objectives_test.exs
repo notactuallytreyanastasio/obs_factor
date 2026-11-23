@@ -124,6 +124,27 @@ defmodule ObsFactor.ObjectivesTest do
     assert_receive {:objective, %{id: ^pin_id, source: "pin", events: [%{kind: "pinned"}]}}
   end
 
+  test "a store that goes away is announced, and one that comes back is announced with the whole list", %{db: db} do
+    name = :"objectives_probe_#{System.unique_integer([:positive])}"
+    topic = "objectives_probe_#{System.unique_integer([:positive])}"
+    Phoenix.PubSub.subscribe(ObsFactor.PubSub, topic)
+    start_supervised!(Supervisor.child_spec({Objectives, db: db, name: name, topic: topic, probe_ms: 50}, id: name))
+    {:ok, _} = Objectives.list(name) |> retry(name)
+    {:ok, pin} = Objectives.pin(%{"node" => "blog", "title" => "odd", "by" => "bg"}, name)
+
+    # nothing changes on the floor: only the probe can notice
+    :ok = stop_supervised(db)
+    assert_receive {:objectives_error, msg}, 2_000
+    assert is_binary(msg) and msg != ""
+    # announced once per reason, not on every probe
+    refute_receive {:objectives_error, ^msg}, 200
+
+    start_supervised!(Supervisor.child_spec({Postgrex, ObsFactor.Postgres.opts(@url, name: db, pool_size: 1, statement_timeout: "5000")}, id: db))
+    pin_id = pin.id
+    assert_receive {:objectives_list, [%{id: ^pin_id}]}, 2_000
+    refute_receive {:objectives_list, _}, 200
+  end
+
   describe "the objectives channel" do
     import Phoenix.ChannelTest
     @endpoint ObsFactorWeb.Endpoint
@@ -150,6 +171,14 @@ defmodule ObsFactor.ObjectivesTest do
       assert_reply ref, :error, %{error: "act needs an integer id" <> _}
 
       {:ok, %{objectives: [%{id: ^id}]}, _} = subscribe_and_join(socket, ObsFactorWeb.ObjectivesChannel, "objectives")
+    end
+
+    test "the store failing and answering again reach every viewer as `list` pushes", %{socket: socket} do
+      {:ok, %{objectives: []}, _} = subscribe_and_join(socket, ObsFactorWeb.ObjectivesChannel, "objectives")
+      Phoenix.PubSub.broadcast(ObsFactor.PubSub, "objectives", {:objectives_error, "connection not available"})
+      assert_push "list", %{error: "connection not available"}
+      Phoenix.PubSub.broadcast(ObsFactor.PubSub, "objectives", {:objectives_list, [%{id: 1}]})
+      assert_push "list", %{objectives: [%{id: 1}]}
     end
   end
 
