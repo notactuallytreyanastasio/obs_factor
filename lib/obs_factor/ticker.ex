@@ -2,7 +2,10 @@ defmodule ObsFactor.Ticker do
   @moduledoc """
   Builds one snapshot per tick from the latest source results, stores it for
   `GET /api/snapshot`, records it into `ObsFactor.History` and broadcasts it
-  (already JSON-encoded, once) to every `GET /api/stream` subscriber.
+  (already JSON-encoded, once) on `ObsFactor.PubSub` topic `"snapshots"` as
+  `{:snapshot, json}`: the "snapshots" channel and `GET /api/stream` forward
+  that binary as it is. A failed build is broadcast as
+  `{:snapshot_error, message}`.
 
   If building raises, the error is logged with its stacktrace and stored in
   place of the snapshot: the API answers 500 with it rather than serving the
@@ -50,6 +53,7 @@ defmodule ObsFactor.Ticker do
         message = Exception.format(:error, e, __STACKTRACE__)
         Logger.error("snapshot build failed: " <> message)
         Store.put_snapshot({:error, Exception.message(e)})
+        Phoenix.PubSub.broadcast(ObsFactor.PubSub, @topic, {:snapshot_error, Exception.message(e)})
         memory
     end
   end

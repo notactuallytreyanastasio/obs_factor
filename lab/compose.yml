@@ -159,6 +159,9 @@ services:
     environment:
       PHX_SERVER: "true"
       PHX_HOST: localhost
+      # the page's websocket (/socket) checks the origin: the lab is opened
+      # as http://localhost:14000 and as http://127.0.0.1:14000
+      CHECK_ORIGIN: "//localhost,//127.0.0.1"
       PORT: "4000"
       # Lab-only values. Production's come from /opt/blog/.env.
       SECRET_KEY_BASE: obslab-not-a-secret-obslab-not-a-secret-obslab-not-a-secret-obslab

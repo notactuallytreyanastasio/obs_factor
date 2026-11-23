@@ -36,6 +36,10 @@ defmodule ObsFactorWeb.StreamController do
           {:ok, conn} -> loop(conn)
           {:error, _closed} -> conn
         end
+
+      # a failed tick: SSE clients see no event (they go stale), as before
+      {:snapshot_error, _} ->
+        loop(conn)
     end
   end
 

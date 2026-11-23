@@ -1,10 +1,14 @@
 // The log explorer: every log line this page can see, in one searchable
 // list. Two kinds of log feed it, both real and both read whole:
 //
-// - service:observer, the observer's own Logger output (GET /api/logs, the
-//   last 2000 events kept in memory), tailed live by id;
-// - service:builder, each build's job log from the builder
-//   (GET /api/builds/:id/log, the whole file), one job per build on the floor.
+// - service:observer, the observer's own Logger output: the "logs" channel
+//   on the page's socket (bus.js). The join reply is the last 2000 events
+//   the observer keeps (or, on a rejoin, those after the last id we have),
+//   then each new event is pushed as it is logged;
+// - service:builder, each build's job log from the builder: the feed
+//   builds:<id>:log (the whole log), one per build on the floor, left on the
+//   second read after the floor says the job has finished (the first could
+//   have been fetched just before it did).
 //
 // Builder lines have no level (they're program output: git, docker, the
 // agent), so their level is "unset" rather than a guess.
@@ -24,6 +28,7 @@
 // what you'd get by changing it).
 
 import { esc } from "./fmt.js";
+import * as bus from "./bus.js";
 
 const $ = (id) => document.getElementById(id);
 const LEVELS = ["emergency", "alert", "critical", "error", "warning", "notice", "info", "debug", "unset"];
@@ -185,8 +190,10 @@ export class LogExplorer {
     this.limit = PAGE;
     this.picked = null;
     this.tail = true;
-    this.timer = null;
-    this.loadErr = [];
+    this.errs = new Map(); // what failed to load -> why
+    this.obsUnsub = null;
+    this.buildUnsubs = new Map(); // job id -> unsubscribe
+    this.renderTimer = null;
     this.build();
   }
 
@@ -242,7 +249,7 @@ export class LogExplorer {
       const b = e.target.closest("[data-range]");
       if (b) { this.range = b.dataset.range; this.brush = null; this.limit = PAGE; this.render(); }
     });
-    el.querySelector(".lx-tail input").addEventListener("change", (e) => { this.tail = e.target.checked; this.schedule(); });
+    el.querySelector(".lx-tail input").addEventListener("change", (e) => { this.tail = e.target.checked; this.tail ? this.sync() : this.stop(); this.renderStatus(); });
     this.facetsEl.addEventListener("change", (e) => {
       const cb = e.target.closest("input[data-facet]");
       if (!cb) return;
@@ -320,14 +327,14 @@ export class LogExplorer {
     this.detailEl.hidden = true;
     this.statusEl.textContent = "Loading…";
     this.render();
-    await this.load(true);
+    await this.sync();
     setTimeout(() => this.input.focus({ preventScroll: true }), 30);
   }
 
   close() {
     this.el.hidden = true;
     document.body.classList.remove("logx-open");
-    clearTimeout(this.timer);
+    this.stop();
   }
 
   // ---- loading ---------------------------------------------------------------
@@ -339,27 +346,78 @@ export class LogExplorer {
     this.events.push(e);
   }
 
-  async getJSON(url) {
-    const r = await fetch(url, { cache: "no-store", credentials: "same-origin" });
-    if (r.status === 401) { window.location.assign("/login"); throw new Error("logged out"); }
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j.error || `${url} answered ${r.status}`);
-    return j;
+  get loadErr() { return [...this.errs.values()]; }
+
+  // Subscribes to the observer's log and to each build on the floor that
+  // we have not read whole. Resolves once the observer log's join replied.
+  sync() {
+    let first = Promise.resolve();
+    if (!this.obsUnsub) {
+      first = new Promise((resolve) => {
+        this.obsUnsub = bus.subscribe("logs", (ev, p) => { if (ev === "events") this.takeObserver(p.events); }, {
+          // a rejoin after a reconnect asks only for what it missed
+          params: () => ({ after: this.lastId }),
+          onJoin: (r) => {
+            this.kept = r.kept; this.errs.delete("observer");
+            this.takeObserver(r.events);
+            this.renderNow();
+            if (!this.tail) this.stop();
+            resolve();
+          },
+          onError: (reason) => { this.errs.set("observer", `observer log: ${reason}`); this.obsUnsub = null; this.renderStatus(); resolve(); },
+        });
+      });
+    }
+    this.syncBuilds();
+    return first;
   }
 
-  async loadObserver() {
-    const j = await this.getJSON(`/api/logs?after=${this.lastId}`);
-    this.kept = j.kept;
-    for (const ev of j.events) {
+  // the floor changed (main.js calls this per snapshot): builds that appeared
+  onSnapshot() { if (this.isOpen && this.tail) this.syncBuilds(); }
+
+  syncBuilds() {
+    const snap = this.snap();
+    for (const n of snap?.nodes ?? []) {
+      const id = n.build?.id, status = n.build?.status;
+      if (!id || this.buildUnsubs.has(id)) continue;
+      const known = this.builds.get(id);
+      // a finished job's log doesn't change: read it once
+      if (known && known.status !== "running" && status !== "running") continue;
+      let afterDone = 0;
+      const take = (p) => {
+        if (!p.at) return;
+        if (p.error) { this.errs.set(`build ${id}`, `build ${id}: ${p.error}`); this.renderStatus(); return; }
+        this.errs.delete(`build ${id}`);
+        const now = this.snap()?.nodes.find((x) => x.build?.id === id)?.build.status ?? "gone";
+        if (this.takeBuild(id, p.data.log, now)) this.renderSoon();
+        if (now !== "running" && ++afterDone >= 2) { this.buildUnsubs.get(id)?.(); this.buildUnsubs.delete(id); }
+      };
+      this.buildUnsubs.set(id, bus.subscribe(`builds:${id}:log`, (ev, p) => ev === "feed" && take(p), {
+        onJoin: take,
+        onError: (reason) => { this.errs.set(`build ${id}`, `build ${id}: ${reason}`); this.renderStatus(); },
+      }));
+    }
+  }
+
+  stop() {
+    this.obsUnsub?.(); this.obsUnsub = null;
+    for (const u of this.buildUnsubs.values()) u();
+    this.buildUnsubs.clear();
+  }
+
+  takeObserver(events) {
+    let added = 0;
+    for (const ev of events) {
+      if (ev.id <= this.lastId && this.byKey.has(`o:${ev.id}`)) continue;
       const attrs = { ...ev.attrs };
       if (ev.where) attrs.module = ev.where;
       if (ev.pid) attrs.pid = ev.pid;
       this.add({ key: `o:${ev.id}`, id: ev.id, at: ev.at, level: ev.level, service: "observer", message: ev.text, attrs });
+      if (ev.id > this.lastId) this.lastId = ev.id;
+      added++;
     }
-    this.lastId = j.last_id;
     // tailing keeps lines the ring has since dropped; cap what the page holds
-    if (j.events.length) this.trimObserver(10_000);
-    return j.events.length;
+    if (added) { this.trimObserver(10_000); this.renderSoon(); }
   }
 
   trimObserver(cap) {
@@ -370,41 +428,26 @@ export class LogExplorer {
     drop.forEach((k) => this.byKey.delete(k));
   }
 
-  async loadBuild(id, status) {
-    const j = await this.getJSON(`/api/builds/${encodeURIComponent(id)}/log`);
+  takeBuild(id, log, status) {
     const had = this.builds.get(id)?.count ?? 0;
-    j.log.forEach((l, n) => {
+    log.forEach((l, n) => {
       if (n < had) return;
       this.add({ key: `b:${id}:${n}`, at: Date.parse(l.t), level: "unset", service: "builder", message: l.line, attrs: { job: id, step: l.step } });
     });
-    this.builds.set(id, { count: j.log.length, status });
-    return j.log.length - had;
+    this.builds.set(id, { count: log.length, status });
+    return log.length - had;
   }
 
-  async load(first = false) {
-    clearTimeout(this.timer);
-    const snap = this.snap();
-    const jobs = new Map();
-    for (const n of snap?.nodes ?? []) if (n.build?.id) jobs.set(n.build.id, n.build.status);
-    const work = [this.loadObserver().catch((x) => { throw new Error(`observer log: ${x.message}`); })];
-    for (const [id, status] of jobs) {
-      const known = this.builds.get(id);
-      // a finished job's log doesn't change: read it once
-      if (!known || known.status === "running" || status === "running") work.push(this.loadBuild(id, status).catch((x) => { throw new Error(`build ${id}: ${x.message}`); }));
-    }
-    const res = await Promise.allSettled(work);
-    this.loadErr = res.filter((r) => r.status === "rejected").map((r) => r.reason.message);
-    const added = res.reduce((a, r) => a + (r.status === "fulfilled" ? r.value : 0), 0);
-    if (first || added) {
-      this.events.sort((a, b) => a.at - b.at || (a.id ?? 0) - (b.id ?? 0));
-      this.render();
-    } else this.renderStatus();
-    this.schedule();
+  // pushes come one event at a time: draw at most every 250 ms
+  renderSoon() {
+    if (this.renderTimer || !this.isOpen) return;
+    this.renderTimer = setTimeout(() => this.renderNow(), 250);
   }
 
-  schedule() {
-    clearTimeout(this.timer);
-    if (this.tail && this.isOpen) this.timer = setTimeout(() => this.load(), 2000);
+  renderNow() {
+    clearTimeout(this.renderTimer); this.renderTimer = null;
+    this.events.sort((a, b) => a.at - b.at || (a.id ?? 0) - (b.id ?? 0));
+    this.render();
   }
 
   // ---- filtering ---------------------------------------------------------------

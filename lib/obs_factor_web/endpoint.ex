@@ -14,9 +14,11 @@ defmodule ObsFactorWeb.Endpoint do
     secure: Application.compile_env(:obs_factor, :secure_cookie, false)
   ]
 
-  # socket "/live", Phoenix.LiveView.Socket,
-  #   websocket: [connect_info: [session: @session_options]],
-  #   longpoll: [connect_info: [session: @session_options]]
+  # The page's one live connection (ObsFactorWeb.UserSocket). Websocket only:
+  # a browser that cannot open one shows "reconnecting" with the reason
+  # rather than falling back. The origin check is the endpoint's
+  # :check_origin (config/runtime.exs: PHX_HOST, or CHECK_ORIGIN).
+  socket "/socket", ObsFactorWeb.UserSocket, websocket: true, longpoll: false
 
   # Serve at "/" the static files from "priv/static" directory.
   #
@@ -49,8 +51,8 @@ defmodule ObsFactorWeb.Endpoint do
   plug Plug.Session, @session_options
   plug ObsFactorWeb.Router
 
-  # The "Under the hood" panel polls /api/beam (and the log explorer /api/logs) every 2 s and shows the log
-  # ring: logging its own polls would fill the ring with them in minutes.
+  # /api/beam and /api/logs are still there for scripts; something polling them
+  # would fill the log ring with its own requests in minutes.
   @doc false
   def log_level(%Plug.Conn{request_path: "/api/beam"}), do: false
   def log_level(%Plug.Conn{request_path: "/api/logs"}), do: false

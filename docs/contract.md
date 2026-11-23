@@ -50,6 +50,8 @@ only by agreement, and say so when you do.
 | `TOPOLOGY` | path to the topology file | `priv/topology/prod.exs` |
 | `ACCESS_LOG` | Caddy's JSON access log, read-only (Access log) | `/caddy-logs/access.log` |
 | `REPORT_TOKEN` | optional bearer token sent to every `report` URL (Reports) | |
+| `CHECK_ORIGIN` | optional: page origins allowed to open the websocket, comma-separated; unset = the host of `PHX_HOST` (Live: one socket) | `//localhost,//127.0.0.1` |
+| `OBJECTIVES_PG_URL` | optional: the objectives database (writable, its own role) | |
 
 Tick is 5 s. History is in memory: 5 s resolution for 1 h, 1 min for 24 h.
 
@@ -122,6 +124,100 @@ databases. Topology `edges` have `rate` `null`, `unit` `null`,
 `metered: false`, `label` = `item`. A metered rate is `null` when any part of
 it is unknown (first scrape, Caddy restart, source failing). Caddy series
 with `handler="metrics"` are not counted: they are our own scrapes.
+
+## Live: one socket *(2026-11-22)*
+
+Everything the page shows live arrives over one Phoenix Channels websocket,
+and every live thing on the server is published on `ObsFactor.PubSub` and
+consumed by subscribing. The page makes no HTTP request on a timer: a GET is
+for the first load or a resync after a reconnect (and the socket's join
+replies already carry the current state, so the page needs none for that);
+writes are POSTs or channel pushes, and their effects reach every viewer
+through the topics.
+
+**Connecting.** `GET /api/socket_token?origin=<location.origin>` (behind the
+login) answers `{"token", "max_age_s": 60, "origin": {"ok": true} | {"ok": false, "reason"}}`.
+The token is a `Phoenix.Token` carrying the session's id (minted at login, or
+on the first token request of an older session). Then
+`ws(s)://<host>/socket/websocket?token=...&vsn=2.0.0` (`ObsFactorWeb.UserSocket`,
+websocket only, the V2 JSON serializer of `phoenix.js`). A missing,
+forged or expired token is refused: HTTP 403 on the upgrade, and a
+`socket refused: token <missing|invalid|expired>` warning in the log. A browser
+cannot see why an upgrade failed, so the token answer carries the verdict of
+the same origin check the socket makes, with what is allowed. `POST /logout`
+disconnects the session's sockets (`session:<id>`).
+
+The origin check is the endpoint's `check_origin`: in prod the host of
+`PHX_HOST` (behind Caddy the browser's origin is `https://PHX_HOST` and Caddy
+passes `Host` through and proxies the upgrade by itself); `CHECK_ORIGIN`
+replaces it with a list (`//localhost,//127.0.0.1` in the lab); dev allows any.
+
+**The client** is `priv/static/assets/js/bus.js` over `phoenix.mjs`, vendored
+as is from `deps/phoenix/priv/static/phoenix.mjs` into
+`priv/static/assets/vendor/` (no build step). `subscribe(topic, onEvent, {params, onJoin, onError}) -> unsubscribe`,
+`push(topic, event, payload) -> Promise`, `onState(fn)`. It fetches a fresh
+token before every (re)connect, backs off 0.5 s to 30 s, rejoins every topic
+(a function `params` is re-evaluated, so the log tail rejoins with
+`{after: last_id}`), shares one channel per topic among the page's
+subscribers, and does not retry a join the server refused. The top bar
+shows its state: `connecting`, `live` / `stale` while connected,
+`reconnecting` with the reason (`observer unreachable (Failed to fetch)`),
+`refused` with the reason (signed out; the origin verdict; or "the observer
+answers HTTP but refused the websocket 3 times in a row"), and `last tick
+failed` when a snapshot build failed.
+
+**Topics.** Server message is what is broadcast on `ObsFactor.PubSub`;
+pushes are what the channel sends the browser.
+
+| topic | join params → reply | pushes | server message |
+|---|---|---|---|
+| `snapshots` | → `{snapshot}` or `{error}` (no snapshot yet, build failed) | `snapshot` (the snapshot below, the ticker's binary as a `Jason.Fragment`, not re-encoded), `error` `{error}` | `{:snapshot, json}`, `{:snapshot_error, message}` (Ticker) |
+| `objectives` | → `{objectives: [row]}` or `{error}` (no store, Postgres down: the join still succeeds) | `objective` row; `list` `{objectives}` if it changed during the join | `{:objective, row}` from `ObsFactor.Objectives` on every insert, came back, cleared itself, pin, look/done/reopen and the ≤30 s `last_seen_at` write; row as `GET /api/objectives`, with `events` |
+| `actions` | → `{}` | `action` map | `{:action, map}`, published by whoever acts (the engine); relayed as is, nothing kept |
+| `logs` | `{after: id}` → `{events, last_id, kept}`, every kept event above `after` | `events` `{events: [event]}` per event | `{:log, event}` from `ObsFactor.LogRing`, event as `GET /api/logs` |
+| `observer:<node>:<member or ->:<view>` | → last payload or `{}` | `feed` `{at, data}` or `{at, error}` | `{:feed, topic, payload}` from the topic's feed |
+| `history:<node>:5s` / `:1m` | same | same | `ObsFactor.History.query/2` every 15 s / 60 s |
+| `builds:<id>` / `builds:<id>:log` | same | same | the builder's job (log tail) / whole log, every 2 s |
+
+Channel writes on `objectives`: `pin` `{node, title, note, by}` and `act`
+`{id (integer), action: look|done|reopen, note, by}`, replied with the row or
+`{error}`. `POST /api/objectives[/:id]` does the same and is broadcast the same.
+
+A join reply is read before the channel's PubSub subscription exists (Phoenix
+subscribes after `join/3` returns), so each channel re-reads once it is
+subscribed and pushes what changed in between: the same item can arrive
+twice around a join, never zero times. Log events dedupe on `id`.
+
+**Feeds.** `ObsFactor.Feeds`: a `Registry` and a `DynamicSupervisor` of one
+`Feed` per topic, however many browsers watch it. Started by the first
+`Feeds.subscribe(topic, {module, args, interval_ms})` (from a channel
+process, which it monitors); fetches at once and every `interval_ms` in a
+task (a fetch still running skips the period); broadcasts every result,
+errors as `{at, error}` (a raise is an error with its message); hands the last
+payload to each newcomer; stops 10 s after its last subscriber left.
+Built-in: `observer:observer:-:beam` (`ObsFactor.Beam.report/1` with the
+last 500 log events at every level, every 2 s; the "Under the hood" panel
+filters levels itself). To add a view, implement `ObsFactor.Feeds.View`:
+
+```elixir
+defmodule MyViews do
+  @behaviour ObsFactor.Feeds.View
+  # {:ok, {module, args, interval_ms}} | {:error, reason} (refuses the join) | :pass (not mine)
+  def resolve("observer:" <> rest), do: ...
+  def resolve(_), do: :pass
+  def fetch(args), do: {:ok, data} # or {:error, reason}; data encodes to JSON
+end
+
+config :obs_factor, :feed_views, [MyViews]
+```
+
+`ObsFactorWeb.UserSocket` routes `observer:*`, `history:*` and `builds:*` to
+`ObsFactorWeb.FeedChannel`; a topic no resolver claims is refused with
+`{reason: "no feed serves \"...\""}`.
+
+`GET /api/snapshot`, `/api/stream` (SSE), `/api/beam`, `/api/logs`,
+`/api/history`, `/api/builds/:id[/log]` stay for scripts and anything
+outside the page; the page uses none of them.
 
 ## `GET /api/snapshot` and the `snapshot` SSE event on `GET /api/stream`
 

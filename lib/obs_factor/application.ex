@@ -51,10 +51,13 @@ defmodule ObsFactor.Application do
         {DNSCluster, query: Application.get_env(:obs_factor, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: ObsFactor.PubSub},
         ObsFactor.Store,
-        {Task.Supervisor, name: ObsFactor.TaskSupervisor},
-        ObsFactor.Http,
-        ObsFactor.History
+        {Task.Supervisor, name: ObsFactor.TaskSupervisor}
       ] ++
+        ObsFactor.Feeds.child_specs() ++
+        [
+          ObsFactor.Http,
+          ObsFactor.History
+        ] ++
         ObsFactor.Objectives.child_specs(Application.get_env(:obs_factor, :objectives_pg_url)) ++
         collectors(topology) ++ [ObsFactorWeb.Endpoint]
 
@@ -101,7 +104,9 @@ defmodule ObsFactor.Application do
     cfg = ObsFactor.BuilderClient.config()
 
     if cfg[:url],
-      do: {ObsFactor.Collector, {ObsFactor.BuilderSource, interval_ms: tick, url: cfg[:url], token: cfg[:token]}},
+      do:
+        {ObsFactor.Collector,
+         {ObsFactor.BuilderSource, interval_ms: tick, url: cfg[:url], token: cfg[:token]}},
       else: nil
   end
 

@@ -98,24 +98,27 @@ function priority(n, snap) {
 // ---- top bar --------------------------------------------------------------
 
 export class TopBar {
+  // state is the socket's (bus.js): connecting | connected | reconnecting |
+  // refused. Connected and fed shows "live", or "stale" when ticks stop.
   constructor() {
     this.state = "connecting";
     this.lastAt = null;
     this.lastRecv = 0;
     this.tick = 5000;
     this.detail = "";
+    this.tickError = null;
     setInterval(() => this.renderClock(), 1000);
   }
   snapshot(snap) {
     this.lastAt = new Date(snap.at);
     this.lastRecv = performance.now();
     this.tick = snap.tick_ms || 5000;
+    this.tickError = null;
     const ins = snap.edges.filter((e) => e.from === "internet");
     let rate = null;
     if (ins.length && ins.every((e) => isNum(e.rate))) rate = ins.reduce((a, e) => a + e.rate, 0);
     $("inrate").textContent = rate == null ? UNKNOWN : `${num(rate)}/s`;
     $("inrate").parentElement.title = rate == null ? "Requests per second into Caddy: unknown (see sources)" : "Requests per second into Caddy, all hosts";
-    if (this.state !== "reconnecting") this.state = "live";
     this.renderClock();
   }
   setState(state, detail = "") {
@@ -123,18 +126,24 @@ export class TopBar {
     this.detail = detail;
     this.renderClock();
   }
+  // a tick whose snapshot build failed, or no snapshot yet: said, not hidden
+  setTickError(message) {
+    this.tickError = message;
+    this.renderClock();
+  }
   renderClock() {
     const el = $("clock");
     const age = this.lastAt ? (performance.now() - this.lastRecv) / 1000 : null;
     let state = this.state;
-    if (state === "live" && age != null && age * 1000 > Math.max(this.tick * 2.5, 12000)) state = "stale";
-    if (state === "reconnecting" && !this.lastAt) state = "connecting";
+    if (state === "connected") state = !this.lastAt ? "connecting" : age * 1000 > Math.max(this.tick * 2.5, 12000) ? "stale" : "live";
     el.dataset.state = state;
-    $("live").textContent = state === "live" ? "live" : state === "stale" ? "stale" : state === "reconnecting" ? "reconnecting" : "connecting";
+    $("live").textContent = state === "connecting" && this.state === "connected" ? "waiting for a snapshot" : state;
     if (state === "live") $("utc").textContent = utc(new Date());
     else if (this.lastAt) $("utc").textContent = utc(this.lastAt);
-    $("stale").textContent = (state === "stale" || state === "reconnecting") && age != null ? `${Math.round(age)} s old` : "";
-    el.title = this.detail || (state === "live" ? "Snapshots arriving" : state === "stale" ? "No snapshot for a while; the stream is open but silent" : "");
+    const old = (state === "stale" || state === "reconnecting" || state === "refused") && age != null ? `${Math.round(age)} s old` : "";
+    $("stale").textContent = [old, this.tickError ? "last tick failed" : "", state === "refused" ? this.detail : ""].filter(Boolean).join(" · ");
+    const sock = { connecting: "Opening the socket", connected: "Socket connected", reconnecting: "Socket lost, reconnecting", refused: "Socket refused" }[this.state] ?? this.state;
+    el.title = [sock + (this.detail ? `: ${this.detail}` : ""), this.tickError, state === "stale" ? "No snapshot for a while; the socket is open but silent" : ""].filter(Boolean).join("\n");
   }
 }
 
