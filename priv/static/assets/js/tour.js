@@ -53,7 +53,7 @@ function steps(api) {
     {
       title: "Live, not polled by your browser",
       target: () => $("clock"),
-      body: (s) => `The observer builds one snapshot every ${s.tick_ms / 1000} s and pushes it down ${code("GET /api/stream")} (server-sent events).
+      body: (s) => `The observer builds one snapshot every ${s.tick_ms / 1000} s and broadcasts it on Phoenix PubSub, topic ${code("snapshots")}; this page receives it on its one websocket (${code("/socket")}), the same socket every other live thing here arrives on. Nothing is fetched on a timer.
         This one was built at <b>${esc(utc(new Date(s.at)))}</b> UTC. If snapshots stop arriving, the dot goes red and says how stale the page is, so a frozen screen can't pass for a quiet one.`,
     },
     {
