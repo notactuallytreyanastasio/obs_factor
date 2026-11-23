@@ -18,8 +18,19 @@ defmodule ObsFactorWeb.TapeChannel do
       when the next frame is (nil: this is the newest)
     * `series` `%{from, to, points}`: `%{series: [[at, %{node => %{key => n}}]]}`,
       the board's numbers per node, at most `points` frames (`Tape.series/4`)
+    * `lanes` `%{from, to}`: `%{lanes: [[node, severity, from, to, frames, text]]}`,
+      each building's runs of alerts and warnings (`Tape.lanes/3`)
+    * `windows` `%{}`: `%{windows: [window]}`
     * `marks` `%{from, to}`: `%{marks: [[at, kind, id, node, severity, title, by]]}`
     * `insights` `%{from, to}`: `ObsFactor.Insights.compute/2`
+
+  Writes, replied with `{:ok, %{window}}` / `{:ok, %{pruned: ids}}` or
+  `{:error, %{error}}`, and followed by a `windows` push `%{windows: list}`
+  to everyone on the topic:
+
+    * `save_window` `%{from, to, title, note, by}`, or with `id` to change
+      one (trim its edges, rename it)
+    * `prune_windows` `%{ids}`
 
   Times are unix milliseconds. A window may be at most 31 days.
   """
@@ -34,7 +45,8 @@ defmodule ObsFactorWeb.TapeChannel do
     reply =
       if Tape.enabled?() do
         case Tape.range() do
-          {:ok, r} -> %{range: r, tick_ms: Application.get_env(:obs_factor, :tick_ms)}
+          {:ok, r} ->
+            %{range: r, tick_ms: Application.get_env(:obs_factor, :tick_ms), windows: ok_or(Tape.windows(), [])}
           {:error, e} -> %{error: "tape: " <> Tape.message(e)}
         end
       else
@@ -50,7 +62,17 @@ defmodule ObsFactorWeb.TapeChannel do
     {:noreply, socket}
   end
 
+  def handle_info({:tape_windows, list}, socket) do
+    push(socket, "windows", %{windows: list})
+    {:noreply, socket}
+  end
+
   @impl true
+  def handle_in("save_window", params, socket) when is_map(params), do: {:reply, write(fn -> Tape.save_window(params) end, :window), socket}
+
+  def handle_in("prune_windows", %{"ids" => ids}, socket) when is_list(ids),
+    do: {:reply, write(fn -> Tape.prune_windows(ids) end, :pruned), socket}
+
   def handle_in(event, params, socket) do
     {:reply, if(Tape.enabled?(), do: read(event, params), else: {:error, %{error: "no tape: OBJECTIVES_PG_URL is not set"}}), socket}
   end
@@ -69,6 +91,9 @@ defmodule ObsFactorWeb.TapeChannel do
   defp read("series", %{"from" => f, "to" => t, "points" => p}) when is_integer(p) and p in 1..2000,
     do: window(f, t, fn f, t -> wrap(Tape.series(f, t, p), :series) end)
 
+  defp read("lanes", %{"from" => f, "to" => t}), do: window(f, t, fn f, t -> wrap(Tape.lanes(f, t), :lanes) end)
+  defp read("windows", _), do: wrap(Tape.windows(), :windows) |> err()
+
   defp read("marks", %{"from" => f, "to" => t}), do: window(f, t, fn f, t -> wrap(Tape.marks(f, t), :marks) end)
   defp read("insights", %{"from" => f, "to" => t}), do: window(f, t, &Insights.compute/2)
 
@@ -84,6 +109,28 @@ defmodule ObsFactorWeb.TapeChannel do
 
   defp window(f, t, _),
     do: {:error, %{error: "a window is two integer unix ms times, from before to, at most 31 days: got #{inspect(f)}..#{inspect(t)}"}}
+
+  # a write, then everyone on the topic gets the whole list of windows
+  defp write(fun, key) do
+    if Tape.enabled?() do
+      case fun.() do
+        {:ok, v} ->
+          with {:ok, list} <- Tape.windows(), do: Phoenix.PubSub.broadcast(ObsFactor.PubSub, Tape.topic(), {:tape_windows, list})
+          {:ok, %{key => v}}
+
+        {:error, e} ->
+          {:error, %{error: Tape.message(e)}}
+      end
+    else
+      {:error, %{error: "no tape: OBJECTIVES_PG_URL is not set"}}
+    end
+  end
+
+  defp ok_or({:ok, v}, _), do: v
+  defp ok_or(_, d), do: d
+
+  defp err({:error, e}), do: {:error, %{error: Tape.message(e)}}
+  defp err(ok), do: ok
 
   defp wrap({:ok, v}, key), do: {:ok, %{key => v}}
   defp wrap(e, _), do: e

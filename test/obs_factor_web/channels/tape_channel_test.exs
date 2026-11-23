@@ -12,7 +12,7 @@ defmodule ObsFactorWeb.TapeChannelTest do
   setup do
     db = Tape.db()
     start_supervised!(Supervisor.child_spec({Postgrex, ObsFactor.Postgres.opts(@url, name: db, pool_size: 2, statement_timeout: "5000")}, id: db))
-    Postgrex.query!(db, "DROP TABLE IF EXISTS tape_frames, objective_events, objectives", [])
+    Postgrex.query!(db, "DROP TABLE IF EXISTS tape_windows, tape_frames, objective_events, objectives", [])
     start_supervised!({ObsFactor.Objectives, db: db})
     start_supervised!({Tape, db: db, thin_first_ms: 3_600_000})
     Process.sleep(200)
@@ -22,7 +22,7 @@ defmodule ObsFactorWeb.TapeChannelTest do
   defp snap(n), do: %{at: "t#{n}", attention: [%{node: "app", severity: "alert", text: "x#{n}"}], nodes: [%{id: "app", kind: "app", status: "down", hosts: []}]}
 
   test "join gives the range; each frame written is a tick; a frame, the index, marks and insights answer" do
-    {:ok, %{range: %{frames: 0}, tick_ms: _}, socket} = subscribe_and_join(authed_socket("a"), ObsFactorWeb.TapeChannel, "tape")
+    {:ok, %{range: %{frames: 0}, tick_ms: _, windows: []}, socket} = subscribe_and_join(authed_socket("a"), ObsFactorWeb.TapeChannel, "tape")
     t0 = System.system_time(:millisecond) - 60_000
 
     for i <- 0..2 do
@@ -46,6 +46,16 @@ defmodule ObsFactorWeb.TapeChannelTest do
     ref = push(socket, "insights", %{"from" => t0, "to" => t0 + 60_000})
     # the last frame burns on to the end of the window (now): 10 s + 50 s
     assert_reply ref, :ok, %{hot: [%{node: "app", alert_ms: 60_000}]}
+
+    ref = push(socket, "save_window", %{"from" => t0, "to" => t0 + 10_000, "title" => "first two", "by" => "a"})
+    # edges included: t0, +5 s, +10 s
+    assert_reply ref, :ok, %{window: %{id: id, frames: 3}}
+    assert_push "windows", %{windows: [%{id: ^id, title: "first two"}]}
+    ref = push(socket, "lanes", %{"from" => t0, "to" => t0 + 15_000})
+    assert_reply ref, :ok, %{lanes: [["app", "alert", ^t0, _, 3, "x2"]]}
+    ref = push(socket, "prune_windows", %{"ids" => [id]})
+    assert_reply ref, :ok, %{pruned: [^id]}
+    assert_push "windows", %{windows: []}
 
     ref = push(socket, "insights", %{"from" => t0, "to" => t0 - 1})
     assert_reply ref, :error, %{error: "a window is" <> _}
