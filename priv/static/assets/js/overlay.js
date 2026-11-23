@@ -121,6 +121,12 @@ export class TopBar {
     $("inrate").parentElement.title = rate == null ? "Requests per second into Caddy: unknown (see sources)" : "Requests per second into Caddy, all hosts";
     this.renderClock();
   }
+  // timeline.js: a moment of the tape on screen, or null for live
+  setReplay(at) {
+    if (at === this.replayAt) return;
+    this.replayAt = at;
+    this.renderClock();
+  }
   setState(state, detail = "") {
     this.state = state;
     this.detail = detail;
@@ -136,6 +142,14 @@ export class TopBar {
     const age = this.lastAt ? (performance.now() - this.lastRecv) / 1000 : null;
     let state = this.state;
     if (state === "connected") state = !this.lastAt ? "connecting" : age * 1000 > Math.max(this.tick * 2.5, 12000) ? "stale" : "live";
+    if (this.replayAt != null && state === "live") {
+      el.dataset.state = "replay";
+      $("live").textContent = "replay";
+      $("utc").textContent = utc(new Date(this.replayAt));
+      $("stale").textContent = "";
+      el.title = "A moment of the tape is on screen. End, or LIVE on the timeline, goes back to now.";
+      return;
+    }
     el.dataset.state = state;
     $("live").textContent = state === "connecting" && this.state === "connected" ? "waiting for a snapshot" : state;
     if (state === "live") $("utc").textContent = utc(new Date());
