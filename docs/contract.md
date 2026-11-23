@@ -179,10 +179,21 @@ pushes are what the channel sends the browser.
 | `observer:<node>:<member or ->:<view>` | → last payload or `{}`; refused with `{reason}` for an unknown node or view or a wrong member | `feed` `{at, data}` or `{at, error}` | `{:feed, topic, payload}` from the topic's feed (`ObsFactor.Feeds.ObserverViews`; Observer, "On the bus") |
 | `history:<node>:5s` / `:1m` | same | same | `ObsFactor.History.query/2` every 15 s / 60 s |
 | `builds:<id>` / `builds:<id>:log` | same | same | the builder's job (log tail) / whole log, every 2 s |
+| `tape` | → `{range: {from, to, frames}, tick_ms}` or `{error}` (no store, Postgres down: the join still succeeds) | `tick` `{at, alerts, warns, down, blocked, rps, err_rps, fires}` per frame written (`fires`: how many attention lines) | `{:tape_frame, tick}` from `ObsFactor.Tape` after each insert |
 
 Channel writes on `objectives`: `pin` `{node, title, note, by}` and `act`
 `{id (integer), action: look|done|reopen, note, by}`, replied with the row or
 `{error}`. `POST /api/objectives[/:id]` does the same and is broadcast the same.
+Channel reads on `tape` (times unix ms, a window at most 31 days), replied
+with the value or `{error}`: `index` `{from, to, buckets}` → `{from, to,
+step, buckets: [[t, frames, alerts, warns, down, err_rps, rps]]}` (worst of
+each column; empty columns left out: a gap in the tape); `frame` `{at}` →
+`{at, next, snapshot}` (the last frame at or before `at`, or the first after
+it; `next` nil at the live edge); `marks` `{from, to}` → `{marks: [[at, kind,
+objective_id, node, severity, title, by]]}` (objective events, newest 600);
+`insights` `{from, to}` → `ObsFactor.Insights.compute/2` (`score`, `calm`,
+`hot`, `repeat`, `peaks`, `worst`). The tape is `tape_frames` in the
+objectives database: every tick for 6 h, then one a minute for 7 days.
 Channel write on `observer:*`: `action` `{path, params, by}` on the topic's
 node and member, replied with the engine's answer or `{error, status}`, and
 broadcast on `actions` (Observer, "On the bus"). `POST

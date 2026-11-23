@@ -130,7 +130,9 @@ async function open() {
 // changes the state by a step (an `objective` row): the kept reply is
 // stale from then on, and a late subscriber rejoins for a fresh one.
 const WHOLE = { feed: (p) => p, list: (p) => p, snapshot: (p) => ({ snapshot: p }) };
-const NO_STATE = new Set(["action", "error"]);
+// a tape `tick` grows the tape by a frame; the join reply (its range) is
+// read again by nobody who needs it exact, so it is not a reason to rejoin
+const NO_STATE = new Set(["action", "error", "tick"]);
 
 function openChannel(topic, entry) {
   const ch = socket.channel(topic, entry.params);

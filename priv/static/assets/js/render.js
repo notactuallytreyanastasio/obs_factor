@@ -80,6 +80,14 @@ export class Scene {
   setSnapshot(snap) {
     this.snap = snap;
     this.nodeById = new Map(snap.nodes.map((n) => [n.id, n]));
+    // fires.js: a building with an alert burns even while it still answers;
+    // one with a warning smokes. Down is the big fire, as before.
+    this.heat = new Map();
+    for (const a of snap.attention ?? []) {
+      if (!a.node) continue;
+      if (a.severity === "alert") this.heat.set(a.node, "alert");
+      else if (a.severity === "warn" && !this.heat.has(a.node)) this.heat.set(a.node, "warn");
+    }
     const key = `${this.tall ? "tall" : "wide"}|${topoKey(snap)}`;
     let changed = false;
     if (key !== this.key) {
@@ -494,6 +502,9 @@ export class Scene {
     const { ctx } = this;
     const st = b.node.status;
     if (st === "down") return this.drawFire(b, t);
+    const heat = this.heat?.get(b.node.id);
+    if (heat === "alert") return this.drawFire(b, t, 0.6);
+    if (heat === "warn") return this.drawSmoke(b, t);
     if (!s.on) return;
     for (const [cx, cy] of chimneys(b)) {
       for (let i = 0; i < 6; i++) {
@@ -507,24 +518,39 @@ export class Scene {
     }
   }
 
-  drawFire(b, t) {
+  // a dark plume over a building with a warning: not on fire, not right
+  drawSmoke(b, t) {
+    const { ctx } = this;
+    const [sx, sy] = P(b.x + 1.5, b.y + 1.5, b.h);
+    for (let i = 0; i < 8; i++) {
+      const age = this.motion ? (t * 0.18 + i / 8 + (b.seed % 5) / 5) % 1 : i / 8;
+      ctx.beginPath();
+      ctx.arc(sx + age * 30 + Math.sin(age * 4 + i) * 4, sy - 6 - age * 90, 4 + age * 18, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(70,66,72,${0.38 * (1 - age)})`;
+      ctx.fill();
+    }
+  }
+
+  // k < 1: a building that burns but still answers (an alert, not down)
+  drawFire(b, t, k = 1) {
     const { ctx } = this;
     const [gx, gy] = P(b.x + 1.5, b.y + 1.5, 0.1);
-    glow(ctx, gx, gy, 90, "#ff5a1f", 0.28 + 0.08 * Math.sin(t * 7));
+    glow(ctx, gx, gy, 90 * k, "#ff5a1f", (0.28 + 0.08 * Math.sin(t * 7)) * (0.6 + 0.4 * k));
     // smoke column
     const [sx, sy] = P(b.x + 1.5, b.y + 1.5, b.h);
     for (let i = 0; i < 12; i++) {
       const age = this.motion ? (t * 0.22 + i / 12) % 1 : i / 12;
-      const r = 6 + age * 34;
+      const r = (6 + age * 34) * k;
       ctx.beginPath();
-      ctx.arc(sx + age * 46 + Math.sin(age * 4 + i) * 6, sy - 10 - age * 150, r, 0, Math.PI * 2);
+      ctx.arc(sx + age * 46 * k + Math.sin(age * 4 + i) * 6, sy - 10 - age * 150 * k, r, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(42,40,46,${0.42 * (1 - age)})`;
       ctx.fill();
     }
     // flames
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    const spots = [[1.5, 1.5, b.h * 0.85, 1.25], [0.7, 2.2, b.h * 0.5, 0.8], [2.3, 1.0, b.h * 0.6, 0.9], [2.4, 2.5, 0.15, 0.7], [0.5, 0.8, 0.4, 0.6]];
+    const all = [[1.5, 1.5, b.h * 0.85, 1.25], [0.7, 2.2, b.h * 0.5, 0.8], [2.3, 1.0, b.h * 0.6, 0.9], [2.4, 2.5, 0.15, 0.7], [0.5, 0.8, 0.4, 0.6]];
+    const spots = k < 1 ? all.slice(0, 3).map(([x, y, z, sc]) => [x, y, z, sc * k * 1.3]) : all;
     spots.forEach(([fx, fy, fz, sc], i) => {
       const [px, py] = P(b.x + fx, b.y + fy, fz);
       for (let k = 0; k < 3; k++) {

@@ -18,12 +18,17 @@ import "./apps_buildings.js";
 import { Processes } from "./processes.js"; // processes.js
 import { JumpList } from "./jump.js"; // jump.js
 import { scopeFromUrl, scopeSnapshot } from "./scope.js";
+import { Timeline } from "./timeline.js";
+import { Fires } from "./fires.js";
 
 const $ = (id) => document.getElementById(id);
 // scope.js: /?scope=<id>. Up here because Missions, built further down at
 // module load, reads it: a `const` below that line is not yet initialised.
 const SCOPE = scopeFromUrl();
 let scopeIds = null; // the ids in scope, or null for the whole box
+// timeline.js and fires.js, built near the end; declared up here (and read
+// with ?.) so nothing that runs before then can trip on them
+let timeline = null, fires = null;
 const canvas = $("floor");
 const scene = new Scene(canvas);
 // While inside a building, the floor it stands on stays drawn underneath,
@@ -62,6 +67,7 @@ function freeArea() {
   // missions.js: the panel on the left, beside the floor, on a desktop
   if (missions.open && w >= 760) { const r = missions.el.getBoundingClientRect(); x = r.right; fw = w - x; }
   // processes.js: the same, for the Processes panel
+  if (fires?.open && w >= 760) { const r = fires.el.getBoundingClientRect(); x = r.right; fw = w - x; }
   if (procs.open && w >= 760) { const r = procs.el.getBoundingClientRect(); x = r.right; fw = w - x; }
   const side = inspector.open ? inspector.el : procPanel.open ? procPanel.el : null; // apps.js: the process panel sits where the inspector does
   if (side) {
@@ -578,7 +584,7 @@ const missions = new Missions({
   noTarget: () => (insideOf === OBSERVER
     ? "This is the observer's own VM, not a building on the floor: an objective pinned here could never be gone to or lit by the lens. Flag the building the problem shows up in."
     : null),
-  onOpen: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); procs.toggle(false); if (window.innerWidth < 760) inspector.close(); },
+  onOpen: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); procs.toggle(false); fires?.toggle(false); if (window.innerWidth < 760) inspector.close(); },
   redraw: () => { dirty = true; },
 });
 // ---- end missions ---------------------------------------------------------
@@ -603,7 +609,7 @@ const procs = new Processes({
     if (window.innerWidth - procs.el.getBoundingClientRect().right < 760) procs.toggle(false);
     return goTo(id, () => procs.toggle(false));
   },
-  onOpen: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); missions.toggle(false); if (window.innerWidth < 760) inspector.close(); },
+  onOpen: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); missions.toggle(false); fires?.toggle(false); if (window.innerWidth < 760) inspector.close(); },
   redraw: () => { dirty = true; },
 });
 const jump = new JumpList({
@@ -632,7 +638,7 @@ const tour = new Tour({
   select: (id, flyTo = false) => select(id, flyTo),
   centreOn: (id) => centreOn(id),
   closeInspector: () => inspector.close(),
-  closeAll: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); missions.toggle(false); procs.toggle(false); jump.close(); inspector.close(); logs.close(); if (insideOf) leave(); },
+  closeAll: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); missions.toggle(false); procs.toggle(false); fires?.toggle(false); jump.close(); inspector.close(); logs.close(); if (insideOf) leave(); },
   panel: (name, open) => ({ legend: toggleLegend, sites: toggleSites })[name](open),
   fitAll: () => fitAll(true),
   nodeRect,
@@ -670,7 +676,16 @@ function renderScope(sc) {
     : `<b>${esc(sc.snap.scope.label)}</b> only <span class="dim">· ${sc.snap.scope.hidden} hidden</span> · <a href="/">whole box</a>`;
 }
 
+// timeline.js: the live floor keeps arriving while a moment of the tape is
+// on screen; it is kept here, and shown again on the way back to live.
+let liveSnap = null;
 function onSnapshot(raw) {
+  liveSnap = raw;
+  fires?.onLive(raw);
+  if (!timeline?.replaying) display(raw);
+}
+
+function display(raw) {
   const sc = SCOPE ? scopeSnapshot(raw, SCOPE) : null;
   const s = sc && !sc.missing ? sc.snap : raw;
   const was = scopeIds;
@@ -686,6 +701,7 @@ function onSnapshot(raw) {
   if (pendingSelect && s.nodes.some((n) => n.id === pendingSelect)) { const id = pendingSelect; pendingSelect = null; select(id, true); }
   if (tourAsked) { tourAsked = false; setTimeout(() => tour.start(), 400); }
   logs.onSnapshot();
+  fires?.onShown(s);
 }
 
 $("backbtn").addEventListener("click", () => leave());
@@ -811,6 +827,23 @@ $("inspect-outer").addEventListener("click", () => {
   inspector.show(insideOf, outerSnap, { history: true });
 });
 window.addEventListener("keydown", (e) => { if (e.key === "Escape" && !e.defaultPrevented && insideOf && !inspector.open && !procPanel.open) leave(); });
+
+// ---- the tape (timeline.js) and Fires (fires.js) ---------------------------
+timeline = new Timeline({
+  onFrame: (snapshot) => display(snapshot),
+  onLive: () => { if (liveSnap) display(liveSnap); },
+  onMode: (replaying, at) => { document.body.classList.toggle("replaying", replaying); topbar.setReplay(replaying ? at : null); },
+  onWindow: () => fires.setWindow(),
+  onNode: (id) => { if (outerSnap?.nodes.some((n) => n.id === id)) { if (insideOf) leave(); select(id, true); } },
+});
+fires = new Fires({
+  timeline,
+  outer: () => outerSnap,
+  go: (id) => { if (outerSnap?.nodes.some((n) => n.id === id)) { if (insideOf) leave(); select(id, true); } },
+  closeOthers: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); missions.toggle(false); procs.toggle(false); },
+  onToggle: () => { dirty = true; },
+});
+window.__obsFactorTape = { timeline, fires };
 
 connect({
   onSnapshot,
