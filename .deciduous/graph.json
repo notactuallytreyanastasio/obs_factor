@@ -30,6 +30,16 @@
       "to_change_id": "1190c87e-b14c-4370-9f5f-0a4b00a2b943",
       "weight": 1.0
     },
+    "0d44b5669874d7adaa19": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T12:48:02.815277-05:00",
+      "edge_id": "0d44b5669874d7adaa19",
+      "edge_type": "leads_to",
+      "from_change_id": "0d86cb3a-c047-4c8a-90df-b36a369c7105",
+      "rationale": "Result",
+      "to_change_id": "87da20b7-a3d2-4c0f-833e-3862a62028ed",
+      "weight": 1.0
+    },
     "0d45b773f7eb8d6f4341": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-23T12:26:00.379200-05:00",
@@ -48,6 +58,16 @@
       "from_change_id": "83ff9921-6146-4837-be4b-0f44e1d1b897",
       "rationale": "found on the box",
       "to_change_id": "a0b3e89d-a862-4c46-851c-1443f4a3ac3e",
+      "weight": 1.0
+    },
+    "160654b2f2c41883b336": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T12:47:57.466850-05:00",
+      "edge_id": "160654b2f2c41883b336",
+      "edge_type": "leads_to",
+      "from_change_id": "d5c5558f-78e8-4957-9c6f-df0d7afecac1",
+      "rationale": "fix for split-brain re-elections",
+      "to_change_id": "f4920972-2ab4-47e2-b312-e1224fb6fd69",
       "weight": 1.0
     },
     "174fe4a74e8fdd50123a": {
@@ -130,6 +150,16 @@
       "to_change_id": "1b55007d-6427-497e-a610-46e8983135c5",
       "weight": 1.0
     },
+    "31ffb04741769fe657be": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T12:47:58.174676-05:00",
+      "edge_id": "31ffb04741769fe657be",
+      "edge_type": "leads_to",
+      "from_change_id": "d5c5558f-78e8-4957-9c6f-df0d7afecac1",
+      "rationale": "Implementation",
+      "to_change_id": "9f67e5a8-2441-4aff-9f41-74316446efdf",
+      "weight": 1.0
+    },
     "3243d21dc6939f0efbbf": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T01:35:44.698396-05:00",
@@ -198,6 +228,16 @@
       "from_change_id": "8f727b32-cbec-4e48-b138-d96f05be1599",
       "rationale": "result",
       "to_change_id": "db243864-fc0a-4514-bce7-612f6b32a67f",
+      "weight": 1.0
+    },
+    "3cbfb256f3e57cedbdbe": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T12:47:57.650524-05:00",
+      "edge_id": "3cbfb256f3e57cedbdbe",
+      "edge_type": "leads_to",
+      "from_change_id": "f4920972-2ab4-47e2-b312-e1224fb6fd69",
+      "rationale": "chosen",
+      "to_change_id": "e1b18d08-4d6a-4ca3-ad71-a1bde2591769",
       "weight": 1.0
     },
     "3d02c58e8b41de44c2c9": {
@@ -390,6 +430,16 @@
       "to_change_id": "8e3d7085-0e1d-434a-aa9b-853adc4485fc",
       "weight": 1.0
     },
+    "82f8f638ac659eb73bdb": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T12:47:57.279767-05:00",
+      "edge_id": "82f8f638ac659eb73bdb",
+      "edge_type": "leads_to",
+      "from_change_id": "26ab2e2a-89a5-489a-a147-300478cc7186",
+      "rationale": "Result",
+      "to_change_id": "517d818c-5456-4480-8a2f-1c749a45c0f5",
+      "weight": 1.0
+    },
     "88aa7b579827e70f13d4": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-23T12:25:51.987694-05:00",
@@ -408,6 +458,26 @@
       "from_change_id": "d4e8aefe-984f-4b9e-9a1e-a37e0d38947b",
       "rationale": "rejected: a stalled observer could back-pressure the proxy every site depends on; not verified safe",
       "to_change_id": "7e0c4208-d03d-45d2-bf21-a78159179b41",
+      "weight": 1.0
+    },
+    "8dd74a726d313e70bd2b": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T12:47:58.088816-05:00",
+      "edge_id": "8dd74a726d313e70bd2b",
+      "edge_type": "leads_to",
+      "from_change_id": "d5c5558f-78e8-4957-9c6f-df0d7afecac1",
+      "rationale": "requested in the same session",
+      "to_change_id": "509ea063-c74a-410f-a435-2457c3f994c0",
+      "weight": 1.0
+    },
+    "91554401d0b2cc7da0b7": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T12:47:44.489903-05:00",
+      "edge_id": "91554401d0b2cc7da0b7",
+      "edge_type": "leads_to",
+      "from_change_id": "9f67e5a8-2441-4aff-9f41-74316446efdf",
+      "rationale": "Result",
+      "to_change_id": "b0f5a2f3-13f8-4033-9611-b5e28fbbedb6",
       "weight": 1.0
     },
     "95cfdb4ab770a595b73e": {
@@ -438,6 +508,16 @@
       "from_change_id": "49a681fd-b54a-430c-b8fb-d85cdbcf1e4c",
       "rationale": "workstream",
       "to_change_id": "11c167ae-4f87-4a39-abb7-904be8199d5b",
+      "weight": 1.0
+    },
+    "ad291b5c279faa6e7a80": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T12:47:57.093194-05:00",
+      "edge_id": "ad291b5c279faa6e7a80",
+      "edge_type": "leads_to",
+      "from_change_id": "d5c5558f-78e8-4957-9c6f-df0d7afecac1",
+      "rationale": "Implementation",
+      "to_change_id": "26ab2e2a-89a5-489a-a147-300478cc7186",
       "weight": 1.0
     },
     "ae425820c7876a827c3b": {
@@ -528,6 +608,16 @@
       "from_change_id": "d243b111-a926-42e7-82e5-11afe447dcb1",
       "rationale": "chosen",
       "to_change_id": "49a681fd-b54a-430c-b8fb-d85cdbcf1e4c",
+      "weight": 1.0
+    },
+    "dc14b880a1625a44968d": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T12:47:57.835678-05:00",
+      "edge_id": "dc14b880a1625a44968d",
+      "edge_type": "leads_to",
+      "from_change_id": "e1b18d08-4d6a-4ca3-ad71-a1bde2591769",
+      "rationale": "Implementation",
+      "to_change_id": "0d86cb3a-c047-4c8a-90df-b36a369c7105",
       "weight": 1.0
     },
     "e118b3a9881ba4199db9": {
@@ -658,6 +748,19 @@
       "title": "Build the factory floor: isometric canvas, belts, power lines, fire, inspector",
       "updated_at": "2026-11-18T17:36:30.571529-05:00"
     },
+    "0d86cb3a-c047-4c8a-90df-b36a369c7105": {
+      "author": "Bobby Grayson",
+      "change_id": "0d86cb3a-c047-4c8a-90df-b36a369c7105",
+      "created_at": "2026-11-23T12:47:57.746991-05:00",
+      "metadata": {
+        "branch": "main",
+        "confidence": 90
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Marginalia.Singleton leads only while holding pg_try_advisory_lock on a non-reconnecting connection; marginalia PR #28 merged and deployed",
+      "updated_at": "2026-11-23T12:47:57.746991-05:00"
+    },
     "1094b22e-21ab-4ab6-a887-f1b8d723f366": {
       "author": "Bobby Grayson",
       "change_id": "1094b22e-21ab-4ab6-a887-f1b8d723f366",
@@ -763,6 +866,20 @@
       "status": "pending",
       "title": "Structured log tests and contract 'Logs: stdout' section",
       "updated_at": "2026-11-23T12:25:56.348704-05:00"
+    },
+    "26ab2e2a-89a5-489a-a147-300478cc7186": {
+      "author": "Bobby Grayson",
+      "change_id": "26ab2e2a-89a5-489a-a147-300478cc7186",
+      "created_at": "2026-11-23T12:47:57.009242-05:00",
+      "metadata": {
+        "branch": "main",
+        "commit": "74f01d4929cd1b9a34cceb5a0458018d1bc49915",
+        "confidence": 90
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Merged obs_factor PRs #8-#13 and marginalia #27; box: obs_factor_app role + obs_factor db, shared actions token; deployed both",
+      "updated_at": "2026-11-23T12:47:57.009242-05:00"
     },
     "29758875-68e8-4a1b-bd85-21ae49a4cf64": {
       "author": "Bobby Grayson",
@@ -934,6 +1051,19 @@
       "title": "Structured logs for APM-like aggregation",
       "updated_at": "2026-11-23T12:25:43.560365-05:00"
     },
+    "517d818c-5456-4480-8a2f-1c749a45c0f5": {
+      "author": "Bobby Grayson",
+      "change_id": "517d818c-5456-4480-8a2f-1c749a45c0f5",
+      "created_at": "2026-11-23T12:47:57.186451-05:00",
+      "metadata": {
+        "branch": "main",
+        "confidence": 90
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "Live in prod: websocket through Cloudflare+Caddy, objectives store, Processes across 3 marginalia nodes, machine rooms + Applications floor, GC over the socket broadcast to a second viewer; blog/Blinks/Gifmaker 404 on /observer (old factory_report)",
+      "updated_at": "2026-11-23T12:47:57.186451-05:00"
+    },
     "53d3622a-0085-40a1-ab81-a236f95a4677": {
       "author": "Bobby Grayson",
       "change_id": "53d3622a-0085-40a1-ab81-a236f95a4677",
@@ -1050,6 +1180,19 @@
       "title": "Factory-style live observability app for bobbby.online and every subdomain app",
       "updated_at": "2026-11-18T17:30:12.069987-05:00"
     },
+    "87da20b7-a3d2-4c0f-833e-3862a62028ed": {
+      "author": "Bobby Grayson",
+      "change_id": "87da20b7-a3d2-4c0f-833e-3862a62028ed",
+      "created_at": "2026-11-23T12:47:57.929384-05:00",
+      "metadata": {
+        "branch": "main",
+        "confidence": 90
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "Lab partition 90 s: isolated node 0 elections (was 128 conflicts in 3 min); leader kill -> takeover in 5 s; prod 1 leader, 2 followers, 2 locks; 1170 tests",
+      "updated_at": "2026-11-23T12:47:57.929384-05:00"
+    },
     "8e3d7085-0e1d-434a-aa9b-853adc4485fc": {
       "author": "Bobby Grayson",
       "change_id": "8e3d7085-0e1d-434a-aa9b-853adc4485fc",
@@ -1112,6 +1255,20 @@
       "status": "pending",
       "title": "Reports end to end in the lab: packages/factory_report (59 tests on Phoenix 1.7/LV 1.0 and 1.8/LV 1.2) in a real LiveView app; the observer (219 tests) shows its sessions, attributed streams and logged warnings; the building opens into its own floor",
       "updated_at": "2026-11-19T03:28:14.139659-05:00"
+    },
+    "9f67e5a8-2441-4aff-9f41-74316446efdf": {
+      "author": "Bobby Grayson",
+      "change_id": "9f67e5a8-2441-4aff-9f41-74316446efdf",
+      "created_at": "2026-11-23T12:47:44.227880-05:00",
+      "metadata": {
+        "branch": "main",
+        "commit": "4df438a89c3c24016ee8a297de9c07cba07a3305",
+        "confidence": 90
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Structured JSON logs (PR #14) and the scoped floor /?scope=<id> (PR #15, fixes #16) merged and deployed",
+      "updated_at": "2026-11-23T12:47:44.227880-05:00"
     },
     "a0b3e89d-a862-4c46-851c-1443f4a3ac3e": {
       "author": "Bobby Grayson",
@@ -1214,6 +1371,19 @@
       "status": "pending",
       "title": "Dress the floor like the inspiration posts: a building of its own for every subdomain, glowing bus belts with items coloured by status class, storage as containers, gauges, fed by richer per-host Caddy data",
       "updated_at": "2026-11-19T01:35:44.290481-05:00"
+    },
+    "b0f5a2f3-13f8-4033-9611-b5e28fbbedb6": {
+      "author": "Bobby Grayson",
+      "change_id": "b0f5a2f3-13f8-4033-9611-b5e28fbbedb6",
+      "created_at": "2026-11-23T12:47:44.396890-05:00",
+      "metadata": {
+        "branch": "main",
+        "confidence": 85
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "Prod stdout is factory_report JSON with event/route/took_ms; /?scope=marginalia shows 10 of 45 nodes, Processes 3 BEAMs, Missions 2; PR 15 threw on every load (SCOPE TDZ) for ~3 min until the hotfix",
+      "updated_at": "2026-11-23T12:47:44.396890-05:00"
     },
     "b3224c94-216d-4e0b-9cbe-a19d3b9f5f37": {
       "author": "Bobby Grayson",
@@ -1376,6 +1546,20 @@
       "title": "Committed: per-subdomain floor, access log, reports, traffic tool",
       "updated_at": "2026-11-19T03:10:45.499917-05:00"
     },
+    "d5c5558f-78e8-4957-9c6f-df0d7afecac1": {
+      "author": "Bobby Grayson",
+      "change_id": "d5c5558f-78e8-4957-9c6f-df0d7afecac1",
+      "created_at": "2026-11-23T12:47:56.910242-05:00",
+      "metadata": {
+        "branch": "main",
+        "confidence": 85,
+        "prompt": "keep up from where we left off, ship it to marginalia prod, and lets see it in action"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "Ship the observer moonshot and clustered marginalia's factory_report to production, and watch it live",
+      "updated_at": "2026-11-23T12:47:56.910242-05:00"
+    },
     "db243864-fc0a-4514-bce7-612f6b32a67f": {
       "author": "Bobby Grayson",
       "change_id": "db243864-fc0a-4514-bce7-612f6b32a67f",
@@ -1402,6 +1586,20 @@
       "title": "Caddy writes a JSON access log to a capped file in a shared volume; the observer tails it",
       "updated_at": "2026-11-19T02:06:02.684847-05:00"
     },
+    "e1b18d08-4d6a-4ca3-ad71-a1bde2591769": {
+      "author": "Bobby Grayson",
+      "change_id": "e1b18d08-4d6a-4ca3-ad71-a1bde2591769",
+      "created_at": "2026-11-23T12:47:57.557915-05:00",
+      "metadata": {
+        "branch": "main",
+        "confidence": 90,
+        "prompt": "that makes sense RE leadership"
+      },
+      "node_type": "decision",
+      "status": "pending",
+      "title": "Advisory-lock leadership approved",
+      "updated_at": "2026-11-23T12:47:57.557915-05:00"
+    },
     "e496a1e8-9043-4e37-b3dc-44d2e963d969": {
       "author": "Bobby Grayson",
       "change_id": "e496a1e8-9043-4e37-b3dc-44d2e963d969",
@@ -1427,6 +1625,19 @@
       "status": "pending",
       "title": "Distinct building per subdomain plus bus belts, containers and gauges on the existing 2D canvas, over numbers-only and over a 3D rewrite",
       "updated_at": "2026-11-19T01:35:44.478374-05:00"
+    },
+    "f4920972-2ab4-47e2-b312-e1224fb6fd69": {
+      "author": "Bobby Grayson",
+      "change_id": "f4920972-2ab4-47e2-b312-e1224fb6fd69",
+      "created_at": "2026-11-23T12:47:57.373463-05:00",
+      "metadata": {
+        "branch": "main",
+        "confidence": 85
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "Hold Runs leadership with a Postgres advisory lock instead of :global alone",
+      "updated_at": "2026-11-23T12:47:57.373463-05:00"
     },
     "f51564d1-156e-4b57-9be4-1b805ebf0047": {
       "author": "Bobby Grayson",
