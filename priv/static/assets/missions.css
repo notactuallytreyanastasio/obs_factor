@@ -129,3 +129,16 @@ body.inside #ms-toast { top: calc(var(--top) + 60px); }
 body.inside:has(#attention:not([hidden])) #ms-toast { top: calc(var(--top) + 98px); }
 #ms-toast .ms-a { color: #ff8a80; font-weight: 700; margin-left: 4px; }
 .ms-raw { font: 11px/1.4 ui-monospace, monospace; word-break: break-all; }
+
+/* ---- the scope chip (scope.js), beside Missions in the top bar ----------- */
+.scope-chip {
+  margin-left: auto; height: 36px; padding: 0 12px; border-radius: 10px; flex: none;
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  background: rgba(90, 200, 250, 0.10); border: 1px solid rgba(90, 200, 250, 0.45); font: 500 13px var(--sans);
+}
+.scope-chip[hidden] { display: none; }
+.scope-chip.bad { background: rgba(255, 160, 60, 0.12); border-color: rgba(255, 160, 60, 0.5); }
+.scope-chip .dim { opacity: 0.6; }
+.scope-chip a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.scope-chip:not([hidden]) ~ .ms-btn { margin-left: 8px; }
+@media (max-width: 560px) { .scope-chip .dim { display: none; } }
