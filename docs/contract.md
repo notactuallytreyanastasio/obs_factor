@@ -813,14 +813,21 @@ Nothing runs until asked: no process, table or handler of its own.
 without HTTP. A pid is written `0.123.0` (`FactoryReport.Observer.pid_text/1`);
 a pid of another node is refused (400). Every answer is a JSON object with
 `"took_ms"` and `"node"` (`node()` as a string), errors included:
-`{"error": "...", "node": ..., "took_ms": ...}`.
+`{"error": "...", "node": ..., "took_ms": ...}`; the errors the plug answers
+itself (auth, off switch, body) carry `"took_ms": 0.0`.
 
 Auth. Reads need the report's token when the app was given one
 (`FACTORY_REPORT_TOKEN`, `authorization: Bearer <token>`, else 401
-`{"error": "unauthorized"}`). Actions are off (403 `{"error": "actions are
-off: no actions_token configured", "path": ...}`) unless the app sets
-`actions_token:` / `FACTORY_REPORT_ACTIONS_TOKEN`; then they take only
-`authorization: Bearer <actions_token>` (constant-time compare, else 401).
+`{"error": "unauthorized"}`). With no token, reads answer 403
+`observer reads need a token: set the reporter's token (or
+FACTORY_REPORT_TOKEN), or observer: true to serve them without one`, unless
+the app passed `observer: true` explicitly (the lab's apps do). Actions are
+off (403 `{"error": "actions are off: no actions_token configured", "path":
+...}`) unless the app sets `actions_token:` / `FACTORY_REPORT_ACTIONS_TOKEN`;
+then they take only `authorization: Bearer <actions_token>` (constant-time
+compare, else 401 `unauthorized: actions need authorization: Bearer
+<actions_token>`). A body that is not a JSON object is 400, one over 8 kB
+413.
 Every action is logged by the app at `warning`:
 `factory_report observer action: kill 0.238.0 (:engine_throwaway) by <x-factory-by>`.
 `observer: false` turns `/observer` off (404).

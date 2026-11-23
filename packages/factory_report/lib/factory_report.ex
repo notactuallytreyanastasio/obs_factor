@@ -30,8 +30,13 @@ defmodule FactoryReport do
       `"events"` (log events are still counted per level). Default `true`.
     * `:log_level` - the lowest level whose messages go into `"events"`
       (default `:warning`).
-    * `:observer` - `false` turns `/observer/...` off (404). Default `true`.
-      See `FactoryReport.Observer`.
+    * `:observer` - `false` turns `/observer/...` off (404). By default
+      it is on, but its reads answer 403 while there is no `:token`
+      (the listener binds every interface, and the reads list every
+      process, tree, table and port, and a procs read walks every process
+      twice). `true` serves them without a token too: say so only where
+      the port is reachable by the observer alone. See
+      `FactoryReport.Observer`.
     * `:inspect_state` - `true` lets `GET /observer/proc/:pid?state=true`
       read a process's state with `:sys.get_state/2`. Default `false`.
     * `:actions_token` - a non-empty string turns the observer's actions
@@ -142,7 +147,8 @@ defmodule FactoryReport do
       end
 
     %{
-      enabled: Keyword.get(opts, :observer, true) != false,
+      enabled: Keyword.get(opts, :observer, :default) != false,
+      open: Keyword.get(opts, :observer, :default) == true,
       inspect_state: Keyword.get(opts, :inspect_state, false) == true,
       actions_token: token
     }

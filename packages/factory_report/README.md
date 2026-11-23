@@ -89,7 +89,7 @@ With the options most apps want:
 | `:max_stream_names` | `400` | Rows one stream kind may hold (totals and breakdowns together). Later names count under `"(other)"`. |
 | `:log_events` | `true` | `false` keeps log messages out of the report (`"events": []`). Log events are still counted per level. |
 | `:log_level` | `:warning` | The lowest level whose messages go into `"events"`. |
-| `:observer` | `true` | `false` turns `/observer/...` off (404). See "Observer". |
+| `:observer` | on, reads need `:token` | `false` turns `/observer/...` off (404). Left out, it is on but its reads answer 403 `observer reads need a token ...` while there is no `:token`: the port binds every interface, and a `procs` read walks every process twice. `true` serves reads without a token; say it only where nothing but the observer reaches the port. See "Observer". |
 | `:inspect_state` | `false` | `true` lets `GET /observer/proc/:pid?state=true` read a process's state (`:sys.get_state/2`, 500 ms). |
 | `:actions_token` | `FACTORY_REPORT_ACTIONS_TOKEN` | A non-empty string turns the observer's actions on, behind `authorization: Bearer <actions_token>`. Unset or empty: actions answer 403. |
 

@@ -29,7 +29,7 @@ defmodule ObsFactorWeb.ObserverTest do
 
   # A topology whose node "app" reports at a FactoryReport listening here.
   defp upstream(opts \\ []) do
-    start_supervised!({FactoryReport, Keyword.merge([app: :obs_factor, port: 0, actions_token: @token], opts)})
+    start_supervised!({FactoryReport, Keyword.merge([app: :obs_factor, port: 0, actions_token: @token, observer: true], opts)})
     port = FactoryReport.port()
     original = ObsFactor.topology()
     on_exit(fn -> ObsFactor.put_topology(original) end)

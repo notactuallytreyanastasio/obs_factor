@@ -10,8 +10,9 @@ defmodule FactoryReport.ObserverTest do
 
   @token "act-now"
 
+  # observer: true: these tests read without a token (the default refuses that)
   defp start(opts \\ []) do
-    start_supervised!({FactoryReport, Keyword.merge([app: :factory_report, port: false], opts)})
+    start_supervised!({FactoryReport, Keyword.merge([app: :factory_report, port: false, observer: true], opts)})
   end
 
   defp get_json(path, headers \\ []) do
@@ -273,9 +274,28 @@ defmodule FactoryReport.ObserverTest do
       {200, _} = get_json("/observer/system", [{"authorization", "Bearer read-me"}])
     end
 
+    test "with no token, reads answer 403 unless the app said observer: true; every plug error carries node and took_ms" do
+      start_supervised!({FactoryReport, app: :factory_report, port: false})
+
+      {403, %{"error" => "observer reads need a token" <> _, "node" => node, "took_ms" => 0.0}} = get_json("/observer/procs?sort=reductions&interval_ms=2000")
+      assert node == Atom.to_string(node())
+      # actions keep their own rule: off without an actions token, with the same shape
+      {403, %{"error" => "actions are off" <> _, "node" => _, "took_ms" => _}} = post_json("/observer/proc/0.1.0/kill", %{})
+    end
+
+    test "plug-made errors are shaped like engine answers" do
+      start(token: "read-me", actions_token: @token)
+      {401, %{"error" => "unauthorized", "node" => _, "took_ms" => _}} = get_json("/observer/system")
+      {401, %{"error" => "unauthorized: actions need" <> _, "node" => _, "took_ms" => _}} = post_json("/observer/proc/0.1.0/kill", %{}, [])
+
+      conn = conn(:post, "/observer/proc/0.1.0/kill", "[1]") |> put_req_header("authorization", "Bearer " <> @token)
+      conn = FactoryReport.Plug.call(conn, [])
+      assert {400, %{"error" => "the body must be a JSON object", "node" => _, "took_ms" => _}} = {conn.status, Jason.decode!(conn.resp_body)}
+    end
+
     test "observer: false turns it off" do
       start(observer: false)
-      {404, %{"error" => "the observer is off (observer: false)"}} = get_json("/observer/system")
+      {404, %{"error" => "the observer is off (observer: false)", "node" => _, "took_ms" => _}} = get_json("/observer/system")
     end
 
     test "wrong method and unknown paths" do
