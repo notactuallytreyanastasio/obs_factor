@@ -80,6 +80,16 @@
       "to_change_id": "4307693b-b453-45f6-96e2-8f5f6023f2f1",
       "weight": 1.0
     },
+    "1c3f88876a044728f8bb": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T13:46:12.609444-05:00",
+      "edge_id": "1c3f88876a044728f8bb",
+      "edge_type": "leads_to",
+      "from_change_id": "d5c5558f-78e8-4957-9c6f-df0d7afecac1",
+      "rationale": "scale-up",
+      "to_change_id": "a413a3ac-22b6-4f1e-ab65-c17816f226d0",
+      "weight": 1.0
+    },
     "1e05567b8f372440e86b": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-23T12:25:51.683053-05:00",
@@ -438,6 +448,16 @@
       "from_change_id": "26ab2e2a-89a5-489a-a147-300478cc7186",
       "rationale": "Result",
       "to_change_id": "517d818c-5456-4480-8a2f-1c749a45c0f5",
+      "weight": 1.0
+    },
+    "866ff861b2de0285f79e": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T13:46:12.861394-05:00",
+      "edge_id": "866ff861b2de0285f79e",
+      "edge_type": "leads_to",
+      "from_change_id": "a413a3ac-22b6-4f1e-ab65-c17816f226d0",
+      "rationale": "Result",
+      "to_change_id": "e0da1a22-c64a-4d9a-b4ee-2df64ffe7851",
       "weight": 1.0
     },
     "88aa7b579827e70f13d4": {
@@ -1296,6 +1316,20 @@
       "title": "Reuse FactoryReport.JSONFormatter in prod; replace Phoenix.Logger with a telemetry handler; event + fields as Logger metadata",
       "updated_at": "2026-11-23T12:25:47.143207-05:00"
     },
+    "a413a3ac-22b6-4f1e-ab65-c17816f226d0": {
+      "author": "Bobby Grayson",
+      "change_id": "a413a3ac-22b6-4f1e-ab65-c17816f226d0",
+      "created_at": "2026-11-23T13:46:12.489635-05:00",
+      "metadata": {
+        "branch": "main",
+        "confidence": 90,
+        "prompt": "ok make it 5 nodes now"
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Marginalia scaled to 5 replicas, POOL_SIZE 4 -> 2 (box compose; backup compose.20261123T184450Z.pre-5-replicas)",
+      "updated_at": "2026-11-23T13:46:12.489635-05:00"
+    },
     "a8aff016-9314-430c-a931-8fc4b8efca78": {
       "author": "Bobby Grayson",
       "change_id": "a8aff016-9314-430c-a931-8fc4b8efca78",
@@ -1572,6 +1606,19 @@
       "status": "pending",
       "title": "Deployed: factory.bobbby.online live behind Cloudflare, six sources ok, 45 nodes; classifier and icecast removed (86 connections); caddy pinned 2.10.2; Sites panel added; one unreadable site no longer fails the sites source",
       "updated_at": "2026-11-19T00:31:06.956772-05:00"
+    },
+    "e0da1a22-c64a-4d9a-b4ee-2df64ffe7851": {
+      "author": "Bobby Grayson",
+      "change_id": "e0da1a22-c64a-4d9a-b4ee-2df64ffe7851",
+      "created_at": "2026-11-23T13:46:12.737111-05:00",
+      "metadata": {
+        "branch": "main",
+        "confidence": 90
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "5-node full mesh, one Runs leader, marginalia 12 pg connections (was 14), box 91/100; factory sees 5 members; ~10 s of 5xx during the recreate, objectives cleared themselves",
+      "updated_at": "2026-11-23T13:46:12.737111-05:00"
     },
     "e17918ba-d1bb-4495-a012-b7bf945ae46d": {
       "author": "Bobby Grayson",
