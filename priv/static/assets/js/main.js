@@ -184,20 +184,28 @@ function zoomAt(sx, sy, factor) {
 
 function showView() {
   const node = insideOf && outerSnap.nodes.find((n) => n.id === insideOf);
-  // apps.js: the observer's own BEAM is entered from Under the hood, not from a building
-  if (insideOf && insideOf !== OBSERVER && !canEnter(node)) {
-    // the building is gone or stopped reporting: back to the floor, and say why
+  // apps.js: the observer's own BEAM is entered from Under the hood, not from a building.
+  // The Applications floor stays while the building is on the floor, report
+  // failing or not: it reads its own feeds, and each shows its own error.
+  let forcedOut = false;
+  if (insideOf && insideOf !== OBSERVER && !canEnter(node) && !(apps.active && node)) {
+    // the building is gone or stopped reporting: back to the floor, and say why on screen
+    const label = node?.label ?? insideOf;
     const why = !node ? "it is no longer in the snapshot" : `its report is failing: ${node.inside?.error ?? "no report"}`;
     insideOf = null; inspectOuter = false;
     $("insidebar").hidden = true; document.body.classList.remove("inside");
     scene.theme = null;
+    inspector.close();
     hideUnder();
     stopApps();
+    leftNotice(`Left the inside of ${label}: ${why}`);
     console.error(`obs_factor: left the inside view, ${why}`);
+    forcedOut = true;
   }
   snap = insideOf ? (apps.active ? apps.snapshot(outerSnap) : interiorSnapshot(outerSnap, node)) : outerSnap;
   if (insideOf) under.setSnapshot(outerSnap);
   const changed = scene.setSnapshot(snap);
+  if (forcedOut) scene.fit(freeArea());
   chips.update(snap);
   topbar.snapshot(outerSnap);
   renderAttention(outerSnap, scene.problems, (id) => { if (insideOf) leave(); select(id, true); }, () => toggleLegend(true));
@@ -216,8 +224,24 @@ function showView() {
   return changed;
 }
 
+// Why the inside view was left without being asked: on screen until
+// dismissed or until a building is entered again.
+function leftNotice(text) {
+  let el = $("left-notice");
+  if (!el) {
+    el = document.createElement("button");
+    el.type = "button"; el.id = "left-notice"; el.setAttribute("role", "status");
+    el.title = "Dismiss";
+    el.addEventListener("click", () => { el.hidden = true; });
+    document.body.appendChild(el);
+  }
+  el.textContent = text;
+  el.hidden = !text;
+}
+
 function enter(id) {
   if (insideOf || !outerSnap) return;
+  leftNotice("");
   const c = scene.nodeCenter(id);
   if (!c) return;
   inspector.close();
@@ -533,6 +557,9 @@ const missions = new Missions({
   },
   target: () => {
     if (!outerSnap) return null;
+    // the observer's own floor is not a building: a pin to "observer" could
+    // never be gone to or lit by the lens
+    if (insideOf === OBSERVER) return null;
     if (insideOf) {
       if (!inspectOuter && !scene.selected) return null;
       const b = outerSnap.nodes.find((n) => n.id === insideOf);
@@ -542,6 +569,9 @@ const missions = new Missions({
     const n = scene.selected && outerSnap.nodes.find((x) => x.id === scene.selected);
     return n ? { id: n.id, label: n.label, part: null } : null;
   },
+  noTarget: () => (insideOf === OBSERVER
+    ? "This is the observer's own VM, not a building on the floor: an objective pinned here could never be gone to or lit by the lens. Flag the building the problem shows up in."
+    : null),
   onOpen: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); procs.toggle(false); if (window.innerWidth < 760) inspector.close(); },
   redraw: () => { dirty = true; },
 });

@@ -81,6 +81,14 @@ button { font: inherit; color: inherit; }
 #menu button { width: 100%; text-align: left; background: none; border: 0; padding: 9px 10px; border-radius: 6px; cursor: pointer; font-family: var(--sans); }
 #menu button:hover { background: rgba(255, 255, 255, 0.07); }
 
+/* ---- why the inside view was left ------------------------------------- */
+#left-notice {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(76px + var(--safe-b)); z-index: 22; cursor: pointer;
+  background: var(--panel-solid); color: var(--text); border: 1px solid rgba(255, 77, 77, 0.6); border-radius: 10px; padding: 8px 14px;
+  font: 14px/1.4 var(--sans); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); max-width: calc(100vw - 32px); text-align: left;
+}
+#left-notice[hidden] { display: none; }
+
 /* ---- attention strip -------------------------------------------------- */
 #attention {
   position: fixed; top: var(--top); left: 0; right: 0; z-index: 19; height: 38px;
