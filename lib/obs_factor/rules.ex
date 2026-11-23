@@ -261,6 +261,65 @@ defmodule ObsFactor.Rules do
   def report(label, %{ok: false, error: error}),
     do: [{"warn", "#{label} report failing: #{error}"}]
 
+  @send_queue_warn 1_000_000
+
+  @doc """
+  What the nodes of a cluster say about each other (`members` of a report:
+  one per node, each with its own `cluster` view). One node's view cannot
+  show a partition; side by side they can:
+
+    * A lists B and B, answering, does not list A: a partial partition.
+    * A, answering, does not list B, which answers: not connected.
+    * two nodes say a :global name lives in different places.
+    * a connection with more than 1 MB waiting to be sent: the far side is
+      not keeping up (or the link is).
+
+  A member whose report failed says nothing either way.
+  """
+  def cluster(_label, nil), do: []
+  def cluster(_label, [_]), do: []
+
+  def cluster(label, members) do
+    views =
+      for m <- members, m.ok, c = m[:cluster], c != nil, into: %{} do
+        {c.node, MapSet.new(c.connections, & &1.node)}
+      end
+
+    names = Map.keys(views)
+
+    pairs =
+      for a <- names, b <- names, a < b do
+        a_sees = MapSet.member?(views[a], b)
+        b_sees = MapSet.member?(views[b], a)
+
+        cond do
+          a_sees and b_sees -> nil
+          a_sees -> {"alert", "#{label}: #{a} lists #{b}, which does not list it back (a partial partition)"}
+          b_sees -> {"alert", "#{label}: #{b} lists #{a}, which does not list it back (a partial partition)"}
+          true -> {"alert", "#{label}: #{a} and #{b} are not connected"}
+        end
+      end
+
+    queues =
+      for m <- members, m.ok, c = m[:cluster], c != nil, conn <- c.connections,
+          is_number(conn.send_queue_bytes) and conn.send_queue_bytes > @send_queue_warn do
+        {"warn", "#{label}: #{Format.bytes(conn.send_queue_bytes)} queued on #{c.node} for #{conn.node}"}
+      end
+
+    globals =
+      members
+      |> Enum.flat_map(fn m -> if m.ok && m[:cluster], do: m.cluster.globals, else: [] end)
+      |> Enum.group_by(& &1.name, & &1.node)
+      |> Enum.flat_map(fn {name, homes} ->
+        case Enum.uniq(homes) do
+          [_] -> []
+          many -> [{"alert", "#{label}: the nodes disagree where #{name} lives (#{Enum.join(Enum.sort(many), ", ")})"}]
+        end
+      end)
+
+    Enum.reject(pairs, &is_nil/1) ++ queues ++ globals
+  end
+
   @doc "One alert per failing source."
   def sources(sources) do
     for {name, %{ok: false, error: error}} <- Enum.sort(sources) do

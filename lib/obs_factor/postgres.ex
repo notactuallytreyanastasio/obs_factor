@@ -41,6 +41,14 @@ defmodule ObsFactor.Postgres do
   def connection_spec(nil), do: nil
 
   def connection_spec(url) do
+    Supervisor.child_spec({Postgrex, opts(url, name: @conn, pool_size: 1, statement_timeout: "3000")}, id: @conn)
+  end
+
+  @doc """
+  Postgrex options for a postgres:// URL (also the objectives store's).
+  `name`, `pool_size`, `statement_timeout` and `application_name` from `extra`.
+  """
+  def opts(url, extra) do
     uri = URI.parse(url)
 
     unless uri.scheme in ["postgres", "postgresql"] and uri.host do
@@ -53,21 +61,21 @@ defmodule ObsFactor.Postgres do
         [u] -> {URI.decode(u), nil}
       end
 
-    opts =
-      [
-        name: @conn,
-        hostname: uri.host,
-        port: uri.port || 5432,
-        username: user,
-        database: String.trim_leading(uri.path || "/postgres", "/"),
-        pool_size: 1,
-        backoff_min: 2_000,
-        backoff_max: 30_000,
-        parameters: [application_name: "obs_factor", statement_timeout: "3000"]
+    [
+      name: Keyword.fetch!(extra, :name),
+      hostname: uri.host,
+      port: uri.port || 5432,
+      username: user,
+      database: String.trim_leading(uri.path || "/postgres", "/"),
+      pool_size: Keyword.fetch!(extra, :pool_size),
+      backoff_min: 2_000,
+      backoff_max: 30_000,
+      parameters: [
+        application_name: Keyword.get(extra, :application_name, "obs_factor"),
+        statement_timeout: Keyword.fetch!(extra, :statement_timeout)
       ]
-      |> then(&if(password, do: Keyword.put(&1, :password, password), else: &1))
-
-    Supervisor.child_spec({Postgrex, opts}, id: @conn)
+    ]
+    |> then(&if(password, do: Keyword.put(&1, :password, password), else: &1))
   end
 
   @impl true

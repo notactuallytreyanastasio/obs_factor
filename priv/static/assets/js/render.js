@@ -53,6 +53,7 @@ export class Scene {
     this.selected = null;
     this.hover = null;
     this.flash = null; // {id, until}
+    this.focus = null; // the issues lens: Map node id -> "alert" | "warn", or null
     this.motion = true;
     this.tall = false;
   }
@@ -198,6 +199,26 @@ export class Scene {
     }
     this.drawPower(t, z);
     for (const [b, s] of styled) this.drawEffects(b, s, t);
+
+    // The issues lens (missions.js): everything under a veil, then only the
+    // buildings with an undone objective drawn again on top of it, ringed.
+    if (this.focus && this.focus.size) {
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = "rgba(4, 7, 15, 0.74)";
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      ctx.restore();
+      const pulse = 0.55 + 0.4 * Math.sin(t * 3);
+      for (const [b, s] of styled) {
+        const sev = this.focus.get(b.node.id);
+        if (!sev) continue;
+        drawPad(ctx, b, s);
+        drawPadRing(ctx, b, sev === "alert" ? "#ff5a5a" : "#ffb347", pulse, 3);
+        drawBuilding(ctx, b, s);
+        if (b.node.container || b.node.inside) drawFittings(ctx, b, s);
+        drawLamp(ctx, b, s);
+      }
+    }
 
     const sel = this.selected && this.world.nodes.get(this.selected);
     if (sel) drawPadRing(ctx, sel, "#7fe0ff", 0.95, 2.5);

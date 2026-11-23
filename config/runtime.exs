@@ -32,6 +32,11 @@ if config_env() != :test do
 
   # Required; ObsFactor.Application refuses to start without it.
   config :obs_factor, topology_path: blank_to_nil.(System.get_env("TOPOLOGY"))
+
+  # Mission objectives (ObsFactor.Objectives): a database and a role of
+  # their own, writable, unlike PG_URL's read-only monitor. Unset: no
+  # objectives, the floor works as before.
+  config :obs_factor, objectives_pg_url: blank_to_nil.(System.get_env("OBJECTIVES_PG_URL"))
 end
 
 # OBS_ROLE=builder runs the builder (lib/obs_factor/builder) instead of the

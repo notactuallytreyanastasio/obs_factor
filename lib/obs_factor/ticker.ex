@@ -43,6 +43,7 @@ defmodule ObsFactor.Ticker do
       Store.put_snapshot({:ok, json})
       History.record(DateTime.to_unix(now, :millisecond), History.metrics(snapshot, sources))
       Phoenix.PubSub.broadcast(ObsFactor.PubSub, @topic, {:snapshot, json})
+      ObsFactor.Objectives.observe(snapshot.attention, Map.new(snapshot.nodes, &{&1.id, &1}))
       memory
     rescue
       e ->
