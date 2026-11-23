@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/assets/app.css">
   <link rel="stylesheet" href="/assets/missions.css">
   <link rel="stylesheet" href="/assets/apps.css">
+  <link rel="stylesheet" href="/assets/processes.css">
   <script type="module" src="/assets/js/main.js"></script>
 </head>
 <body class="factory">
@@ -33,6 +34,9 @@
       <button type="button" id="fitbtn2">Show everything</button>
       <button type="button" id="logsbtn">Logs</button>
       <button type="button" id="beambtn2">Under the hood</button>
+      <!-- processes.js, jump.js -->
+      <button type="button" id="procsbtn2">Processes</button>
+      <button type="button" id="jumpbtn">Jump to… <kbd>⌘K</kbd></button>
       <button type="button" id="tourbtn2">Take the tour</button>
       <form method="post" action="/logout"><button type="submit">Log out</button></form>
     </div>
@@ -68,6 +72,7 @@
     <button class="ctl" id="sitesbtn" aria-expanded="false">Sites</button>
     <button class="ctl build" id="buildbtn" aria-expanded="false" hidden>Build new app</button>
     <button class="ctl" id="beambtn" aria-expanded="false" title="The observer's own BEAM: processes, tables, log">Under the hood</button>
+    <button class="ctl" id="procsbtn" aria-expanded="false" aria-controls="procs" title="Every BEAM's processes: mailbox, memory, reductions">Processes</button><!-- processes.js -->
     <button class="ctl tour" id="tourbtn">Tour</button>
     <span class="grow"></span>
     <button class="ctl sq" id="zoomout" aria-label="Zoom out">−</button>

@@ -1037,3 +1037,30 @@ running feed of that node and member (`observer:<node>:<member>:`, from
 `ObserverProxy.topic_prefix/2`) is refetched at once, so the tree, the procs
 and the process show the effect without waiting for their period.
 
+
+### The Processes panel and the lenses *(2026-11-22)*
+
+The page's `processes.js` reads only the bus. Sources: every node of the
+snapshot with `inside` non-null, one per `inside.members[].address` when
+there are two or more, else member `-`; and `observer` (not on the floor).
+Topics: `observer:<node>:<member>:procs:<memory|message_queue_len|reductions>`
+per source in scope, `observer:<node>:<member>:proc:<pid>` for the open
+process, `actions` while the panel is open, `snapshots` to follow the
+floor's sources. Reductions/s is the engine's `reductions_per_s` on the
+`reductions` feed, and otherwise the difference between two reads of the
+same pid over their `at`s (`-` until there are two). Actions: `action`
+`{path: "proc/<pid>/<gc|exit|kill>", params: {} | {reason: "shutdown"}, by:
+"<name> (processes)"}` on the process's topic, after a confirm that names
+the pid, its name and the node/member; the name is localStorage
+`obs_factor.who` (the one Missions signs with), asked for when empty.
+
+Lens owner (`main.js`): `lens.claim(owner, {map, label, detail, onDrop})`,
+`lens.drop(owner)`, `lens.owner()`. `map` is what `Scene.focus` takes (node
+id → `"alert" | "warn"`); inside a building it goes on the floor underneath.
+One owner at a time: a claim calls the previous owner's `onDrop`. Owners:
+`missions` (issues lens) and `processes` (metric lens: the worst process of
+each building, from `procs:<metric>` of every reporting source; amber/red at
+mailbox 100/1000, memory 50/200 MiB, reductions 500k/2M per second).
+
+The jump list (`jump.js`, Cmd/Ctrl+K) joins `objectives` while it is open.
+

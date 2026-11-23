@@ -360,8 +360,14 @@ export class Missions {
     const [scene, under] = this.api.scenes();
     const on = this.lens && this.configured;
     const m = on ? this.focusMap() : null;
-    scene.focus = on && !this.api.insideOf() ? m : null;
-    under.focus = on && this.api.insideOf() ? m : null;
+    if (this.api.lens) {
+      // main.js's lens owner: one lens at a time; another taking it turns this one off
+      if (on) this.api.lens.claim("missions", { map: m, label: "Issues lens", detail: "buildings with an undone objective", onDrop: () => this.setLens(false) });
+      else this.api.lens.drop("missions");
+    } else {
+      scene.focus = on && !this.api.insideOf() ? m : null;
+      under.focus = on && this.api.insideOf() ? m : null;
+    }
     this.lensBtn.setAttribute("aria-pressed", String(!!on));
     this.lensBtn.classList.toggle("on", !!on);
     const outer = this.api.outer();
