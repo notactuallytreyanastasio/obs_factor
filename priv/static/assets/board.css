@@ -86,3 +86,36 @@ body.inspecting #board { display: none; }
   .nw-clock span { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .nw-track { animation: none; } }
+
+/* ---- the BEAM wire (board.js, 2026-11-23) ---------------------------------- */
+.nw-tag { flex: none; display: grid; place-items: center; padding: 0 8px; font: 800 10px var(--mono); letter-spacing: 0.14em; color: #c9b8ff; background: #2a1f4a; border-right: 1px solid rgba(179, 136, 255, 0.4); }
+.nw-head b[data-wire] { cursor: pointer; }
+.nw-chyron[data-level="info"] .nw-head b { color: #7fe0ff; }
+.ix.hot em, .ix.hot b { color: #ff7a3a; }
+.cr em { font-style: normal; color: var(--gold); font-weight: 700; }
+.cr.db b { color: #7fb8ff; }
+.cr.wire b { color: #c9b8ff; }
+.cr.wire.alert b { color: #ff7a3a; } .cr.wire.warn b { color: #ffc46b; }
+.cr .bad, #board .bad { color: #ff6b6b; font-weight: 700; }
+.bd-tabs { display: flex; gap: 2px; }
+.bd-tabs button { height: 26px; padding: 0 9px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; font: 700 11px var(--sans); letter-spacing: 0.06em; }
+.bd-tabs button b { font: 700 10px var(--mono); color: var(--dim); margin-left: 3px; }
+.bd-tabs button[aria-selected="true"] { color: #e8fbff; border-color: rgba(127, 224, 255, 0.6); background: rgba(127, 224, 255, 0.12); }
+.bd-filters { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 8px; align-items: center; }
+.bd-filters .sep { width: 8px; }
+.bd-chip { height: 22px; padding: 0 8px; border-radius: 11px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; font: 11px var(--sans); }
+.bd-chip.on { color: #071018; background: #7fe0ff; border-color: #7fe0ff; }
+ol.bd-wire { list-style: none; margin: 0; padding: 0; font-size: 12px; }
+ol.bd-wire li { display: grid; grid-template-columns: 58px 74px 1fr; gap: 6px; padding: 5px 6px; border-left: 3px solid #7fe0ff; border-bottom: 1px solid rgba(255, 255, 255, 0.04); cursor: pointer; }
+ol.bd-wire li:hover { background: rgba(255, 255, 255, 0.05); }
+ol.bd-wire li.alert { border-left-color: #ff5a3a; background: rgba(255, 60, 20, 0.05); }
+ol.bd-wire li.warn { border-left-color: #ffb347; }
+ol.bd-wire .t { font: 11px var(--mono); color: var(--dim); }
+ol.bd-wire .k { font: 700 10px var(--mono); color: #c9b8ff; text-transform: uppercase; letter-spacing: 0.06em; }
+ol.bd-wire .m { font: 11px var(--mono); color: var(--muted); }
+ol.bd-wire .x { font: 11px var(--mono); color: #9aa3b8; margin-top: 2px; word-break: break-word; }
+.bd-empty { color: var(--muted); font-size: 12px; }
+#board h4 { margin: 12px 0 4px; font: 700 10px var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+#board tr.grp td { text-align: left; color: #c9b8ff; font: 700 11px var(--sans); letter-spacing: 0.06em; padding-top: 8px; border-bottom-color: rgba(179, 136, 255, 0.3); }
+#board .dim { color: var(--dim); font-weight: 400; }
+#board td.nm em { font-style: normal; color: var(--gold); font-size: 10px; }
