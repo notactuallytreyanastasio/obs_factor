@@ -673,7 +673,9 @@ function renderScope(sc) {
 function onSnapshot(raw) {
   const sc = SCOPE ? scopeSnapshot(raw, SCOPE) : null;
   const s = sc && !sc.missing ? sc.snap : raw;
+  const was = scopeIds;
   scopeIds = sc && !sc.missing ? sc.ids : null;
+  if (SCOPE && String([...(was ?? [])]) !== String([...(scopeIds ?? [])])) missions.rescope();
   renderScope(sc);
   outerSnap = s;
   $("loading").hidden = true;
