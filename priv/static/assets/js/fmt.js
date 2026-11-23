@@ -14,8 +14,9 @@ export function num(v) {
   if (a >= 100) return v.toFixed(0);
   if (a >= 10) return v.toFixed(1).replace(/\.0$/, "");
   if (a >= 1) return v.toFixed(2).replace(/\.?0+$/, "");
-  if (a >= 0.01) return v.toFixed(2).replace(/0+$/, "");
-  if (a >= 0.001) return v.toFixed(3).replace(/0+$/, "");
+  // the dot goes too: 0.996 rounds to "1.00", which read "1." until 2026-11-22
+  if (a >= 0.01) return v.toFixed(2).replace(/\.?0+$/, "");
+  if (a >= 0.001) return v.toFixed(3).replace(/\.?0+$/, "");
   return "<0.001";
 }
 
