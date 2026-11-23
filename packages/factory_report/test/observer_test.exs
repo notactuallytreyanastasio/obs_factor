@@ -120,6 +120,18 @@ defmodule FactoryReport.ObserverTest do
       assert shallow["cut"]["depth"] == 3
     end
 
+    test "tree: a transient child that ran and stopped is finished; a permanent one with no process is not running" do
+      start()
+      tree_app()
+      # the warmup task is done before the tree is read
+      Process.sleep(50)
+      {200, t} = get_json("/observer/tree/fr_tree_app")
+      kids = t["tree"]["children"]
+
+      assert %{"pid" => nil, "status" => "finished", "restart" => "transient"} = Enum.find(kids, &(&1["id"] == ":warmup"))
+      assert %{"pid" => nil, "status" => "not running", "restart" => "permanent"} = Enum.find(kids, &(&1["id"] == ":ignored"))
+    end
+
     test "tree: errors" do
       start()
       {400, %{"error" => "depth must be an integer from 1 to 12"}} = get_json("/observer/tree/kernel?depth=99")
@@ -561,11 +573,17 @@ defmodule FactoryReport.ObserverTest do
       children = [
         mid,
         %{id: :big, type: :supervisor, start: {Supervisor, :start_link, [big, [strategy: :one_for_one, name: __MODULE__.Big]]}},
-        {DynamicSupervisor, name: __MODULE__.Dyn, strategy: :one_for_one}
+        {DynamicSupervisor, name: __MODULE__.Dyn, strategy: :one_for_one},
+        # a boot-time job that runs and stops, like marginalia's :warmup
+        %{id: :warmup, start: {Task, :start_link, [fn -> :ok end]}, restart: :transient},
+        # a permanent child whose init said :ignore: nothing runs where something should
+        %{id: :ignored, start: {__MODULE__, :ignore, []}}
       ]
 
       Supervisor.start_link(children, strategy: :one_for_one, name: __MODULE__.Sup)
     end
+
+    def ignore, do: :ignore
   end
 
   # A real application with a tree we know, started for the test.

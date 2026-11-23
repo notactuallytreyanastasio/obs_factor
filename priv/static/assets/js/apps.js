@@ -220,8 +220,10 @@ function drawTree(app, d, st, plat, blank, nodes, edges, attention, cap) {
       });
     } else {
       const sup = t.type === "supervisor";
-      const lamp = t.pid == null ? "down" : LAMP[t.status] ?? "unknown";
-      const reason = t.pid == null ? `not running: its supervisor lists child ${t.id} with no process (its init returned :ignore, or it stopped and was not restarted)`
+      const finished = t.pid == null && t.status === "finished";
+      const lamp = finished ? "idle" : t.pid == null ? "down" : LAMP[t.status] ?? "unknown";
+      const reason = finished ? `finished: a ${t.restart} child that ran and stopped, as it is meant to`
+        : t.pid == null ? `not running: its supervisor lists child ${t.id} with no process (its init returned :ignore, or it stopped and was not restarted)`
         : lamp === "unknown" ? `status ${JSON.stringify(t.status)} is not one this page knows`
           : t.not_walked ? `children not read: ${t.not_walked}` : null;
       n = blank({
@@ -240,7 +242,7 @@ function drawTree(app, d, st, plat, blank, nodes, edges, attention, cap) {
           message_queue_len: t.message_queue_len ?? null, reductions: t.reductions ?? null, children: t.children ? t.children.length : null,
         },
       });
-      if (t.pid == null) attention.push({ node: e.id, severity: "warn", text: `${app.name}: ${procLabel(t)} is not running (no process under its supervisor)` });
+      if (t.pid == null && !finished) attention.push({ node: e.id, severity: "warn", text: `${app.name}: ${procLabel(t)} is not running (no process under its supervisor)` });
       else if ((t.message_queue_len ?? 0) >= 100) attention.push({ node: e.id, severity: "warn", text: `${app.name}: ${procLabel(t)} has ${t.message_queue_len} messages waiting` });
     }
     nodes.push(n);

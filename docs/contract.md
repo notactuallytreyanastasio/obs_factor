@@ -859,8 +859,11 @@ key is there.
 A tree node is a summary plus `{"id" (inspect of the child id),"type": "worker"|"supervisor"}`;
 only a supervisor also has `"children": [node] | null` and
 `"not_walked": null | "depth limit 2" | ...` (a worker has neither key);
-a child that is not running is `{"id","type","pid": null,"status","children": null,"not_walked": null}`
-with `status` `"not running"` or `"restarting"`; a supervisor child that
+a child that is not running is `{"id","type","pid": null,"status","restart","children": null,"not_walked": null}`
+with `restart` `"permanent"|"transient"|"temporary"|null` (from the supervisor's child spec; null
+for a DynamicSupervisor or no answer) and `status` `"restarting"`, `"finished"` (a transient or
+temporary child that ran and stopped, e.g. a boot-time Task: not a fault) or `"not running"` (a
+permanent child with no process, or restart unknown); a supervisor child that
 died while it was walked is `{"id","type","pid","status": "dead","children": null,"not_walked": null}`;
 children past 25 per supervisor are one `{"group": true,"count","memory","message_queue_len_max"}`.
 `which_children` is sent only to processes proc_lib started as supervisors,
