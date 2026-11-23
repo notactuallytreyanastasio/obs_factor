@@ -20,6 +20,16 @@
       "to_change_id": "918a1fa2-d319-44bc-8899-9e0cb2ac0b50",
       "weight": 1.0
     },
+    "0278f8c6a8f0f4d41b28": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T17:43:38.026963-05:00",
+      "edge_id": "0278f8c6a8f0f4d41b28",
+      "edge_type": "leads_to",
+      "from_change_id": "46b25cde-850a-4ccf-b7fe-fd62dafde78d",
+      "rationale": "implements",
+      "to_change_id": "ae14850f-d771-48dd-8791-f5559c17f16b",
+      "weight": 1.0
+    },
     "033e0bfbd1817dca37f8": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T02:06:02.871586-05:00",
@@ -600,6 +610,16 @@
       "to_change_id": "ae50c84e-402c-455b-9262-d82a4ae1c654",
       "weight": 1.0
     },
+    "b03c19a88549346f52e2": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T17:43:52.685258-05:00",
+      "edge_id": "b03c19a88549346f52e2",
+      "edge_type": "leads_to",
+      "from_change_id": "46b25cde-850a-4ccf-b7fe-fd62dafde78d",
+      "rationale": "implements",
+      "to_change_id": "51eb816a-ca96-48b8-8eb7-bf21203d22af",
+      "weight": 1.0
+    },
     "c34e85c4b7a4243be61f": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T01:35:44.548522-05:00",
@@ -1092,6 +1112,20 @@
       "title": "Prune 604 dangling images and all build cache, remove the classifier and icecast images, vacuum the journal",
       "updated_at": "2026-11-19T02:00:19.364022-05:00"
     },
+    "46b25cde-850a-4ccf-b7fe-fd62dafde78d": {
+      "author": "Bobby Grayson",
+      "change_id": "46b25cde-850a-4ccf-b7fe-fd62dafde78d",
+      "created_at": "2026-11-23T17:32:32.211132-05:00",
+      "metadata": {
+        "branch": "20-timeline-product",
+        "confidence": 80,
+        "prompt": "make the timeline more intuitive, give it features that will highlight errors and open windows up for times you select then let you prune them, make it easy to skip back to real time, etc, make this a fully fledged product"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "Timeline as a product: error lanes, saved windows (open/trim/prune), back-to-live, zoom/pan/scrub",
+      "updated_at": "2026-11-23T17:32:32.211132-05:00"
+    },
     "477d1080-b674-47e8-8b1d-c1b691ae3acc": {
       "author": "Bobby Grayson",
       "change_id": "477d1080-b674-47e8-8b1d-c1b691ae3acc",
@@ -1184,6 +1218,20 @@
       "status": "pending",
       "title": "Live in prod: websocket through Cloudflare+Caddy, objectives store, Processes across 3 marginalia nodes, machine rooms + Applications floor, GC over the socket broadcast to a second viewer; blog/Blinks/Gifmaker 404 on /observer (old factory_report)",
       "updated_at": "2026-11-23T12:47:57.186451-05:00"
+    },
+    "51eb816a-ca96-48b8-8eb7-bf21203d22af": {
+      "author": "Bobby Grayson",
+      "change_id": "51eb816a-ca96-48b8-8eb7-bf21203d22af",
+      "created_at": "2026-11-23T17:43:37.930322-05:00",
+      "metadata": {
+        "branch": "20-timeline-product",
+        "commit": "d48d9a13c3342039e2e1f0c4bf61ba83fbb9ad18",
+        "confidence": 85
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Timeline UI: lanes, windows tray (open/loop/trim/rename/prune), back-to-live, zoom/pan/scrub, help",
+      "updated_at": "2026-11-23T17:43:37.930322-05:00"
     },
     "53d3622a-0085-40a1-ab81-a236f95a4677": {
       "author": "Bobby Grayson",
@@ -1522,6 +1570,20 @@
       "status": "pending",
       "title": "factory_report's JSON shape on stdout in prod; ObsFactorWeb.Log replaces Phoenix.Logger",
       "updated_at": "2026-11-23T12:25:51.841750-05:00"
+    },
+    "ae14850f-d771-48dd-8791-f5559c17f16b": {
+      "author": "Bobby Grayson",
+      "change_id": "ae14850f-d771-48dd-8791-f5559c17f16b",
+      "created_at": "2026-11-23T17:34:45.677697-05:00",
+      "metadata": {
+        "branch": "20-timeline-product",
+        "commit": "80fa41a3852901fd26bae5ecc4947996f44ecf15",
+        "confidence": 85
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Tape windows (kept from thinning) + lanes over the channel",
+      "updated_at": "2026-11-23T17:34:45.677697-05:00"
     },
     "ae50c84e-402c-455b-9262-d82a4ae1c654": {
       "author": "Bobby Grayson",
