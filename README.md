@@ -219,6 +219,51 @@ Not there: container logs. They'd need `/containers/{id}/logs` through
 can carry secrets. The two logs the tour shows are the builder's job log
 and the observer's own.
 
+### The Applications floor
+
+Inside a building that reports, the inside bar switches between **Machine
+room** (the report, as before) and **Applications**: the building's BEAM as
+`:observer`'s Applications tab, drawn. The observer's own BEAM is entered
+from **Under the hood → Applications floor**. A cluster gets a member
+picker; an application picker puts one application in focus.
+
+One platform per started application with a top supervisor, its tree in
+rows by depth: supervisors are towers, workers workshops, both as tall as
+the process's memory (log scale), the mailbox as crates at the dock, the
+lamp from the process status (waiting is idle, running is working, a child
+its supervisor lists with no process is down). Each parent-to-child belt
+moves at the child's reductions per second between two reads, grey until
+there are two. Libraries (no supervisor) and lone empty supervisors are
+named in the line at the bottom, not drawn, with the read times and what
+was cut: the engine's grouping past 25 children, and our own cap of 40
+buildings per application in the all-applications view (260 in focus).
+
+Everything comes over the socket (`priv/static/assets/js/apps.js`):
+`observer:<node>:<member or ->:apps` and one `…:tree:<app>` per application
+on screen. Changing the focus, the member or leaving drops the topics no
+longer drawn, so their feeds stop 10 s later. A click opens the process
+(`apps_proc.js`), fed by `…:proc:<pid>`: stacktrace, links and monitors,
+memory and GC, dictionary keys, state (or why not). Kill, GC,
+Exit(shutdown) and, for a supervisor's child, Restart are `action` pushes on
+that topic after a confirm that names the process and the node, as the name
+Missions keeps in localStorage (asked for once if there is none). The
+answer, or the refusal (`actions are off: OBSERVER_ACTIONS_TOKEN is not set
+on the observer`), shows in the panel, and every action anyone takes on
+that node, from the `actions` topic, is listed under it. The panel follows
+the building, not the pid: a restarted child's new pid is picked up from
+the next tree read and said ("was 0.297.0, now 0.3947.0").
+
+Checked in headless Chrome against a dev server, node `observer`, at
+1440×900 and 390×844: 19 of 41 applications drawn from 22 topics; focus on
+`obs_factor` left the other 20 tree topics; Restart, GC and Kill on
+`ObsFactor.Docker` each answered and the panel moved to the new pid;
+leaving the building left every `observer:*` topic; with
+`OBSERVER_ACTIONS_TOKEN` unset, GC showed the 403. No `/api` request of
+this feature after the page loaded. Not checked: a reporting building's
+Applications floor or member picker against a live app (the lab's apps are
+not reachable from a host dev server); an unreachable one shows
+`liveapp /observer/apps answered 502: liveapp:9568: host not found`.
+
 ### Missions: what to check before you leave
 
 The attention strip is recomputed every tick and forgets. **Missions** (top
