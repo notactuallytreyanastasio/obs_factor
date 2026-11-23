@@ -93,6 +93,7 @@ defmodule ObsFactor.Application do
            {ObsFactor.AccessLog, interval_ms: tick, path: src[:access_log], nodes: topology.nodes}},
           {ObsFactor.Collector,
            {ObsFactor.Reports, interval_ms: tick, targets: reports, token: src[:report_token]}},
+          ObsFactor.Wire.Mailboxes,
           {ObsFactor.Ticker, tick_ms: tick}
         ],
         &is_nil/1

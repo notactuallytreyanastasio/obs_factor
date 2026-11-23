@@ -20,7 +20,7 @@ defmodule ObsFactor.TapeTest do
   setup do
     db = :"tape_test_db_#{System.unique_integer([:positive])}"
     start_supervised!(Supervisor.child_spec({Postgrex, ObsFactor.Postgres.opts(@url, name: db, pool_size: 2, statement_timeout: "5000")}, id: db))
-    Postgrex.query!(db, "DROP TABLE IF EXISTS tape_windows, tape_frames, objective_events, objectives", [])
+    Postgrex.query!(db, "DROP TABLE IF EXISTS tape_wire, tape_windows, tape_frames, objective_events, objectives", [])
     topic = "tape_test_#{System.unique_integer([:positive])}"
     Phoenix.PubSub.subscribe(ObsFactor.PubSub, topic)
     name = :"tape_#{System.unique_integer([:positive])}"
@@ -141,6 +141,16 @@ defmodule ObsFactor.TapeTest do
     Tape.thin(%{db: db, fine_ms: 60_000, keep_ms: 60_000, logged_at: 0}, @t0 + 10 * 60_000)
     Tape.thin(%{db: db, fine_ms: 60_000, keep_ms: 60_000, logged_at: 0}, @t0 + 10 * 60_000)
     assert count.() == 0
+  end
+
+  test "the wire rides on the frame: written with it, pushed on the tick, read back newest first", %{db: db, tape: tape} do
+    i = fn at, head -> %{at: at, app: "marginalia", label: "Marginalia", member: "marginalia@172.18.0.10", kind: "restart", sev: "warn", head: head, text: "up 4h"} end
+    s = snap([])
+    Tape.record(@t0, Jason.encode!(s), Tape.summary(s, %{}, %{"beam:m@1" => %{procs: 5}}, [i.(@t0, "one"), i.(@t0, "two")]), tape)
+    assert_receive {:tape_frame, %{wire: [%{head: "one"}, %{head: "two"}], metrics: %{"beam:m@1" => %{procs: 5}}}}, 2_000
+    {:ok, w} = Tape.wire(@t0 - 1, @t0 + 1, 500, db)
+    assert [%{head: _, app: "marginalia", sev: "warn", at: @t0}, _] = w
+    assert w |> Enum.map(& &1.head) |> Enum.sort() == ["one", "two"]
   end
 
   test "a frame comes back as it was recorded: the last at or before, or the first after", %{db: db, tape: tape} do

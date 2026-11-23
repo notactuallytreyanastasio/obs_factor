@@ -21,6 +21,8 @@ defmodule ObsFactorWeb.TapeChannel do
     * `lanes` `%{from, to}`: `%{lanes: [[node, severity, from, to, frames, text]]}`,
       each building's runs of alerts and warnings (`Tape.lanes/3`)
     * `windows` `%{}`: `%{windows: [window]}`
+    * `wire` `%{from, to}`: `%{wire: [item]}`, the BEAM wire (`ObsFactor.Wire`),
+      newest first, at most 500
     * `marks` `%{from, to}`: `%{marks: [[at, kind, id, node, severity, title, by]]}`
     * `insights` `%{from, to}`: `ObsFactor.Insights.compute/2`
 
@@ -96,6 +98,7 @@ defmodule ObsFactorWeb.TapeChannel do
   defp read("series", %{"from" => f, "to" => t, "points" => p}) when is_integer(p) and p in 1..2000,
     do: window(f, t, fn f, t -> wrap(Tape.series(f, t, p), :series) end)
 
+  defp read("wire", %{"from" => f, "to" => t}), do: window(f, t, fn f, t -> wrap(Tape.wire(f, t), :wire) end)
   defp read("lanes", %{"from" => f, "to" => t}), do: window(f, t, fn f, t -> wrap(Tape.lanes(f, t), :lanes) end)
   defp read("windows", _), do: wrap(Tape.windows(), :windows) |> err()
 

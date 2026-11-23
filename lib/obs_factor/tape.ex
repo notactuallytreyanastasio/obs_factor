@@ -74,7 +74,22 @@ defmodule ObsFactor.Tape do
     """,
     # pruning is undoable for an hour: pruned_at marks it, thinning still
     # spares its frames, and the hour after it the row is deleted
-    "ALTER TABLE tape_windows ADD COLUMN IF NOT EXISTS pruned_at timestamptz"
+    "ALTER TABLE tape_windows ADD COLUMN IF NOT EXISTS pruned_at timestamptz",
+    # the BEAM wire (ObsFactor.Wire): what happened inside the live systems
+    """
+    CREATE TABLE IF NOT EXISTS tape_wire (
+      id bigserial PRIMARY KEY,
+      at timestamptz NOT NULL,
+      app text,
+      label text,
+      member text,
+      kind text NOT NULL,
+      sev text NOT NULL,
+      head text NOT NULL,
+      text text
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS tape_wire_at ON tape_wire (at)"
   ]
 
   @undo "interval '1 hour'"
@@ -102,7 +117,7 @@ defmodule ObsFactor.Tape do
   5xx are summed over the proxies' hosts (every request comes in through
   one); nil when a proxy's rate is unknown.
   """
-  def summary(snapshot, metrics \\ %{}) do
+  def summary(snapshot, metrics \\ %{}, beam \\ %{}, wire \\ []) do
     attention = Map.get(snapshot, :attention, [])
     nodes = snapshot.nodes
     hosts = for n <- nodes, n.kind == "proxy", h <- n.hosts || [], do: h
@@ -122,7 +137,8 @@ defmodule ObsFactor.Tape do
       fires:
         for(a <- attention, a.severity in ["alert", "warn"], do: %{node: a.node, severity: a.severity, text: a.text})
         |> Enum.take(40),
-      metrics: board(metrics)
+      metrics: Map.merge(board(metrics), beam),
+      wire: wire
     }
   end
 
@@ -280,6 +296,21 @@ defmodule ObsFactor.Tape do
 
     with {:ok, %{rows: rows}} <- q(db, sql, [dt(from_ms), dt(to_ms)]) do
       {:ok, Enum.map(rows, fn [n, s, a, b, c, t] -> [n, s, ms(a), ms(b), c, t] end)}
+    end
+  end
+
+  @doc """
+  The BEAM wire in `[from, to]`, newest first, at most `limit` (500):
+  `[%{id, at, app, label, member, kind, sev, head, text}]`.
+  """
+  def wire(from_ms, to_ms, limit \\ 500, db \\ @db) do
+    sql = "SELECT id, at, app, label, member, kind, sev, head, text FROM tape_wire WHERE at >= $1 AND at <= $2 ORDER BY at DESC, id DESC LIMIT $3"
+
+    with {:ok, %{rows: rows}} <- q(db, sql, [dt(from_ms), dt(to_ms), limit]) do
+      {:ok,
+       for [id, at, app, label, member, kind, sev, head, text] <- rows do
+         %{id: id, at: ms(at), app: app, label: label, member: member, kind: kind, sev: sev, head: head, text: text}
+       end}
     end
   end
 
@@ -516,9 +547,9 @@ defmodule ObsFactor.Tape do
       Map.get(summary, :metrics, %{})
     ]
 
-    case q(state.db, sql, params) do
+    case q(state.db, sql, params) |> and_wire(state.db, Map.get(summary, :wire, [])) do
       {:ok, _} ->
-        tick = summary |> Map.drop([:fires]) |> Map.merge(%{at: at_ms, fires: length(summary.fires), top: Enum.take(summary.fires, 6)})
+        tick = summary |> Map.drop([:fires]) |> Map.merge(%{at: at_ms, fires: length(summary.fires), top: Enum.take(summary.fires, 6), wire: Map.get(summary, :wire, [])})
         Phoenix.PubSub.broadcast(ObsFactor.PubSub, state.topic, {:tape_frame, tick})
         {:noreply, %{state | minute: minute}}
 
@@ -526,6 +557,23 @@ defmodule ObsFactor.Tape do
         {:noreply, complain(state, "tape: a frame was not written", e)}
     end
   end
+
+  defp and_wire({:ok, _} = ok, _db, []), do: ok
+
+  defp and_wire({:ok, _} = ok, db, items) do
+    rows = Enum.map(items, fn i -> [dt(i.at), i.app, i.label, i.member, i.kind, i.sev, i.head, i.text] end)
+    n = length(rows)
+
+    values =
+      for k <- 0..(n - 1), do: "(" <> Enum.map_join(1..8, ", ", &"$#{k * 8 + &1}") <> ")"
+
+    case q(db, "INSERT INTO tape_wire (at, app, label, member, kind, sev, head, text) VALUES #{Enum.join(values, ", ")}", List.flatten(rows)) do
+      {:ok, _} -> ok
+      e -> e
+    end
+  end
+
+  defp and_wire(e, _, _), do: e
 
   @impl true
   def handle_info(:thin, state) do
@@ -538,7 +586,8 @@ defmodule ObsFactor.Tape do
     with {:ok, a} <-
            q(state.db, "DELETE FROM tape_frames WHERE at < $1 AND NOT minute_mark AND #{@unsaved}", [dt(now_ms - state.fine_ms)]),
          {:ok, b} <- q(state.db, "DELETE FROM tape_frames WHERE at < $1 AND #{@unsaved}", [dt(now_ms - state.keep_ms)]),
-         {:ok, _} <- q(state.db, "DELETE FROM tape_windows WHERE pruned_at < now() - #{@undo}", []) do
+         {:ok, _} <- q(state.db, "DELETE FROM tape_windows WHERE pruned_at < now() - #{@undo}", []),
+         {:ok, _} <- q(state.db, "DELETE FROM tape_wire WHERE at < $1", [dt(now_ms - state.keep_ms)]) do
       if a.num_rows + b.num_rows > 0,
         do:
           Logger.info("tape thinned: #{a.num_rows} fine frames, #{b.num_rows} old frames",
