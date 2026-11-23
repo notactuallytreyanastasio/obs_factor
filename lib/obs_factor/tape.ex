@@ -54,8 +54,14 @@ defmodule ObsFactor.Tape do
       err_rps real,
       fires jsonb NOT NULL
     )
-    """
+    """,
+    # the board (board.js): a few numbers per node, so a stretch of the tape
+    # can be charted without unpacking a frame (added 2026-11-23)
+    "ALTER TABLE tape_frames ADD COLUMN IF NOT EXISTS metrics jsonb"
   ]
+
+  # what the board keeps of `ObsFactor.History.metrics/2`, per node
+  @board_keys ~w(rps err_rps p95_ms avg_ms in_flight cpu_cores mem_bytes commits_per_s connections cpu_used_cores mem_used_bytes disk_used_pct)a
 
   def topic, do: @topic
   def db, do: @db
@@ -73,7 +79,7 @@ defmodule ObsFactor.Tape do
   5xx are summed over the proxies' hosts (every request comes in through
   one); nil when a proxy's rate is unknown.
   """
-  def summary(snapshot) do
+  def summary(snapshot, metrics \\ %{}) do
     attention = Map.get(snapshot, :attention, [])
     nodes = snapshot.nodes
     hosts = for n <- nodes, n.kind == "proxy", h <- n.hosts || [], do: h
@@ -92,8 +98,28 @@ defmodule ObsFactor.Tape do
       err_rps: sum.(:err_rps),
       fires:
         for(a <- attention, a.severity in ["alert", "warn"], do: %{node: a.node, severity: a.severity, text: a.text})
-        |> Enum.take(40)
+        |> Enum.take(40),
+      metrics: board(metrics)
     }
+  end
+
+  @doc false
+  # node => %{key => number}, numbers rounded to 4 significant digits, nils
+  # and nodes with nothing left dropped: about 2 KB a frame on production
+  def board(metrics) do
+    for {node, kv} <- metrics,
+        m = for({k, v} <- Map.take(kv, @board_keys), is_number(v), into: %{}, do: {k, sig(v)}),
+        m != %{},
+        into: %{},
+        do: {node, m}
+  end
+
+  defp sig(v) when v == 0, do: 0
+  defp sig(v) when is_integer(v), do: v
+
+  defp sig(v) do
+    digits = 3 - trunc(:math.floor(:math.log10(abs(v))))
+    if digits > 0, do: Float.round(v, min(digits, 15)), else: round(v)
   end
 
   @doc "Record one tick: its time, its JSON, its `summary/1`. Never blocks."
@@ -181,6 +207,28 @@ defmodule ObsFactor.Tape do
 
     with {:ok, %{rows: rows}} <- q(db, sql, [dt(from_ms), dt(to_ms)]) do
       {:ok, Enum.map(rows, fn [at | rest] -> [ms(at) | rest] end)}
+    end
+  end
+
+  @doc """
+  The board's series for `[from, to]`: at most `points` frames, evenly
+  spaced over the frames in the window (every k-th), each `[at, metrics]`
+  with metrics as `summary/2` keeps them (`%{}` for frames written before
+  the column existed).
+  """
+  def series(from_ms, to_ms, points, db \\ @db) when points in 1..2000 do
+    sql = """
+    WITH f AS (
+      SELECT at, metrics, row_number() OVER (ORDER BY at DESC) - 1 AS i, count(*) OVER () AS n
+      FROM tape_frames WHERE at >= $1 AND at <= $2
+    )
+    SELECT at, coalesce(metrics, '{}'::jsonb) FROM f
+    WHERE i % greatest(1, ceil(n::numeric / $3)::int) = 0
+    ORDER BY at
+    """
+
+    with {:ok, %{rows: rows}} <- q(db, sql, [dt(from_ms), dt(to_ms), points]) do
+      {:ok, Enum.map(rows, fn [at, m] -> [ms(at), m] end)}
     end
   end
 
@@ -307,8 +355,8 @@ defmodule ObsFactor.Tape do
     mark = minute != state.minute
 
     sql = """
-    INSERT INTO tape_frames (at, body, minute_mark, alerts, warns, down, blocked, rps, err_rps, fires)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (at) DO NOTHING
+    INSERT INTO tape_frames (at, body, minute_mark, alerts, warns, down, blocked, rps, err_rps, fires, metrics)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (at) DO NOTHING
     """
 
     params = [
@@ -321,12 +369,13 @@ defmodule ObsFactor.Tape do
       summary.blocked,
       summary.rps,
       summary.err_rps,
-      summary.fires
+      summary.fires,
+      Map.get(summary, :metrics, %{})
     ]
 
     case q(state.db, sql, params) do
       {:ok, _} ->
-        tick = summary |> Map.drop([:fires]) |> Map.merge(%{at: at_ms, fires: length(summary.fires)})
+        tick = summary |> Map.drop([:fires]) |> Map.merge(%{at: at_ms, fires: length(summary.fires), top: Enum.take(summary.fires, 6)})
         Phoenix.PubSub.broadcast(ObsFactor.PubSub, state.topic, {:tape_frame, tick})
         {:noreply, %{state | minute: minute}}
 

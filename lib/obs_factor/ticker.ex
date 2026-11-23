@@ -44,9 +44,10 @@ defmodule ObsFactor.Ticker do
       {snapshot, memory} = Snapshot.build(ObsFactor.topology(), sources, memory, now)
       json = Jason.encode!(snapshot)
       Store.put_snapshot({:ok, json})
-      History.record(DateTime.to_unix(now, :millisecond), History.metrics(snapshot, sources))
+      metrics = History.metrics(snapshot, sources)
+      History.record(DateTime.to_unix(now, :millisecond), metrics)
       Phoenix.PubSub.broadcast(ObsFactor.PubSub, @topic, {:snapshot, json})
-      ObsFactor.Tape.record(DateTime.to_unix(now, :millisecond), json, ObsFactor.Tape.summary(snapshot))
+      ObsFactor.Tape.record(DateTime.to_unix(now, :millisecond), json, ObsFactor.Tape.summary(snapshot, metrics))
       ObsFactor.Objectives.observe(snapshot.attention, Map.new(snapshot.nodes, &{&1.id, &1}))
       memory
     rescue

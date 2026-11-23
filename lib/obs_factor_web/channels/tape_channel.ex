@@ -7,7 +7,8 @@ defmodule ObsFactorWeb.TapeChannel do
   `%{error: reason}` when there is no tape (no objectives store) or
   Postgres does not answer; the join succeeds either way. Then a `tick`
   push per frame written: `%{at, alerts, warns, down, blocked, rps,
-  err_rps, fires}` (fires: how many attention lines), so the timeline's
+  err_rps, fires, top, metrics}` (fires: how many attention
+  lines; top: the first six of them; metrics: the board's numbers per node), so the timeline's
   live edge grows.
 
   Reads, as pushes answered with `{:ok, reply}` or `{:error, %{error}}`:
@@ -15,6 +16,8 @@ defmodule ObsFactorWeb.TapeChannel do
     * `index` `%{from, to, buckets}`: the timeline strip (`Tape.index/3`)
     * `frame` `%{at}`: `%{at, next, snapshot}`, the snapshot as it was then and
       when the next frame is (nil: this is the newest)
+    * `series` `%{from, to, points}`: `%{series: [[at, %{node => %{key => n}}]]}`,
+      the board's numbers per node, at most `points` frames (`Tape.series/4`)
     * `marks` `%{from, to}`: `%{marks: [[at, kind, id, node, severity, title, by]]}`
     * `insights` `%{from, to}`: `ObsFactor.Insights.compute/2`
 
@@ -62,6 +65,9 @@ defmodule ObsFactorWeb.TapeChannel do
       {:error, e} -> {:error, %{error: Tape.message(e)}}
     end
   end
+
+  defp read("series", %{"from" => f, "to" => t, "points" => p}) when is_integer(p) and p in 1..2000,
+    do: window(f, t, fn f, t -> wrap(Tape.series(f, t, p), :series) end)
 
   defp read("marks", %{"from" => f, "to" => t}), do: window(f, t, fn f, t -> wrap(Tape.marks(f, t), :marks) end)
   defp read("insights", %{"from" => f, "to" => t}), do: window(f, t, &Insights.compute/2)
