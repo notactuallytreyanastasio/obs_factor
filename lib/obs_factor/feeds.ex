@@ -19,6 +19,10 @@ defmodule ObsFactor.Feeds do
       never blocks a join; while one is in flight the next is skipped.
     * `refetch/1` and `refetch_prefix/1` fetch at once, outside the
       interval (after an action, so its effect shows without waiting).
+    * Bounded: at most `:feeds_max` feeds run at once (1000), and one
+      socket holds at most `:feeds_per_socket` feed joins (150; config
+      `:obs_factor`). Past either, the join is refused with the reason,
+      so a browser cannot start a fetch loop per made-up pid.
 
   ## Adding a view
 
@@ -39,6 +43,7 @@ defmodule ObsFactor.Feeds do
 
   @registry ObsFactor.Feeds.Registry
   @supervisor ObsFactor.Feeds.Supervisor
+  @joins ObsFactor.Feeds.Joins
 
   @type spec :: {module(), term(), pos_integer()}
 
@@ -46,8 +51,29 @@ defmodule ObsFactor.Feeds do
   def child_specs do
     [
       {Registry, keys: :unique, name: @registry},
-      {DynamicSupervisor, name: @supervisor, strategy: :one_for_one}
+      {Registry, keys: :duplicate, name: @joins},
+      {DynamicSupervisor, name: @supervisor, strategy: :one_for_one, max_children: max_feeds()}
     ]
+  end
+
+  defp max_feeds, do: Application.get_env(:obs_factor, :feeds_max, 1000)
+  defp max_per_socket, do: Application.get_env(:obs_factor, :feeds_per_socket, 150)
+
+  @doc """
+  Counts one feed join against `socket_pid` (the socket's transport
+  process), held by the calling process (a channel) until it exits.
+  `{:error, reason}` past `:feeds_per_socket`.
+  """
+  def claim_join(socket_pid) do
+    n = length(Registry.lookup(@joins, socket_pid))
+    max = max_per_socket()
+
+    if n >= max do
+      {:error, "this page already holds #{n} feeds (at most #{max} per socket); leave some views first"}
+    else
+      {:ok, _} = Registry.register(@joins, socket_pid, nil)
+      :ok
+    end
   end
 
   @doc """
@@ -57,15 +83,15 @@ defmodule ObsFactor.Feeds do
   caller must subscribe itself to `topic` on `ObsFactor.PubSub` to receive
   the broadcasts (a channel on that topic already is).
   """
-  @spec subscribe(String.t(), spec(), pid()) :: {:ok, map() | nil}
+  @spec subscribe(String.t(), spec(), pid()) :: {:ok, map() | nil} | {:error, String.t()}
   def subscribe(topic, {mod, _args, interval} = spec, pid \\ self())
       when is_binary(topic) and is_atom(mod) and is_integer(interval) and interval > 0 do
     try do
-      GenServer.call(feed(topic, spec), {:subscribe, pid})
+      with {:ok, f} <- feed(topic, spec), do: GenServer.call(f, {:subscribe, pid})
     catch
       # it stopped between the lookup and the call (its linger ran out): once more
       :exit, {reason, _} when reason in [:noproc, :normal] ->
-        GenServer.call(feed(topic, spec), {:subscribe, pid})
+        with {:ok, f} <- feed(topic, spec), do: GenServer.call(f, {:subscribe, pid})
     end
   end
 
@@ -112,8 +138,9 @@ defmodule ObsFactor.Feeds do
 
   defp feed(topic, spec) do
     case DynamicSupervisor.start_child(@supervisor, {Feed, {topic, spec}}) do
-      {:ok, pid} -> pid
-      {:error, {:already_started, pid}} -> pid
+      {:ok, pid} -> {:ok, pid}
+      {:error, {:already_started, pid}} -> {:ok, pid}
+      {:error, :max_children} -> {:error, "#{max_feeds()} feeds are running, the most the observer runs at once; try again when some viewers have left"}
     end
   end
 

@@ -289,6 +289,28 @@ defmodule ObsFactorWeb.ObserverFeedsTest do
       assert Process.alive?(victim)
     end
 
+    test "one socket holds at most :feeds_per_socket feed joins; past it the join is refused with the reason" do
+      Application.put_env(:obs_factor, :feeds_per_socket, 2)
+      on_exit(fn -> Application.delete_env(:obs_factor, :feeds_per_socket) end)
+      socket = authed_socket()
+
+      {:ok, _, a} = subscribe_and_join(socket, FeedChannel, "observer:observer:-:proc:0.1.0")
+      {:ok, _, _} = subscribe_and_join(socket, FeedChannel, "observer:observer:-:proc:0.2.0")
+
+      assert {:error, %{reason: "this page already holds 2 feeds (at most 2 per socket)" <> _}} =
+               subscribe_and_join(socket, FeedChannel, "observer:observer:-:proc:0.3.0")
+
+      assert Feeds.whereis("observer:observer:-:proc:0.3.0") == nil
+
+      # leaving gives one back (the count is per transport process; in a
+      # channel test every socket shares the test's)
+      Process.unlink(a.channel_pid)
+      ref = leave(a)
+      assert_reply ref, :ok
+      Process.sleep(20)
+      {:ok, _, _} = subscribe_and_join(socket, FeedChannel, "observer:observer:-:proc:0.4.0")
+    end
+
     test "a payload the channel refuses itself is still recorded on actions, and a blank by is nobody" do
       {:ok, _, socket} = join("observer:observer:-:system")
       Phoenix.PubSub.subscribe(ObsFactor.PubSub, "actions")

@@ -5,7 +5,8 @@ defmodule ObsFactorWeb.FeedChannel do
   it if nobody else watches it. The join reply is the feed's last payload
   (`%{at, data}` or `%{at, error}`), or `%{}` before its first fetch; then a
   `feed` push with each payload. A topic no resolver claims is refused with
-  `%{reason: ...}`.
+  `%{reason: ...}`, and so is a join past the feed limits
+  (`ObsFactor.Feeds`: at most 150 per socket, 1000 feeds in all).
 
   On `observer:*` topics the browser may push `action` (see `handle_in/3`).
   """
@@ -15,15 +16,14 @@ defmodule ObsFactorWeb.FeedChannel do
 
   @impl true
   def join(topic, _params, socket) do
-    case ObsFactor.Feeds.Views.spec(topic) do
-      {:ok, spec} ->
-        {:ok, last} = ObsFactor.Feeds.subscribe(topic, spec)
-        # a payload broadcast before PubSub subscribed this process is caught in :after_join
-        send(self(), :after_join)
-        {:ok, last || %{}, assign(socket, :joined_with, last)}
-
-      {:error, reason} ->
-        {:error, %{reason: reason}}
+    with {:ok, spec} <- ObsFactor.Feeds.Views.spec(topic),
+         :ok <- ObsFactor.Feeds.claim_join(socket.transport_pid),
+         {:ok, last} <- ObsFactor.Feeds.subscribe(topic, spec) do
+      # a payload broadcast before PubSub subscribed this process is caught in :after_join
+      send(self(), :after_join)
+      {:ok, last || %{}, assign(socket, :joined_with, last)}
+    else
+      {:error, reason} -> {:error, %{reason: reason}}
     end
   end
 

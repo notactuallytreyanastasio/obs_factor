@@ -221,7 +221,13 @@ config :obs_factor, :feed_views, [MyViews]
 
 `ObsFactorWeb.UserSocket` routes `observer:*`, `history:*` and `builds:*` to
 `ObsFactorWeb.FeedChannel`; a topic no resolver claims is refused with
-`{reason: "no feed serves \"...\""}`. Configured resolvers:
+`{reason: "no feed serves \"...\""}`. Feeds are bounded: one socket holds at
+most 150 feed joins (`config :obs_factor, :feeds_per_socket`) and the
+observer runs at most 1000 feeds (`:feeds_max`); past either the join is
+refused with `{reason: "this page already holds 150 feeds ..."}` or
+`{reason: "1000 feeds are running ..."}`. A `proc:<pid>` or `tree:<app>`
+topic is not checked against the node before it starts (a sub-app is
+asked over HTTP); a made-up one is a feed of 404 errors. Configured resolvers:
 `ObsFactor.Feeds.ObserverViews` (every other `observer:*` topic, below).
 
 `GET /api/snapshot`, `/api/stream` (SSE), `/api/beam`, `/api/logs`,
