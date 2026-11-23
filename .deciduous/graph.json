@@ -1,5 +1,25 @@
 {
   "edges": {
+    "00a6e96ecf21e1b7e0e1": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T16:47:28.648654-05:00",
+      "edge_id": "00a6e96ecf21e1b7e0e1",
+      "edge_type": "leads_to",
+      "from_change_id": "d5babe13-4a38-4d79-96df-8663d2d9b298",
+      "rationale": "option",
+      "to_change_id": "4fe1e026-0eb9-4ec5-8718-53f3c3c4c280",
+      "weight": 1.0
+    },
+    "0130cecdc01b8046a3b5": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T16:47:31.817060-05:00",
+      "edge_id": "0130cecdc01b8046a3b5",
+      "edge_type": "leads_to",
+      "from_change_id": "e14fd550-b542-4ebb-8388-78911ce3b42b",
+      "rationale": "chosen: the floor must redraw as it was",
+      "to_change_id": "918a1fa2-d319-44bc-8899-9e0cb2ac0b50",
+      "weight": 1.0
+    },
     "033e0bfbd1817dca37f8": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T02:06:02.871586-05:00",
@@ -430,6 +450,26 @@
       "to_change_id": "ab825f29-c907-4ca2-88ff-a56bb86b2135",
       "weight": 1.0
     },
+    "6f4b2e20f3c5da242fcf": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T17:04:35.756543-05:00",
+      "edge_id": "6f4b2e20f3c5da242fcf",
+      "edge_type": "leads_to",
+      "from_change_id": "918a1fa2-d319-44bc-8899-9e0cb2ac0b50",
+      "rationale": "implements",
+      "to_change_id": "13f3c7ef-6def-471f-95a1-2f12998499fd",
+      "weight": 1.0
+    },
+    "6f62a309fc490d38cdc5": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T16:47:28.563229-05:00",
+      "edge_id": "6f62a309fc490d38cdc5",
+      "edge_type": "leads_to",
+      "from_change_id": "d5babe13-4a38-4d79-96df-8663d2d9b298",
+      "rationale": "option",
+      "to_change_id": "e14fd550-b542-4ebb-8388-78911ce3b42b",
+      "weight": 1.0
+    },
     "821f31026f2c0abba1a4": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-18T17:33:58.154340-05:00",
@@ -518,6 +558,16 @@
       "from_change_id": "2a1f7026-4c25-48f4-b8a4-9dd01d399e65",
       "rationale": "result",
       "to_change_id": "3c2fd9f5-3e71-4096-932a-d3682c290ae7",
+      "weight": 1.0
+    },
+    "a164bbda3bd7fde41f39": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T17:14:56.543970-05:00",
+      "edge_id": "a164bbda3bd7fde41f39",
+      "edge_type": "leads_to",
+      "from_change_id": "80226308-1525-4da4-be5d-1bacab50a0d4",
+      "rationale": "implements",
+      "to_change_id": "960db9c4-2135-4fa5-90cc-65ec212361a1",
       "weight": 1.0
     },
     "a725323a215a3cd47c57": {
@@ -658,6 +708,16 @@
       "from_change_id": "ac50d3e7-13e9-447c-8766-de62a11e4e62",
       "rationale": "implementation",
       "to_change_id": "59646be1-4441-4153-9013-6228da514c9c",
+      "weight": 1.0
+    },
+    "e2b4574f95da951ae474": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T17:04:38.592048-05:00",
+      "edge_id": "e2b4574f95da951ae474",
+      "edge_type": "leads_to",
+      "from_change_id": "918a1fa2-d319-44bc-8899-9e0cb2ac0b50",
+      "rationale": "implements",
+      "to_change_id": "1ba91856-c571-4d6d-8885-8ed4ddbe8a2e",
       "weight": 1.0
     },
     "e56ed32cc3201e086fde": {
@@ -834,6 +894,20 @@
       "title": "Backend: per-host status classes, bytes in/out, in-flight; topology style passthrough; history series",
       "updated_at": "2026-11-19T01:35:44.621869-05:00"
     },
+    "13f3c7ef-6def-471f-95a1-2f12998499fd": {
+      "author": "Bobby Grayson",
+      "change_id": "13f3c7ef-6def-471f-95a1-2f12998499fd",
+      "created_at": "2026-11-23T16:50:57.905261-05:00",
+      "metadata": {
+        "branch": "17-replay-and-fires",
+        "commit": "38a5ae2b256da1f13d34fb594243099a2bf39776",
+        "confidence": 85
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Tape (Postgres frames) + Insights + tape channel",
+      "updated_at": "2026-11-23T16:50:57.905261-05:00"
+    },
     "1b55007d-6427-497e-a610-46e8983135c5": {
       "author": "Bobby Grayson",
       "change_id": "1b55007d-6427-497e-a610-46e8983135c5",
@@ -846,6 +920,20 @@
       "status": "pending",
       "title": "Access log end to end in the lab: Caddy 2.10.2 writes it, the observer (as nobody) tails it; arena path route metered at 1.2 req/s with routes, percentiles and client classes; 163 tests pass; patch for the blog Caddyfile validates on a copy of production (20 sites)",
       "updated_at": "2026-11-19T02:14:07.226152-05:00"
+    },
+    "1ba91856-c571-4d6d-8885-8ed4ddbe8a2e": {
+      "author": "Bobby Grayson",
+      "change_id": "1ba91856-c571-4d6d-8885-8ed4ddbe8a2e",
+      "created_at": "2026-11-23T17:04:35.673826-05:00",
+      "metadata": {
+        "branch": "17-replay-and-fires",
+        "commit": "c90ecbeee3d7338f37c10092acb7098a7a4078f5",
+        "confidence": 85
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Timeline (replay, select, loop) + Fires panel + burning buildings",
+      "updated_at": "2026-11-23T17:04:35.673826-05:00"
     },
     "1cc44800-b9ad-4926-8d32-56f73b5142fa": {
       "author": "Bobby Grayson",
@@ -1057,6 +1145,19 @@
       "title": "Frontend: per-subdomain buildings, bus belts with class-coloured items, container storage, gauges, floor and backdrop",
       "updated_at": "2026-11-19T01:35:44.661538-05:00"
     },
+    "4fe1e026-0eb9-4ec5-8718-53f3c3c4c280": {
+      "author": "Bobby Grayson",
+      "change_id": "4fe1e026-0eb9-4ec5-8718-53f3c3c4c280",
+      "created_at": "2026-11-23T16:47:23.534002-05:00",
+      "metadata": {
+        "branch": "17-replay-and-fires",
+        "confidence": 40
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "Replay from the in-memory History series only (metrics, no floor)",
+      "updated_at": "2026-11-23T16:47:23.534002-05:00"
+    },
     "509ea063-c74a-410f-a435-2457c3f994c0": {
       "author": "Bobby Grayson",
       "change_id": "509ea063-c74a-410f-a435-2457c3f994c0",
@@ -1187,6 +1288,20 @@
       "title": "Same buildings, more numbers: status classes, bytes and in-flight per host",
       "updated_at": "2026-11-19T01:35:44.249525-05:00"
     },
+    "80226308-1525-4da4-be5d-1bacab50a0d4": {
+      "author": "Bobby Grayson",
+      "change_id": "80226308-1525-4da4-be5d-1bacab50a0d4",
+      "created_at": "2026-11-23T17:09:06.877060-05:00",
+      "metadata": {
+        "branch": "main",
+        "confidence": 80,
+        "prompt": "think of making it as information-dense as bloomberg TV but for a video game plane that controls real infra a real engineer is monitoring and playing back as issues arise\n\nnext we will deploy it to be built with another, more complex application"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "Bloomberg-TV density: index row, chyron, crawl, board, all replayable",
+      "updated_at": "2026-11-23T17:09:06.877060-05:00"
+    },
     "83ff9921-6146-4837-be4b-0f44e1d1b897": {
       "author": "Bobby Grayson",
       "change_id": "83ff9921-6146-4837-be4b-0f44e1d1b897",
@@ -1251,6 +1366,19 @@
       "title": "Backend emits codes, in_bps, out_bps, in_flight per host, codes per belt, style per node; 115 tests pass; read back from the lab observer under load (blog 6.6 req/s all 2xx, 1.5 KB/s out)",
       "updated_at": "2026-11-19T01:49:19.647086-05:00"
     },
+    "918a1fa2-d319-44bc-8899-9e0cb2ac0b50": {
+      "author": "Bobby Grayson",
+      "change_id": "918a1fa2-d319-44bc-8899-9e0cb2ac0b50",
+      "created_at": "2026-11-23T16:47:28.735868-05:00",
+      "metadata": {
+        "branch": "17-replay-and-fires",
+        "confidence": 85
+      },
+      "node_type": "decision",
+      "status": "pending",
+      "title": "Record the whole snapshot to a Postgres tape; History alone cannot redraw the floor",
+      "updated_at": "2026-11-23T16:47:28.735868-05:00"
+    },
     "9542228e-e654-4455-8ed3-833af7985dbb": {
       "author": "Bobby Grayson",
       "change_id": "9542228e-e654-4455-8ed3-833af7985dbb",
@@ -1262,6 +1390,20 @@
       "status": "pending",
       "title": "Workstream 12 done; real backend under real frontend verified on the lab stack (fire on a stopped app, 5xx alert, memory warning); 90 tests pass",
       "updated_at": "2026-11-18T18:12:54.205967-05:00"
+    },
+    "960db9c4-2135-4fa5-90cc-65ec212361a1": {
+      "author": "Bobby Grayson",
+      "change_id": "960db9c4-2135-4fa5-90cc-65ec212361a1",
+      "created_at": "2026-11-23T17:14:45.177593-05:00",
+      "metadata": {
+        "branch": "19-the-board",
+        "commit": "f2fe84f03b912c4be6ad1c064551f7d0563a5254",
+        "confidence": 85
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Board: index row, chyron, crawl, monitor from per-frame tape metrics",
+      "updated_at": "2026-11-23T17:14:45.177593-05:00"
     },
     "9f57e789-4465-4655-84ac-ef144f53d491": {
       "author": "Bobby Grayson",
@@ -1580,6 +1722,20 @@
       "title": "Committed: per-subdomain floor, access log, reports, traffic tool",
       "updated_at": "2026-11-19T03:10:45.499917-05:00"
     },
+    "d5babe13-4a38-4d79-96df-8663d2d9b298": {
+      "author": "Bobby Grayson",
+      "change_id": "d5babe13-4a38-4d79-96df-8663d2d9b298",
+      "created_at": "2026-11-23T16:47:19.538728-05:00",
+      "metadata": {
+        "branch": "17-replay-and-fires",
+        "confidence": 85,
+        "prompt": "lets now make a UI that shows us general insights into _things going wrong_\n\nlets also make it so that the system is replayable, a timeline should be on the bottom and let you bound through replaying different points in time and sections of time\n\nmake all this continue to feel like a video game where things are happening and your job is to put out fires"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "Fires view and replayable timeline",
+      "updated_at": "2026-11-23T16:47:19.538728-05:00"
+    },
     "d5c5558f-78e8-4957-9c6f-df0d7afecac1": {
       "author": "Bobby Grayson",
       "change_id": "d5c5558f-78e8-4957-9c6f-df0d7afecac1",
@@ -1619,6 +1775,19 @@
       "status": "pending",
       "title": "5-node full mesh, one Runs leader, marginalia 12 pg connections (was 14), box 91/100; factory sees 5 members; ~10 s of 5xx during the recreate, objectives cleared themselves",
       "updated_at": "2026-11-23T13:46:12.737111-05:00"
+    },
+    "e14fd550-b542-4ebb-8388-78911ce3b42b": {
+      "author": "Bobby Grayson",
+      "change_id": "e14fd550-b542-4ebb-8388-78911ce3b42b",
+      "created_at": "2026-11-23T16:47:23.439434-05:00",
+      "metadata": {
+        "branch": "17-replay-and-fires",
+        "confidence": 85
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "Record every snapshot to Postgres (gzip, thinned to 1/min after 6 h) and replay frames over a channel",
+      "updated_at": "2026-11-23T16:47:23.439434-05:00"
     },
     "e17918ba-d1bb-4495-a012-b7bf945ae46d": {
       "author": "Bobby Grayson",
