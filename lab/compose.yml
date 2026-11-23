@@ -169,6 +169,14 @@ services:
       DOCKER_URL: http://docker-proxy:2375
       CADDY_METRICS_URL: http://caddy:9180/metrics
       PG_URL: postgres://obs_factor:obslab@db/postgres
+      # Missions' objectives store: its own role and database (lab/db/init.sql,
+      # as deploy/objectives-db.sql in production). Lab-only password.
+      OBJECTIVES_PG_URL: postgres://obs_factor_app:obslab@db/obs_factor
+      # Process actions (kill, exit, gc, restart, logger level) on the apps'
+      # engines: the bearer token sent to them. Lab-only value; an app takes
+      # it when its FACTORY_REPORT_ACTIONS_TOKEN is the same (the marginalia
+      # cluster's compose sets obslab-actions).
+      OBSERVER_ACTIONS_TOKEN: obslab-actions
       # A container's /proc/{stat,meminfo,loadavg} are the host kernel's
       # (verified, README "Host numbers"), so no /proc mount is needed.
       HOST_PROC: /proc
