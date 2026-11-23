@@ -20,6 +20,10 @@ import { JumpList } from "./jump.js"; // jump.js
 import { scopeFromUrl, scopeSnapshot } from "./scope.js";
 
 const $ = (id) => document.getElementById(id);
+// scope.js: /?scope=<id>. Up here because Missions, built further down at
+// module load, reads it: a `const` below that line is not yet initialised.
+const SCOPE = scopeFromUrl();
+let scopeIds = null; // the ids in scope, or null for the whole box
 const canvas = $("floor");
 const scene = new Scene(canvas);
 // While inside a building, the floor it stands on stays drawn underneath,
@@ -656,8 +660,6 @@ document.addEventListener("pointerdown", (e) => {
 // ---- data -----------------------------------------------------------------
 
 // ---- scope (scope.js): /?scope=<id> shows one building and its wiring ------
-const SCOPE = scopeFromUrl();
-let scopeIds = null; // the ids in scope, or null for the whole box
 function renderScope(sc) {
   const el = $("scopechip");
   if (!sc) { el.hidden = true; return; }
