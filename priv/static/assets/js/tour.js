@@ -255,6 +255,19 @@ function steps(api) {
       },
     },
     {
+      title: "The same VM, as buildings",
+      target: () => q("#apps-info"),
+      enter: async () => { api.apps.enterObserver(); await waitFor(() => api.snap()?.apps?.drawn?.length, 5000); },
+      body: (s) => {
+        const i = s.apps;
+        if (!i?.drawn?.length) return `The applications feed didn't answer in 5 s. The line at the bottom of the floor says why, when it knows.`;
+        const topics = api.apps.apps.topics();
+        return `${code("Applications floor")} in Under the hood turns the observer's own VM into a floor: <b>${esc(i.drawn.length)}</b> of its ${esc(i.count ?? "?")} OTP applications have processes, and each is a platform of its supervision tree. Every building is a process; height is its memory.
+          <p>The page joined ${esc(topics.length)} topics for this, ${code(topics[0] ?? "observer:observer:-:apps")} and one ${code("tree:<app>")} per application. On the server one feed process reads each topic every 2 s, however many browsers watch, and stops 10 s after the last one leaves. Click a building to open its process; Kill, GC and Restart are pushed on the same socket, and everyone watching sees the result on ${code("actions")}.</p>
+          Any building with a ${code("factory_report")} engine has the same floor: go in, then Applications.`;
+      },
+    },
+    {
       title: "Search every log",
       target: () => q("#logx .lx"),
       enter: async () => {
@@ -274,7 +287,7 @@ function steps(api) {
       title: "That's the whole stack",
       body: () => `From a lamp on a building, to the rule that set it, to the source it came from, to the process that read it, to that process's log line. When something looks wrong upstairs, the same path works backwards.
         <p>Restart the tour with the <b>Tour</b> button, or open the page with ${code("?tour")}.</p>`,
-      enter: async () => { api.beam.setFilter(""); api.logs.close(); },
+      enter: async () => { api.beam.setFilter(""); api.closeAll(); },
     },
   ];
 }

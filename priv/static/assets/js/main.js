@@ -518,13 +518,14 @@ const tour = new Tour({
   select: (id, flyTo = false) => select(id, flyTo),
   centreOn: (id) => centreOn(id),
   closeInspector: () => inspector.close(),
-  closeAll: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); missions.toggle(false); inspector.close(); logs.close(); },
+  closeAll: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); missions.toggle(false); inspector.close(); logs.close(); if (insideOf) leave(); },
   panel: (name, open) => ({ legend: toggleLegend, sites: toggleSites })[name](open),
   fitAll: () => fitAll(true),
   nodeRect,
   beam,
   logs,
   missions,
+  apps: { enterObserver: () => enterObserver(), get apps() { return apps; } },
 });
 $("tourbtn").addEventListener("click", () => tour.start());
 $("beambtn2").addEventListener("click", () => { toggleMenu(false); beam.toggle(true); });
