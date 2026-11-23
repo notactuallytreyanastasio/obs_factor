@@ -661,7 +661,7 @@ export class Processes {
         ${kv("priority", esc(p.priority))}
         ${kv("group leader", `<span class="mono">${esc(p.group_leader ?? "-")}</span>`)}
         ${kv("gc", p.garbage_collection ? `<span class="mono">${esc(Object.entries(p.garbage_collection).map(([k, v]) => `${k} ${v}`).join(", "))}</span>` : "-")}
-        ${kv("dictionary", p.dictionary_count ? `${num(p.dictionary_count)} keys: <span class="mono">${esc((p.dictionary_keys ?? []).join(", "))}</span>` : `<span class="unk">empty</span>`)}
+        ${kv("dictionary", p.dictionary_not_read ? `<span class="unk">not listed: ${esc(p.dictionary_not_read)}</span>` : p.dictionary_count ? `${num(p.dictionary_count)} keys: <span class="mono">${esc((p.dictionary_keys ?? []).join(", "))}</span>` : `<span class="unk">empty</span>`)}
       </dl>
       <h5>Stack</h5>
       <ol class="pr-stack mono">${(p.current_stacktrace ?? []).map((f) => `<li>${esc(f.mfa)} <span class="unk">${esc(f.file ?? "")}${f.line ? `:${f.line}` : ""}</span></li>`).join("") || "<li class=unk>empty</li>"}</ol>` : "";

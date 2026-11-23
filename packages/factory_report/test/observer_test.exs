@@ -195,6 +195,25 @@ defmodule FactoryReport.ObserverTest do
       refute body =~ "do-not-show"
     end
 
+    # Listing keys copies every value: before, a process holding an 80 MB
+    # list took 67 ms per read and copied it all, once a second per watcher.
+    test "proc: a big process's dictionary is not copied; the answer says why its keys are not listed" do
+      start()
+
+      pid =
+        spawn(fn ->
+          Process.put(:l, :binary.copy("x", 10) |> List.duplicate(200_000))
+          receive(do: (:stop -> :ok))
+        end)
+
+      on_exit(fn -> Process.exit(pid, :kill) end)
+      Process.sleep(50)
+      {200, d} = get_json("/observer/proc/#{txt(pid)}")
+      assert d["dictionary_keys"] == nil and d["dictionary_count"] == nil
+      assert d["dictionary_not_read"] =~ "would copy every value"
+      assert d["memory"] > 1_048_576
+    end
+
     test "proc: supervisor path from $ancestors, top first" do
       start()
       parent = sup(1)
@@ -323,10 +342,62 @@ defmodule FactoryReport.ObserverTest do
 
     test "kernel processes and init are refused" do
       start(actions_token: @token)
-      assert {409, %{"error" => "refused: " <> why}} = post_json("/observer/proc/#{txt(Process.whereis(:code_server))}/kill", %{})
+      assert {409, %{"error" => "refused: " <> why}} = post_json("/observer/proc/#{txt(Process.whereis(:inet_db))}/kill", %{})
       assert why =~ "belongs to kernel"
       assert {409, %{"error" => "refused: " <> _}} = post_json("/observer/proc/#{txt(Process.whereis(:init))}/kill", %{})
       assert Process.alive?(Process.whereis(:code_server))
+    end
+
+    # Each of these, killed, stopped the VM (checked one by one in a fresh VM
+    # before the refusal existed): application_controller, erl_prim_loader
+    # and logger with "Kernel pid terminated", erts_code_purger and
+    # socket_registry (no application) with "System process ... terminated".
+    test "the VM's own processes are refused for kill and exit, whatever application they are in" do
+      start(actions_token: @token)
+
+      for name <- [:application_controller, :erl_prim_loader, :erts_code_purger, :socket_registry, :logger, :user, :standard_error, :code_server],
+          pid = Process.whereis(name),
+          verb <- ["kill", "exit"] do
+        assert {409, %{"error" => "refused: " <> _}} = post_json("/observer/proc/#{txt(pid)}/#{verb}", %{"reason" => "kill"}), "#{verb} #{name}"
+        assert Process.alive?(pid)
+      end
+
+      # started by erts before any application: group leader init, no name
+      unnamed = Enum.find(:erlang.processes(), fn p -> Process.info(p, :registered_name) == {:registered_name, []} and Process.info(p, :group_leader) == {:group_leader, Process.whereis(:init)} end)
+      assert {409, %{"error" => "refused: " <> why}} = post_json("/observer/proc/#{txt(unnamed)}/kill", %{})
+      assert why =~ "group leader is init"
+
+      # an application master: killing it stops the application
+      tree_app()
+      {:ok, master} = Enum.find_value(:erlang.processes(), fn p ->
+        with {:ok, :fr_tree_app} <- :application.get_application(p),
+             {:dictionary, d} <- Process.info(p, :dictionary),
+             {:application_master, :init, 3} <- d[:"$initial_call"], do: {:ok, p}, else: (_ -> nil)
+      end)
+      assert {409, %{"error" => "refused: " <> why}} = post_json("/observer/proc/#{txt(master)}/kill", %{})
+      assert why =~ "application master of fr_tree_app"
+    end
+
+    # Before: restarting :user under kernel_sup answered 500 restart_child
+    # :not_found and left the VM without stdout; :code_server was replaced.
+    test "restart refuses kernel's tree, and a temporary child it could not bring back" do
+      start(actions_token: @token)
+      kernel_sup = txt(Process.whereis(:kernel_sup))
+
+      for child <- [":user", ":code_server", ":file_server_2"] do
+        assert {409, %{"error" => "refused: kernel's children" <> _}} =
+                 post_json("/observer/tree/kernel/restart", %{"supervisor" => kernel_sup, "child_id" => child})
+      end
+
+      assert Process.alive?(Process.whereis(:user))
+
+      tree_app()
+      sup = Process.whereis(__MODULE__.TreeApp.Sup)
+      {:ok, temp} = Supervisor.start_child(sup, %{id: :temp, start: {Agent, :start_link, [fn -> 0 end]}, restart: :temporary})
+      assert {409, %{"error" => "refused: :temp is a temporary child" <> _}} =
+               post_json("/observer/tree/fr_tree_app/restart", %{"supervisor" => txt(sup), "child_id" => ":temp"})
+      assert Process.alive?(temp)
+      assert List.keyfind(Supervisor.which_children(sup), :temp, 0)
     end
 
     test "restart a child by its inspected id, in the application's tree" do
@@ -350,21 +421,23 @@ defmodule FactoryReport.ObserverTest do
       assert log =~ "by bob"
 
       # The supervisor must be in that application's tree.
-      {400, %{"error" => e}} = post_json("/observer/tree/kernel/restart", %{"supervisor" => txt(big), "child_id" => "{:w, 3}"})
-      assert e =~ "is not in kernel's tree (it belongs to fr_tree_app)"
+      {400, %{"error" => e}} = post_json("/observer/tree/elixir/restart", %{"supervisor" => txt(big), "child_id" => "{:w, 3}"})
+      assert e =~ "is not in elixir's tree (it belongs to fr_tree_app)"
     end
 
     test "restart refusals: unknown child, a non-supervisor, a DynamicSupervisor" do
       start(actions_token: @token)
       kernel_sup = Process.whereis(:kernel_sup)
-      {404, %{"error" => e}} = post_json("/observer/tree/kernel/restart", %{"supervisor" => txt(kernel_sup), "child_id" => ":nope"})
-      assert e =~ "has no child with id :nope"
-      {400, %{"error" => e}} = post_json("/observer/tree/kernel/restart", %{"supervisor" => txt(Process.whereis(:code_server)), "child_id" => ":x"})
-      assert e =~ "is not a supervisor"
       {400, %{"error" => "child_id must be a string" <> _}} = post_json("/observer/tree/kernel/restart", %{"supervisor" => txt(kernel_sup)})
       {400, %{"error" => "not a pid" <> _}} = post_json("/observer/tree/kernel/restart", %{"child_id" => ":x"})
 
       tree_app()
+      sup = Process.whereis(__MODULE__.TreeApp.Sup)
+      {404, %{"error" => e}} = post_json("/observer/tree/fr_tree_app/restart", %{"supervisor" => txt(sup), "child_id" => ":nope"})
+      assert e =~ "has no child with id :nope"
+      {_, worker, _, _} = List.keyfind(Supervisor.which_children(Process.whereis(__MODULE__.TreeApp.Big)), {:w, 1}, 0)
+      {400, %{"error" => e}} = post_json("/observer/tree/fr_tree_app/restart", %{"supervisor" => txt(worker), "child_id" => ":x"})
+      assert e =~ "is not a supervisor"
       dyn = Process.whereis(__MODULE__.TreeApp.Dyn)
       {:ok, _} = DynamicSupervisor.start_child(dyn, {Agent, fn -> 1 end})
       {409, %{"error" => e}} = post_json("/observer/tree/fr_tree_app/restart", %{"supervisor" => txt(dyn), "child_id" => ":undefined"})

@@ -215,8 +215,8 @@ export class ProcPanel {
         [`links (${d.links_count ?? 0})`, list(d.links, d.links_count)], [`monitors (${d.monitors_count ?? 0})`, list(d.monitors, d.monitors_count)],
         [`monitored by (${d.monitored_by_count ?? 0})`, list(d.monitored_by, d.monitored_by_count)],
       ])}</div>
-      <div class="sec"><h3>Dictionary <span class="unk">${esc(d.dictionary_count ?? 0)} keys, names only</span></h3>
-        <div class="ap-keys">${(d.dictionary_keys ?? []).map((k) => `<code>${esc(k)}</code>`).join(" ") || '<span class="unk">empty</span>'}</div></div>
+      <div class="sec"><h3>Dictionary <span class="unk">${d.dictionary_not_read ? "not listed" : `${esc(d.dictionary_count ?? 0)} keys, names only`}</span></h3>
+        <div class="ap-keys">${d.dictionary_not_read ? `<span class="unk">${esc(d.dictionary_not_read)}</span>` : (d.dictionary_keys ?? []).map((k) => `<code>${esc(k)}</code>`).join(" ") || '<span class="unk">empty</span>'}</div></div>
       <div class="sec"><h3>State</h3>${stateText}</div>`;
   }
 

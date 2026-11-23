@@ -834,7 +834,7 @@ Reads (GET):
 | `apps` | | `{"count": n, "apps": [{"name","vsn","description","top_supervisor": pid or null,"error"}]}` (at most 200) |
 | `tree/:app` | `depth` 1..12 (8) | `{"app","supervisor","tree": node,"nodes","depth_limit","children_limit": 25,"node_limit": 1500,"time_limit_ms": 2000,"cut": {"depth","grouped","nodes","time","errors"}}` |
 | `procs` | `sort` = `reductions` (default) \| `memory` \| `message_queue_len`; `limit` 1..200 (50); `interval_ms` 0..2000 (0; > 0 only with `sort=reductions`: two samples, ranked by reductions between them) | `{"sort","limit","interval_ms","total","walked","walk_limit": 100000,"procs": [summary]}` |
-| `proc/:pid` | `state=true` (only if the app set `inspect_state: true`) | summary plus `application`, `links` `[{"pid"} \| {"port"}]`, `links_count`, `monitors`, `monitors_count`, `monitored_by`, `monitored_by_count`, `current_stacktrace` `[{"mfa","file","line"}]` (30), `dictionary_keys` (names only, 100), `dictionary_count`, `heap_size_words`, `total_heap_size_words`, `stack_size_words`, `garbage_collection`, `trap_exit`, `group_leader`, `priority`, `supervisor_path`, `state` (`{"status": "not requested"}` unless asked and allowed) |
+| `proc/:pid` | `state=true` (only if the app set `inspect_state: true`) | summary plus `application`, `links` `[{"pid"} \| {"port"}]`, `links_count`, `monitors`, `monitors_count`, `monitored_by`, `monitored_by_count`, `current_stacktrace` `[{"mfa","file","line"}]` (30), `dictionary_keys` (names only, 100), `dictionary_count` (both `null`, with `dictionary_not_read` saying why, when the process holds more than 1 MiB: listing keys copies every value), `heap_size_words`, `total_heap_size_words`, `stack_size_words`, `garbage_collection`, `trap_exit`, `group_leader`, `priority`, `supervisor_path`, `state` (`{"status": "not requested"}` unless asked and allowed) |
 | `ets` | | `{"count","limit": 500,"cut","tables": [{"id","name","named","type","protection","size","memory_bytes","owner","owner_name"}]}` by memory |
 | `ports` | | `{"count","limit": 500,"cut","ports": [{"id","name","os_pid","connected","input_bytes","output_bytes"}]}` by traffic |
 
@@ -874,9 +874,16 @@ form 0.123.0)`, `pid 4.1.0 is not on this node (...)`, `sort must be one
 of ...`, `reason must be one of shutdown, normal, kill`, `... is not a
 supervisor`); 404 no such endpoint, application, process (`no process
 0.238.0 (not alive)`) or child; 405 the wrong method (`GET is not allowed on
-/observer/proc/0.1.0/kill; use POST`); 409 refused: the answering process,
-`init` or a `kernel` process (`refused: 0.0.0 is init; killing it stops the
-VM`), a DynamicSupervisor's child by id; 500/504 `terminate_child` or
+/observer/proc/0.1.0/kill; use POST`); 409 refused, for kill and exit: the
+answering process, `init` (`refused: 0.0.0 is init; killing it stops the
+VM`), the VM's own processes by name (`application_controller`,
+`erl_prim_loader`, `erts_code_purger`, `socket_registry`, `logger`, `user`,
+`standard_error`, `code_server`, `file_server_2`, `kernel_sup`, `user_drv`),
+anything whose group leader is init (started by erts before any
+application), any `kernel` or `stdlib` process, and any application master;
+for restart: anything in `kernel`'s or `stdlib`'s tree, a supervisor or a
+child the kill rule refuses, a `:temporary` child (terminating it deletes
+it, so it could not be restarted), and a DynamicSupervisor's child by id; 500/504 `terminate_child` or
 `restart_child` failed or did not answer in 4500 ms, or a tree walk timed out.
 
 ### Pass-through: `GET|POST /api/nodes/:id/observer/*path[?member=<address>]`
