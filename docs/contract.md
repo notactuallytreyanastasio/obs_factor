@@ -192,9 +192,15 @@ each column; empty columns left out: a gap in the tape); `frame` `{at}` →
 it; `next` nil at the live edge); `series` `{from, to, points}` → `{series: [[at, {node: {key: n}}]]}` (the board's
 numbers, at most `points` frames, every k-th, the newest always in); `marks` `{from, to}` → `{marks: [[at, kind,
 objective_id, node, severity, title, by]]}` (objective events, newest 600);
-`insights` `{from, to}` → `ObsFactor.Insights.compute/2` (`score`, `calm`,
+`lanes` `{from, to}` → `{lanes: [[node, severity, from, to, frames, text]]}` (each building's runs of alerts and warnings, a gap over 90 s ending one); `windows` → `{windows: [window]}`; `insights` `{from, to}` → `ObsFactor.Insights.compute/2` (`score`, `calm`,
 `hot`, `repeat`, `peaks`, `worst`). The tape is `tape_frames` in the
-objectives database: every tick for 6 h, then one a minute for 7 days.
+objectives database: every tick for 6 h, then one a minute for 7 days,
+except inside a saved window (`tape_windows`), which keeps every frame
+until it is pruned. Writes on `tape`: `save_window` `{from, to, title,
+note, by}` (with `id`: change one, which is how it is trimmed or
+renamed) → `{window}`; `prune_windows` `{ids}` → `{pruned}`; after either,
+every viewer gets `windows` `{windows}`, and the join reply carries
+`windows` too.
 Channel write on `observer:*`: `action` `{path, params, by}` on the topic's
 node and member, replied with the engine's answer or `{error, status}`, and
 broadcast on `actions` (Observer, "On the bus"). `POST
