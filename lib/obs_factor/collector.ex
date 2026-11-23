@@ -99,22 +99,32 @@ defmodule ObsFactor.Collector do
     ObsFactor.Sources.put(name, entry)
 
     {:noreply,
-     %{state | inner: inner, last_error: log_transition(name, state.last_error, entry.error)}}
+     %{state | inner: inner, last_error: log_transition(name, state.last_error, entry.error, System.system_time(:millisecond) - started)}}
   end
 
   # Late replies from a task that was already given up on.
   def handle_info({ref, _}, state) when is_reference(ref), do: {:noreply, state}
   def handle_info({:DOWN, _, :process, _, _}, state), do: {:noreply, state}
 
-  defp log_transition(_name, same, same), do: same
+  # `previous` is :none before the first result, nil after an ok one, else
+  # the error. source.ok is the first ok since boot, source.recovered an ok
+  # after an error; source.failed is a new error or a different one.
+  defp log_transition(_name, same, same, _took), do: same
 
-  defp log_transition(name, _previous, nil) do
-    Logger.info("source #{name}: ok", source: name)
+  defp log_transition(name, previous, nil, took) do
+    if is_binary(previous) do
+      Logger.info("source #{name}: ok again", event: "source.recovered", source: name, previous_error: previous, took_ms: took)
+    else
+      Logger.info("source #{name}: ok", event: "source.ok", source: name, took_ms: took)
+    end
+
     nil
   end
 
-  defp log_transition(name, _previous, error) do
-    Logger.warning("source #{name}: #{error}", source: name)
+  defp log_transition(name, previous, error, took) do
+    meta = [event: "source.failed", source: name, reason: error, took_ms: took]
+    meta = if is_binary(previous), do: meta ++ [previous_error: previous], else: meta
+    Logger.warning("source #{name}: #{error}", meta)
     error
   end
 

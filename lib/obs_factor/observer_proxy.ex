@@ -36,6 +36,8 @@ defmodule ObsFactor.ObserverProxy do
   or nil), `by:` (who asked; required for POST).
   """
   def call(method, id, path, params, opts) do
+    started = System.monotonic_time()
+
     result =
       with :ok <- check_path(path),
            :ok <- check_by(method, opts[:by]),
@@ -44,7 +46,7 @@ defmodule ObsFactor.ObserverProxy do
       end
 
     if method == "POST" do
-      record_action(id, path, params, opts, result)
+      record_action(id, path, params, Keyword.put(opts, :took_ms, since(started)), result)
       refetch_after(id, opts[:member], result)
     end
 
@@ -251,6 +253,9 @@ defmodule ObsFactor.ObserverProxy do
   defp bearer(nil), do: []
   defp bearer(token), do: [{"authorization", "Bearer " <> token}]
 
+  # Milliseconds since a System.monotonic_time/0 reading, to the microsecond.
+  defp since(started), do: System.convert_time_unit(System.monotonic_time() - started, :native, :microsecond) / 1000
+
   defp report_token, do: Application.get_env(:obs_factor, :sources, [])[:report_token]
   defp actions_token, do: Application.get_env(:obs_factor, :observer_actions_token)
 
@@ -273,8 +278,29 @@ defmodule ObsFactor.ObserverProxy do
     outcome = if ok?, do: "ok", else: "#{status}: #{body["error"]}"
     path_text = path |> Enum.join("/") |> String.slice(0, 300)
 
+    # action.done / action.refused: `action` the last path segment (gc, kill,
+    # exit, restart, level, builds), `target` the segments between (a pid,
+    # an application), `args` the params shown in the message.
+    {action, target} =
+      case path do
+        [] -> {nil, nil}
+        [one] -> {String.slice(one, 0, 200), nil}
+        [_ | _] -> {path |> List.last() |> String.slice(0, 200), path |> Enum.slice(1..-2//1) |> Enum.join("/") |> String.slice(0, 300) |> then(&if(&1 == "", do: nil, else: &1))}
+      end
+
     Logger.warning("action #{if path_text == "", do: "(no path)", else: path_text}#{if args != "", do: " " <> args} on #{where} by #{by || "nobody said"}: #{outcome}",
-      [source: "actions", node_id: id] ++ if(by, do: [by: by], else: [])
+      event: if(ok?, do: "action.done", else: "action.refused"),
+      source: "actions",
+      node: id,
+      member: member,
+      action: action,
+      target: target,
+      args: if(args != "", do: args),
+      path: path_text,
+      by: by,
+      status: status,
+      took_ms: opts[:took_ms],
+      error: if(ok?, do: nil, else: body["error"] || "status #{status}")
     )
 
     Phoenix.PubSub.broadcast(ObsFactor.PubSub, actions_topic(), {:action,

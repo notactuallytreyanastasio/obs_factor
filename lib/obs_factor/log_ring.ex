@@ -84,12 +84,13 @@ defmodule ObsFactor.LogRing do
   # whatever else a caller passed. Process plumbing is left out.
   @drop [:time, :gl, :pid, :mfa, :report_cb, :error_logger, :logger_formatter, :erl_level, :callers, :ancestors]
   defp attrs(meta) do
-    for {k, v} <- meta, k not in @drop, into: %{} do
+    for {k, v} <- meta, k not in @drop, v != nil, into: %{} do
       {k, attr(k, v)}
     end
   end
 
   defp attr(:domain, d) when is_list(d), do: Enum.join(d, ".")
+  defp attr(:stacktrace, v) when is_binary(v), do: String.slice(v, 0, 2_000)
   defp attr(_, v) when is_binary(v), do: String.slice(v, 0, 300)
   defp attr(_, v) when is_number(v) or is_boolean(v), do: v
   defp attr(_, v) when is_atom(v) do

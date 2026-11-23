@@ -65,7 +65,12 @@ defmodule ObsFactor.Builder.Jobs do
       {:ok, job} ->
         persist(state.cfg, job)
         task = Task.Supervisor.async_nolink(ObsFactor.TaskSupervisor, fn -> Runner.run(job) end)
-        Logger.info("build #{job["id"]}: started (#{job["mode"]} #{job["fqdn"]})")
+        Logger.info("build #{job["id"]}: started (#{job["mode"]} #{job["fqdn"]})",
+          event: "build.started",
+          job: job["id"],
+          mode: job["mode"],
+          fqdn: job["fqdn"]
+        )
 
         {:reply, {:ok, summary(job)},
          %{state | jobs: Map.put(state.jobs, job["id"], job), tasks: Map.put(state.tasks, task.ref, job["id"])}}
@@ -117,7 +122,12 @@ defmodule ObsFactor.Builder.Jobs do
   def handle_cast({:put, id, fields}, state), do: {:noreply, update(state, id, &Map.merge(&1, fields), true)}
 
   def handle_cast({:finish, id, status, error}, state) do
-    Logger.info("build #{id}: #{status}#{if error, do: ": " <> error, else: ""}")
+    Logger.info("build #{id}: #{status}#{if error, do: ": " <> error, else: ""}",
+      event: "build.finished",
+      job: id,
+      status: status,
+      reason: error
+    )
     {:noreply, update(state, id, &Map.merge(&1, %{"status" => status, "error" => error, "finished_at" => now()}), true)}
   end
 
@@ -131,7 +141,7 @@ defmodule ObsFactor.Builder.Jobs do
   def handle_info({:DOWN, ref, :process, _pid, reason}, state) when is_map_key(state.tasks, ref) do
     id = state.tasks[ref]
     msg = "builder crashed: #{Exception.format_exit(reason) |> String.slice(0, 300)}"
-    Logger.error("build #{id}: #{msg}")
+    Logger.error("build #{id}: #{msg}", event: "build.crashed", job: id, reason: msg)
 
     state =
       update(state, id, fn job ->

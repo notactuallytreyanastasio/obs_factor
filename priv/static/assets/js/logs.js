@@ -33,7 +33,7 @@ import * as bus from "./bus.js";
 const $ = (id) => document.getElementById(id);
 const LEVELS = ["emergency", "alert", "critical", "error", "warning", "notice", "info", "debug", "unset"];
 const LEVEL_COLOR = { emergency: "#ff4d4d", alert: "#ff4d4d", critical: "#ff4d4d", error: "#ff4d4d", warning: "#ff9f1c", notice: "#f2c94c", info: "#7fe0ff", debug: "#5d6579", unset: "#8b93a7" };
-const FACETS = [["level", "Level"], ["service", "Service"], ["source", "Source"], ["job", "Build"], ["step", "Step"], ["module", "Module"], ["domain", "Domain"]];
+const FACETS = [["level", "Level"], ["service", "Service"], ["source", "Source"], ["event", "Event"], ["node", "Node"], ["job", "Build"], ["step", "Step"], ["module", "Module"], ["domain", "Domain"]];
 const RANGES = [["5m", 5 * 60e3], ["15m", 15 * 60e3], ["1h", 3600e3], ["4h", 4 * 3600e3], ["1d", 86400e3], ["all", null]];
 const PAGE = 300;
 
@@ -530,7 +530,7 @@ export class LogExplorer {
     const shown = rows.slice(0, this.limit);
     this.listEl.innerHTML = shown.length
       ? shown.map((e) => {
-          const tag = e.service === "builder" ? `${e.attrs.job} · ${e.attrs.step}` : e.attrs.source ?? e.attrs.module?.replace(/^ObsFactor(Web)?\./, "") ?? "";
+          const tag = e.service === "builder" ? `${e.attrs.job} · ${e.attrs.step}` : e.attrs.source ?? e.attrs.event ?? e.attrs.module?.replace(/^ObsFactor(Web)?\./, "") ?? "";
           const withDate = new Date(e.at).toISOString().slice(0, 10) !== today;
           return `<div class="lx-row${e.key === this.picked ? " on" : ""}" data-k="${esc(e.key)}" style="--lc:${LEVEL_COLOR[e.level] ?? "#8b93a7"}">
             <span class="t" title="${stamp(e.at, true, e.service === "builder")} UTC">${stamp(e.at, withDate && "short", e.service === "builder")}</span><span class="lv">${esc(e.level)}</span><span class="svc">${esc(e.service)}</span>
