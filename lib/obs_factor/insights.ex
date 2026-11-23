@@ -39,7 +39,8 @@ defmodule ObsFactor.Insights do
       from: from_ms,
       to: to_ms,
       score: %{
-        burning: Enum.count(objs, &(&1.state in ["open", "looking"])),
+        # alive at the window's end: opened by then, not yet closed by then
+        burning: Enum.count(objs, &(&1.opened_at <= to_ms and (closed_at(&1) == nil or closed_at(&1) > to_ms))),
         started: length(started) + Enum.sum(Enum.map(objs, & &1.returns)),
         put_out: length(put_out),
         burned_out: length(burned_out),
@@ -98,7 +99,9 @@ defmodule ObsFactor.Insights do
     %{id: o.id, node: o.node, title: o.title, ms: burned(o, to_ms), state: o.state}
   end
 
-  defp burned(o, to_ms), do: (o.done_at || o.cleared_at || to_ms) - o.opened_at
+  defp burned(o, to_ms), do: (closed_at(o) || to_ms) - o.opened_at
+
+  defp closed_at(o), do: o.done_at || o.cleared_at
 
   defp median([]), do: nil
 

@@ -113,8 +113,8 @@ defmodule ObsFactor.TapeTest do
 
     state = %{db: db, fine_ms: 60_000, keep_ms: 10 * 86_400_000, logged_at: 0}
     Tape.thin(state, @t0 + 10 * 60_000)
-    # 24 ticks over two minutes (the first minute boundary falls inside): one mark per minute seen
-    assert count.() in 2..3
+    # 24 ticks from @t0 over 115 s touch three minutes: one mark in each
+    assert count.() == 3
     Tape.thin(%{state | keep_ms: 60_000}, @t0 + 10 * 60_000)
     assert count.() == 0
   end
@@ -140,6 +140,10 @@ defmodule ObsFactor.TapeTest do
 
     {:ok, i} = Insights.compute(now - 31_000, now + 120_000, db)
     assert %{started: 2, put_out: 1, burned_out: 1, unattended: 1, burning: 0} = i.score
+    # a window that ends after app was crossed off but before db cleared
+    # itself (at now + 61 s): db was still burning then
+    {:ok, early} = Insights.compute(now - 31_000, now + 30_000, db)
+    assert early.score.burning == 1
     assert is_integer(i.score.respond_ms) and is_integer(i.score.put_out_ms)
     assert [%{node: "app", alert_ms: 10_000, fires: 1}, %{node: "db", alert_ms: 5_000}] = i.hot
     assert i.calm.share > 0 and i.calm.share < 1
