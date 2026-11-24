@@ -474,6 +474,27 @@ The whole job log from the builder's file (`/builder/api/jobs/:id/log`), up
 to its last 20000 lines: `{"id", "log": [{"t", "step", "line"}]}`. The job
 in `GET /api/builds/:id` carries only the last 400. Unknown job is 404.
 
+## Writeups *(2026-11-24)*
+
+`ObsFactor.Writeup`: a slice of the tape as Markdown. A slice is `window`
+(a saved window's id) or `from`/`to` (unix ms, at most 31 days), with
+optional `set` (a wire filter set's id), `apps` (node ids) and `sections`
+(of summary, incidents, timeline, hot, beam, errors, db, method).
+
+- `GET /api/writeup.md?…` answers it as a `text/markdown` download, to the
+  page's session or to `Authorization: Bearer obsf_…` (a token with
+  `writeups:read`, `ObsFactor.ApiTokens`). A bearer that is sent and not
+  good is 401 with why, and never falls back to the session.
+- `GET /w/<slug>.md` answers a shared writeup to anyone with the link, no
+  login (noindex, no-store); 404 for anything else.
+- Over `tape`: `writeup`, `save_writeup`, `writeups`, `delete_writeup`;
+  `create_token`, `api_tokens`, `revoke_token`; `save_schedule`,
+  `schedules`, `delete_schedule`, `run_schedule`.
+- Schedules (`ObsFactor.Writeup.Schedules`): daily, or weekly on a weekday,
+  at an hour UTC. Each run writes up the 24 h or 7 days up to the instant,
+  saves it shared, and POSTs `{"text", "title", "url"}` to the webhook if
+  there is one.
+
 ## `/api/objectives` *(2026-11-22)*
 
 Mission objectives (`ObsFactor.Objectives`): what the floor raised, kept
