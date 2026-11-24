@@ -183,6 +183,12 @@ export class Timeline {
       case "zoom": return this.zoomToSel();
       case "clear": this.trimming = null; return this.setSel(null);
       case "fires": return this.api.openFires?.();
+      case "writeup": {
+        if (!this.sel) return;
+        const win = this.sel.id && this.windows.find((x) => x.id === this.sel.id);
+        return this.api.openWriteup?.({ from: this.sel.a, to: this.sel.b, window: win?.id, title: win?.title });
+      }
+      case "wwriteup": return w && this.api.openWriteup?.({ from: w.from, to: w.to, window: w.id, title: w.title });
       case "save": this.saving = true; return this.renderSel(true);
       case "unsave": this.saving = false; return this.renderSel();
       case "trim-save": return this.saveTrim();
@@ -860,6 +866,7 @@ export class Timeline {
       this.selEl.innerHTML = `${w ? `<span class="tag">window</span> <b>${esc(w.title)}</b> ` : ""}${range}
         <button type="button" data-a="loop" title="Play this stretch on a loop">▶ loop</button>
         <button type="button" data-a="fires" title="What went wrong in this stretch">Fires</button>
+        <button type="button" data-a="writeup" title="This stretch as a Markdown document: download, copy or share">Write up</button>
         <button type="button" data-a="zoom" title="Fit the view to this stretch (double-click)">zoom</button>
         ${w ? "" : `<button type="button" data-a="save" class="go" title="Keep this stretch at full detail, named, for everyone (w)">Save window</button>`}
         <button type="button" data-a="clear" aria-label="Clear the selection">×</button>`;
@@ -878,7 +885,7 @@ export class Timeline {
             <span class="dim">${when(w.from)}–${hms(w.to)} · ${span(w.to - w.from)} · ${w.frames} frames${w.by ? ` · ${esc(w.by)}` : ""}</span>
             ${this.noting === w.id ? `<form data-form="note" data-id="${w.id}" class="tl-note"><textarea maxlength="2000" rows="3" placeholder="what happened, what was done, what to remember" aria-label="Note">${esc(w.note ?? "")}</textarea><button type="submit" class="go">Save note</button></form>` : w.note ? `<span class="tw-note">${esc(w.note)}</span>` : ""}
           </div>
-          <div class="tw-acts"><button type="button" data-a="open">open</button><button type="button" data-a="wloop">loop</button><button type="button" data-a="trim">trim</button><button type="button" data-a="rename">rename</button><button type="button" data-a="note">note</button><button type="button" data-a="link" title="Copy a link that opens this window">link</button><button type="button" data-a="prune" class="bad">prune</button></div>
+          <div class="tw-acts"><button type="button" data-a="open">open</button><button type="button" data-a="wloop">loop</button><button type="button" data-a="trim">trim</button><button type="button" data-a="rename">rename</button><button type="button" data-a="note">note</button><button type="button" data-a="link" title="Copy a link that opens this window">link</button><button type="button" data-a="wwriteup" title="This window as a Markdown document">write up</button><button type="button" data-a="prune" class="bad">prune</button></div>
         </li>`;
     this.winsEl.innerHTML = `<div class="tw-head"><h4>Windows</h4><span class="dim">${live.length} saved · ${total} frames kept at full detail</span><button type="button" class="fi-x" data-a="wins-close" aria-label="Close">×</button></div>
       ${live.length ? `<ul>${live.map(row).join("")}</ul>

@@ -22,6 +22,7 @@ import { Timeline } from "./timeline.js";
 import * as bus from "./bus.js";
 import { Fires } from "./fires.js";
 import { Board } from "./board.js";
+import { Writeups } from "./writeup.js";
 
 const $ = (id) => document.getElementById(id);
 // scope.js: /?scope=<id>. Up here because Missions, built further down at
@@ -30,7 +31,7 @@ const SCOPE = scopeFromUrl();
 let scopeIds = null; // the ids in scope, or null for the whole box
 // timeline.js and fires.js, built near the end; declared up here (and read
 // with ?.) so nothing that runs before then can trip on them
-let timeline = null, fires = null, board = null;
+let timeline = null, fires = null, board = null, writeups = null;
 const canvas = $("floor");
 const scene = new Scene(canvas);
 // While inside a building, the floor it stands on stays drawn underneath,
@@ -838,6 +839,7 @@ timeline = new Timeline({
   onMode: (replaying, at) => { document.body.classList.toggle("replaying", replaying); topbar.setReplay(replaying ? at : null); },
   onWindow: () => fires?.setWindow(),
   openFires: () => fires?.toggle(true),
+  openWriteup: (slice) => writeups?.open(slice),
   label: (id) => outerSnap?.nodes.find((n) => n.id === id)?.label ?? id,
   who: () => missions.who || null,
   onNode: (id) => { if (outerSnap?.nodes.some((n) => n.id === id)) { if (insideOf) leave(); select(id, true); } },
@@ -861,7 +863,14 @@ bus.setGuard((topic, event) => {
   if (event !== "action" || !timeline?.replaying) return null;
   return `you are looking at ${new Date(timeline.cursor).toISOString().slice(11, 19)} UTC on the tape: an action would hit the live system as it is now. Go back to live (End) first.`;
 });
-window.__obsFactorTape = { timeline, fires, board, bus };
+writeups = new Writeups({
+  sets: () => board?.sets ?? [],
+  apps: () => (outerSnap?.nodes ?? []).filter((n) => n.kind === "app" || n.inside).map((n) => ({ id: n.id, label: n.label })).sort((a, b) => a.label.localeCompare(b.label)),
+  who: () => missions.who || null,
+});
+// the menu: the last 24 hours, written up
+$("writeupbtn")?.addEventListener("click", () => { toggleMenu(false); const to = Date.now(); writeups.open({ from: to - 86400e3, to, title: "obs_factor: the last 24 hours" }); });
+window.__obsFactorTape = { timeline, fires, board, bus, writeups };
 
 connect({
   onSnapshot,

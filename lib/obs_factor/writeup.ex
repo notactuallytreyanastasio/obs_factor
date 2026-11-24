@@ -140,7 +140,7 @@ defmodule ObsFactor.Writeup do
       ["Errors and failing streams logged", count.(@error_kinds)]
     ]
 
-    "## Summary\n\n" <> table(["", ""], rows) <> "\n\n" <> note_if_scoped(ctx)
+    "## Summary\n\n" <> table(["Measure", "Value"], rows) <> "\n\n" <> note_if_scoped(ctx)
   end
 
   defp section("incidents", ctx) do
