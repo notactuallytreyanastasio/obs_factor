@@ -291,8 +291,9 @@ function reporting(api) {
     },
     {
       title: "Writeups that write themselves",
-      target: () => q("#writeup .wu-schedules"),
-      enter: async () => { q("#writeup .wu-schedules")?.scrollIntoView({ block: "center" }); await pause(200); },
+      // the "Schedule this" expander: the list above it is empty (no height) until a schedule exists
+      target: () => q("#writeup details.wu-more"),
+      enter: async () => { const d = q("#writeup details.wu-more"); if (d) { d.open = true; d.scrollIntoView({ block: "center" }); } await pause(250); },
       body: () => {
         const s = W().schedules ?? [];
         return `A schedule writes up the last day or week at an hour you pick (UTC), shares it, and posts the link to a webhook (Slack's incoming webhooks read it as is). ${s.length ? `${plural(s.length, "schedule")} on this observer.` : "None set up yet."}
