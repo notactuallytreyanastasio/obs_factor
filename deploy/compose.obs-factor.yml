@@ -52,6 +52,10 @@ services:
       # Caddy's access log (deploy/Caddyfile.access). Needs the caddy_logs
       # volume below on both this service and `caddy`.
       ACCESS_LOG: /caddy-logs/access.log
+      # Deploys (ObsFactor.Deploys): the commit subject of each deployed sha,
+      # from GitHub. Optional: unset, the timeline and the wire say the sha
+      # alone. A fine-grained token, read-only Contents on the five repos.
+      GITHUB_TOKEN: ${OBS_FACTOR_GITHUB_TOKEN:-}
       # Dead-man's switch (deploy/WATCHDOG.md). Unset: no pings.
       HEARTBEAT_URL: ${HEARTBEAT_URL:-}
       HEARTBEAT_FAIL: ${HEARTBEAT_FAIL:-}
@@ -79,6 +83,19 @@ services:
       - /opt/lumines:/sites/lumines:ro
       - /opt/gaming:/sites/gaming:ro
       - /opt/padmac:/sites/padmac:ro
+      # Deploys (ObsFactor.Deploys): each app's .deployed, one FILE each,
+      # read-only, at /host-opt/<dir>/.deployed (the topology's `deployed:`).
+      # Not /opt itself: /opt/blog/.env holds every secret. Single files
+      # stay live because every deploy script rewrites in place (`echo >`,
+      # same inode); a script that wrote a new file and renamed it over
+      # would leave the container reading the old one. Each must exist
+      # before `up`, or Docker creates a DIRECTORY at that path on the host
+      # and the next deploy's `echo >` fails.
+      - /opt/blog/.deployed:/host-opt/blog/.deployed:ro
+      - /opt/marginalia/.deployed:/host-opt/marginalia/.deployed:ro
+      - /opt/tyler/.deployed:/host-opt/tyler/.deployed:ro
+      - /opt/dave/.deployed:/host-opt/dave/.deployed:ro
+      - /opt/obs_factor/.deployed:/host-opt/obs_factor/.deployed:ro
     networks: [default, obs]
     # Not exposed to host - Caddy proxies factory.bobbby.online to port 4000
 

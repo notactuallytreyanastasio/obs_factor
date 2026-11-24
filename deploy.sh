@@ -158,6 +158,13 @@ same_fs=$(ssh "$HOST" 'mkdir -p /var/lib/obs_factor/statfs && [ "$(stat -f -c %i
 [ "$same_fs" = yes ] && did "/var/lib/obs_factor/statfs is on /" \
   || warn "/var/lib/obs_factor/statfs is NOT on the root filesystem: host-disk will describe another disk"
 
+# Deploys (ObsFactor.Deploys): the apps' .deployed files, mounted one by one
+# (deploy/compose.obs-factor.yml). Missing is not fatal: the floor works,
+# and no node shows what is deployed.
+deployed_mounts=$(ssh "$HOST" "cd $STACK_DIR && docker compose config obs-factor 2>/dev/null | grep -c 'target: /host-opt/' || true" </dev/null)
+[ "${deployed_mounts:-0}" -gt 0 ] && did "$deployed_mounts .deployed files mounted at /host-opt" \
+  || warn "no .deployed files mounted at /host-opt: the floor will not say what is deployed (deploy/compose.obs-factor.yml)"
+
 ssh "$HOST" "cd $STACK_DIR && docker compose build obs-factor && docker compose up -d docker-proxy obs-factor" </dev/null >/dev/null
 did "rebuilt + restarted obs-factor"
 

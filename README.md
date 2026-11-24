@@ -749,6 +749,21 @@ rsync's exit 255, no connection made) and with a fake `rsync` listing two
 changes (it prints the plan, including "restart docker-proxy", and exits 0).
 A real `-n` connects: the dry-run rsync runs over ssh, as in marginalia's.
 
+### Deploys tied to commits
+
+The floor says what code each app runs: `deployed 9047a85+dirty 4d 2h ago`
+in the inspector, the short sha on the timeline, `deployed <sha> (<subject>)`
+on the wire when a restart was a deploy. It reads the `.deployed` file every
+deploy script writes in `/opt/<app>`, and needs two things on the box that
+are not there yet (docs/contract.md, "Deploys"):
+
+1. the five `/opt/<app>/.deployed:/host-opt/<app>/.deployed:ro` mounts in
+   `deploy/compose.obs-factor.yml`, pasted into the blog repo's compose file
+   and shipped with `blog/deploy.sh blog` (deploy.sh warns while they are
+   missing);
+2. optionally `OBS_FACTOR_GITHUB_TOKEN` in `/opt/blog/.env`
+   (`deploy/env.example` says how to make it), for commit subjects.
+
 ## The release image
 
 `Dockerfile` is marginalia's two stages without Node, assets, Ecto, git or a

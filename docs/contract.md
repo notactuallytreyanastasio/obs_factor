@@ -1255,6 +1255,69 @@ The jump list (`jump.js`, Cmd/Ctrl+K) joins `objectives` while it is open.
 
 
 
+## Deploys: what code went out *(2026-11-23)*
+
+Every deploy script on the box (blog, marginalia, tyler, obs_factor; dave's
+file is there, its script is not in ~/code) ends with
+
+    ssh "$HOST" "echo '$rev  $(date -u +%FT%TZ)' > $APP_DIR/.deployed"
+
+so `/opt/<dir>/.deployed` is one line, `<short sha>[+dirty]  <ISO time>`, e.g.
+`9047a85+dirty  2026-11-19T09:22:31Z`. It is written AFTER the restart (and
+after migrations and the health check): the wire sees the container start
+again a tick or more before the file changes.
+
+**Reading** (`ObsFactor.Deploys`, source `deploys`, every tick). The
+obs-factor container sees each file read-only at `/host-opt/<dir>/.deployed`
+(one bind mount per file, `deploy/compose.obs-factor.yml`; not `/opt`, which
+holds `/opt/blog/.env`). Which file is a node's: topology `deployed:`
+(a path; relative paths are under `DEPLOYED_ROOT`), else
+`<DEPLOYED_ROOT>/<service>/.deployed` if it exists; `deployed: false` turns
+the guess off. A named file missing, or a line that does not parse, is an
+error on that node, never a guess. `repo: "owner/name"` is the GitHub repo
+the sha is in.
+
+| var | meaning | default |
+|---|---|---|
+| `DEPLOYED_ROOT` | where the `.deployed` files are mounted | `/host-opt` |
+| `GITHUB_TOKEN` | optional: read-only token; with it and a node's `repo`, the commit subject is asked of `GET https://api.github.com/repos/<repo>/commits/<sha>` once per sha (an error is retried after 10 min). Unset: the sha alone | |
+| `GITHUB_API_URL` | tests only | `https://api.github.com` |
+
+**On the snapshot**, every node has `deployed`: null, or
+`{sha, dirty, at, subject?, subject_error?, repo, url}` (`at` unix ms, from the
+file; `url` the commit on GitHub, null without a repo), or `{error}`. A node
+with one also has the fact `deployed` = `"9047a85+dirty 4d 2h ago · <subject>"`,
+which is what the inspector shows.
+
+**On the wire** (`ObsFactor.Wire`, kind `deploy`, for the BEAM apps and the
+database as before): a container that started again (not by the restart
+policy, same image) whose `deployed` changed in the same tick is
+`deployed <sha>[+dirty] (<subject>)`. A restart not explained yet says
+`container started again` as before and is held for 10 minutes; if
+`.deployed` changes in that time, a second item says
+`deployed <sha> (<subject>)`, text `the container started again N s before;
+…`. A `.deployed` that changes with no restart is not news (blog/deploy.sh
+writes it even when it left the app running), nor is the first reading.
+
+**Kept** in `deploys` (objectives database): one row per node, sha and
+`deployed_at`, inserted on first sight and again on every change, so a
+deploy made while the observer was down is on the timeline once it is back.
+
+    CREATE TABLE deploys (id bigserial, node text, sha text, dirty boolean,
+      deployed_at timestamptz, subject text, repo text, seen_at timestamptz,
+      UNIQUE (node, sha, deployed_at))
+
+**Channel `deploys`**: join reply `%{deploys: [deploy]}` (the last 31 days,
+oldest first) or `%{deploys: [], error}`; a `deploy` push per new row;
+`list` `%{from, to}` -> `%{deploys}`. A deploy is
+`%{id, node, sha, dirty, at, subject, repo, url}`. The timeline
+(`deploys.js`, through `timeline.overlays`) draws each as a dotted line with
+its short sha, `+` when dirty.
+
+**Writeups**: the Timeline section has a row per deploy in the range,
+`deployed <sha> (<subject>)` with a link to the commit; `apps` and a filter
+spec apply as to a wire item of kind `deploy`, sev `info`.
+
 ## Error budgets: `ObsFactor.SLOs`, topic `slo` *(2026-11-24)*
 
 Targets per app (topology node id), in the objectives database

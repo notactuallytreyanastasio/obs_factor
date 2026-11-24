@@ -25,6 +25,8 @@ defmodule ObsFactorWeb.UserSocket do
   channel "observer:*", ObsFactorWeb.FeedChannel
   channel "history:*", ObsFactorWeb.FeedChannel
   channel "builds:*", ObsFactorWeb.FeedChannel
+  # deploys (ObsFactor.Deploys): the timeline's deploy marks
+  channel "deploys", ObsFactorWeb.DeploysChannel
 
   @salt "obs_factor socket"
   @max_age_s 60

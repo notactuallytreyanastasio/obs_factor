@@ -73,6 +73,8 @@ defmodule ObsFactor.Snapshot do
     all = Enum.map(listed ++ resources ++ [internet] ++ extra, &with_access(&1, env))
 
     all = Enum.map(all, &attach_build(&1, builds[&1.id]))
+    # deploys (ObsFactor.Deploys): `deployed` on every node, and its fact
+    all = ObsFactor.Deploys.attach(all, Map.get(sources, :deploys), now_ms)
     nodes = Enum.map(all, &Map.delete(&1, :attention))
 
     attention =

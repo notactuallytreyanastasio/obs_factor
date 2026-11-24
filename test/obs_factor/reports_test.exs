@@ -879,6 +879,7 @@ defmodule ObsFactor.ReportsTest do
   test "it is the eighth source" do
     assert Reports.name() == :reports
     assert :reports in ObsFactor.Sources.names()
-    assert length(ObsFactor.Sources.names()) == 8
+    # the ninth since deploys (ObsFactor.Deploys)
+    assert length(ObsFactor.Sources.names()) == 9
   end
 end
