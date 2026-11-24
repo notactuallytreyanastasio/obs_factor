@@ -7,8 +7,9 @@ defmodule ObsFactorWeb.ChannelCase do
       import Phoenix.ChannelTest
       @endpoint ObsFactorWeb.Endpoint
 
-      defp authed_socket(sid \\ "test-session"),
-        do: socket(ObsFactorWeb.UserSocket, "session:" <> sid, %{sid: sid})
+      # identities: a password login, an operator, unless the test says who
+      defp authed_socket(sid \\ "test-session", identity \\ %{"login" => nil, "role" => "operator", "via" => "password"}),
+        do: socket(ObsFactorWeb.UserSocket, "session:" <> sid, %{sid: sid, identity: identity})
     end
   end
 end

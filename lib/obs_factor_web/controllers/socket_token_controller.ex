@@ -34,7 +34,8 @@ defmodule ObsFactorWeb.SocketTokenController do
     conn
     |> put_resp_header("cache-control", "no-store")
     |> json(%{
-      token: UserSocket.token(sid),
+      # identities: the token's claims carry who this is (ObsFactorWeb.Identity)
+      token: UserSocket.token(sid, identity: conn.assigns[:identity]),
       max_age_s: UserSocket.max_age_s(),
       origin: origin(conn, params["origin"])
     })

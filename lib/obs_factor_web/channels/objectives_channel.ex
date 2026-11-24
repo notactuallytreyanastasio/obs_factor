@@ -55,12 +55,13 @@ defmodule ObsFactorWeb.ObjectivesChannel do
   end
 
   @impl true
+  # identities: `by` is the GitHub login when there is one (ObsFactorWeb.Identity.sign/2)
   def handle_in("pin", params, socket) when is_map(params),
-    do: {:reply, write(fn -> Objectives.pin(params) end), socket}
+    do: {:reply, write(fn -> Objectives.pin(ObsFactorWeb.Identity.sign(params, socket.assigns[:identity])) end), socket}
 
   def handle_in("act", %{"id" => id, "action" => action} = params, socket)
       when is_integer(id) and action in ~w(look done reopen),
-      do: {:reply, write(fn -> Objectives.act(id, action, params) end), socket}
+      do: {:reply, write(fn -> Objectives.act(id, action, ObsFactorWeb.Identity.sign(params, socket.assigns[:identity])) end), socket}
 
   def handle_in("act", params, socket),
     do:

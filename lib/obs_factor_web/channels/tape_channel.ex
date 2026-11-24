@@ -55,6 +55,12 @@ defmodule ObsFactorWeb.TapeChannel do
       `%{filters: list}` to everyone; the join reply carries `filters` too
 
   Times are unix milliseconds. A window may be at most 31 days.
+
+  Identities (`ObsFactorWeb.Identity`): every write is logged with the
+  socket's identity, and its `by` is the GitHub login when there is one.
+  `create_token`, `revoke_token`, `save_schedule`, `delete_schedule` and
+  `run_schedule` are an operator's: a viewer gets `{:error, %{error}}`
+  saying so.
   """
   use ObsFactorWeb, :channel
 
@@ -111,16 +117,18 @@ defmodule ObsFactorWeb.TapeChannel do
   end
 
   @impl true
-  def handle_in("save_window", params, socket) when is_map(params), do: {:reply, write(fn -> Tape.save_window(params) end, :window), socket}
+  # identities: as/4 logs who did it and, for an operator's action, refuses a viewer
+  def handle_in("save_window", params, socket) when is_map(params),
+    do: {:reply, as(socket, "save_window", params, &write(fn -> Tape.save_window(&1) end, :window)), socket}
 
-  def handle_in("prune_windows", %{"ids" => ids}, socket) when is_list(ids),
-    do: {:reply, write(fn -> Tape.prune_windows(ids) end, :pruned), socket}
+  def handle_in("prune_windows", %{"ids" => ids} = params, socket) when is_list(ids),
+    do: {:reply, as(socket, "prune_windows", params, fn _ -> write(fn -> Tape.prune_windows(ids) end, :pruned) end), socket}
 
   def handle_in("save_filter", params, socket) when is_map(params),
-    do: {:reply, filters(fn -> ObsFactor.WireFilters.save(params) end, :filter), socket}
+    do: {:reply, as(socket, "save_filter", params, &filters(fn -> ObsFactor.WireFilters.save(&1) end, :filter)), socket}
 
-  def handle_in("delete_filter", %{"id" => id}, socket),
-    do: {:reply, filters(fn -> ObsFactor.WireFilters.delete(id) end, :deleted), socket}
+  def handle_in("delete_filter", %{"id" => id} = params, socket),
+    do: {:reply, as(socket, "delete_filter", params, fn _ -> filters(fn -> ObsFactor.WireFilters.delete(id) end, :deleted) end), socket}
 
   # writeups (ObsFactor.Writeup): build one to preview, save one to share
   def handle_in("writeup", params, socket) when is_map(params) do
@@ -134,94 +142,107 @@ defmodule ObsFactorWeb.TapeChannel do
   end
 
   def handle_in("save_writeup", params, socket) when is_map(params) do
-    opts = ObsFactorWeb.WriteupController.options(params)
-    by = if is_binary(params["by"]), do: String.slice(params["by"], 0, 60)
-
-    reply =
-      with {:ok, w} <- ObsFactor.Writeup.build(opts ++ [base_url: ObsFactorWeb.Endpoint.url()]),
-           {:ok, saved} <- ObsFactor.Writeup.save(w, Map.new(opts, fn {k, v} -> {k, v} end), by) do
-        with {:ok, list} <- ObsFactor.Writeup.list(), do: Phoenix.PubSub.broadcast(ObsFactor.PubSub, Tape.topic(), {:writeups, list})
-        {:ok, %{writeup: Map.put(saved, :url, ObsFactorWeb.Endpoint.url() <> "/w/" <> saved.slug <> ".md")}}
-      else
-        {:error, e} -> {:error, %{error: Tape.message(e)}}
-      end
-
-    {:reply, reply, socket}
+    {:reply, as(socket, "save_writeup", params, &save_writeup/1), socket}
   end
 
-  # tokens for scripts (ObsFactor.ApiTokens): made here, shown once
-  def handle_in("create_token", params, socket) when is_map(params) do
-    by = if is_binary(params["by"]), do: params["by"]
+  def handle_in("create_token", params, socket) when is_map(params),
+    do: {:reply, as(socket, "create_token", params, &create_token/1), socket}
 
-    reply =
-      case ObsFactor.ApiTokens.create(params["name"], ObsFactor.ApiTokens.scopes(), by) do
-        {:ok, t} -> broadcast_list(:api_tokens, ObsFactor.ApiTokens.list()); {:ok, %{token: t}}
-        {:error, e} -> {:error, %{error: Tape.message(e)}}
-      end
+  def handle_in("revoke_token", %{"id" => id} = params, socket),
+    do: {:reply, as(socket, "revoke_token", params, fn _ -> revoke_token(id) end), socket}
 
-    {:reply, reply, socket}
-  end
+  def handle_in("save_schedule", params, socket) when is_map(params),
+    do: {:reply, as(socket, "save_schedule", params, &save_schedule/1), socket}
 
-  def handle_in("revoke_token", %{"id" => id}, socket) do
-    reply =
-      case ObsFactor.ApiTokens.revoke(id) do
-        {:ok, i} -> broadcast_list(:api_tokens, ObsFactor.ApiTokens.list()); {:ok, %{revoked: i}}
-        {:error, e} -> {:error, %{error: Tape.message(e)}}
-      end
+  def handle_in("delete_schedule", %{"id" => id} = params, socket),
+    do: {:reply, as(socket, "delete_schedule", params, fn _ -> delete_schedule(id) end), socket}
 
-    {:reply, reply, socket}
-  end
+  def handle_in("run_schedule", %{"id" => id} = params, socket) when is_integer(id),
+    do: {:reply, as(socket, "run_schedule", params, fn _ -> run_schedule(id) end), socket}
 
-  # scheduled writeups (ObsFactor.Writeup.Schedules)
-  def handle_in("save_schedule", params, socket) when is_map(params) do
-    reply =
-      case ObsFactor.Writeup.Schedules.save(params) do
-        {:ok, s} -> ObsFactor.Writeup.Scheduler.broadcast(); {:ok, %{schedule: s}}
-        {:error, e} -> {:error, %{error: Tape.message(e)}}
-      end
+  def handle_in("delete_writeup", %{"slug" => slug} = params, socket) when is_binary(slug),
+    do: {:reply, as(socket, "delete_writeup", params, fn _ -> delete_writeup(slug) end), socket}
 
-    {:reply, reply, socket}
-  end
-
-  def handle_in("delete_schedule", %{"id" => id}, socket) do
-    reply =
-      case ObsFactor.Writeup.Schedules.delete(id) do
-        {:ok, i} -> ObsFactor.Writeup.Scheduler.broadcast(); {:ok, %{deleted: i}}
-        {:error, e} -> {:error, %{error: Tape.message(e)}}
-      end
-
-    {:reply, reply, socket}
-  end
-
-  def handle_in("run_schedule", %{"id" => id}, socket) when is_integer(id) do
-    reply =
-      case ObsFactor.Writeup.Scheduler.run_now(id) do
-        {:ok, saved} -> {:ok, %{writeup: saved}}
-        {:error, e} -> {:error, %{error: Tape.message(e)}}
-      end
-
-    {:reply, reply, socket}
-  end
-
-  def handle_in("delete_writeup", %{"slug" => slug}, socket) when is_binary(slug) do
-    reply =
-      case ObsFactor.Writeup.delete(slug) do
-        {:ok, s} ->
-          with {:ok, list} <- ObsFactor.Writeup.list(), do: Phoenix.PubSub.broadcast(ObsFactor.PubSub, Tape.topic(), {:writeups, list})
-          {:ok, %{deleted: s}}
-
-        {:error, e} ->
-          {:error, %{error: Tape.message(e)}}
-      end
-
-    {:reply, reply, socket}
-  end
-
-  def handle_in("restore_windows", %{"ids" => ids}, socket) when is_list(ids),
-    do: {:reply, write(fn -> Tape.restore_windows(ids) end, :restored), socket}
+  def handle_in("restore_windows", %{"ids" => ids} = params, socket) when is_list(ids),
+    do: {:reply, as(socket, "restore_windows", params, fn _ -> write(fn -> Tape.restore_windows(ids) end, :restored) end), socket}
 
   def handle_in(event, params, socket) do
     {:reply, if(Tape.enabled?(), do: read(event, params), else: {:error, %{error: "no tape: OBJECTIVES_PG_URL is not set"}}), socket}
+  end
+
+  # identities: `fun` gets the params with `by` set from the socket's identity,
+  # once ObsFactorWeb.Identity.authorize/3 has said yes (and logged it)
+  defp as(socket, action, params, fun) do
+    identity = socket.assigns[:identity]
+    params = ObsFactorWeb.Identity.sign(params, identity)
+
+    case ObsFactorWeb.Identity.authorize(identity, action, by: params["by"]) do
+      :ok -> fun.(params)
+      {:error, why} -> {:error, %{error: why}}
+    end
+  end
+
+  defp save_writeup(params) do
+    opts = ObsFactorWeb.WriteupController.options(params)
+    by = if is_binary(params["by"]), do: String.slice(params["by"], 0, 60)
+
+    with {:ok, w} <- ObsFactor.Writeup.build(opts ++ [base_url: ObsFactorWeb.Endpoint.url()]),
+         {:ok, saved} <- ObsFactor.Writeup.save(w, Map.new(opts, fn {k, v} -> {k, v} end), by) do
+      with {:ok, list} <- ObsFactor.Writeup.list(), do: Phoenix.PubSub.broadcast(ObsFactor.PubSub, Tape.topic(), {:writeups, list})
+      {:ok, %{writeup: Map.put(saved, :url, ObsFactorWeb.Endpoint.url() <> "/w/" <> saved.slug <> ".md")}}
+    else
+      {:error, e} -> {:error, %{error: Tape.message(e)}}
+    end
+  end
+
+  # tokens for scripts (ObsFactor.ApiTokens): made here, shown once
+  defp create_token(params) do
+    by = if is_binary(params["by"]), do: params["by"]
+
+    case ObsFactor.ApiTokens.create(params["name"], ObsFactor.ApiTokens.scopes(), by) do
+      {:ok, t} -> broadcast_list(:api_tokens, ObsFactor.ApiTokens.list()); {:ok, %{token: t}}
+      {:error, e} -> {:error, %{error: Tape.message(e)}}
+    end
+  end
+
+  defp revoke_token(id) do
+    case ObsFactor.ApiTokens.revoke(id) do
+      {:ok, i} -> broadcast_list(:api_tokens, ObsFactor.ApiTokens.list()); {:ok, %{revoked: i}}
+      {:error, e} -> {:error, %{error: Tape.message(e)}}
+    end
+  end
+
+  # scheduled writeups (ObsFactor.Writeup.Schedules)
+  defp save_schedule(params) do
+    case ObsFactor.Writeup.Schedules.save(params) do
+      {:ok, s} -> ObsFactor.Writeup.Scheduler.broadcast(); {:ok, %{schedule: s}}
+      {:error, e} -> {:error, %{error: Tape.message(e)}}
+    end
+  end
+
+  defp delete_schedule(id) do
+    case ObsFactor.Writeup.Schedules.delete(id) do
+      {:ok, i} -> ObsFactor.Writeup.Scheduler.broadcast(); {:ok, %{deleted: i}}
+      {:error, e} -> {:error, %{error: Tape.message(e)}}
+    end
+  end
+
+  defp run_schedule(id) do
+    case ObsFactor.Writeup.Scheduler.run_now(id) do
+      {:ok, saved} -> {:ok, %{writeup: saved}}
+      {:error, e} -> {:error, %{error: Tape.message(e)}}
+    end
+  end
+
+  defp delete_writeup(slug) do
+    case ObsFactor.Writeup.delete(slug) do
+      {:ok, s} ->
+        with {:ok, list} <- ObsFactor.Writeup.list(), do: Phoenix.PubSub.broadcast(ObsFactor.PubSub, Tape.topic(), {:writeups, list})
+        {:ok, %{deleted: s}}
+
+      {:error, e} ->
+        {:error, %{error: Tape.message(e)}}
+    end
   end
 
   defp read("index", %{"from" => f, "to" => t, "buckets" => b}) when is_integer(b) and b in 1..2000,
