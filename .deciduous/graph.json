@@ -852,6 +852,20 @@
     }
   },
   "nodes": {
+    "0089bd2c-fab0-479d-85b6-6261b44beb9b": {
+      "author": "Bobby Grayson",
+      "change_id": "0089bd2c-fab0-479d-85b6-6261b44beb9b",
+      "created_at": "2026-11-23T19:01:02.715928-05:00",
+      "metadata": {
+        "branch": "25-density",
+        "commit": "58a2850ba8cb93a202c528ff00dcaf5b1aeca108",
+        "confidence": 85
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Wire: peer outliers, baselines, deploy/crash, hot+big procs, links; series prefix",
+      "updated_at": "2026-11-23T19:01:02.715928-05:00"
+    },
     "07d29881-537a-4b28-8ed9-b04dee7e5f0e": {
       "author": "Bobby Grayson",
       "change_id": "07d29881-537a-4b28-8ed9-b04dee7e5f0e",
@@ -1156,6 +1170,20 @@
       "title": "Timeline as a product: error lanes, saved windows (open/trim/prune), back-to-live, zoom/pan/scrub",
       "updated_at": "2026-11-23T17:32:32.211132-05:00"
     },
+    "46f4305b-e9d2-497a-ba64-cd46aafee01d": {
+      "author": "Bobby Grayson",
+      "change_id": "46f4305b-e9d2-497a-ba64-cd46aafee01d",
+      "created_at": "2026-11-23T19:05:04.424299-05:00",
+      "metadata": {
+        "branch": "25-density",
+        "commit": "f3c216608611cbb22b1a39b62adf0f7fbbd40945",
+        "confidence": 85
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Board/timeline density: sparks, movers, outliers, errors by fingerprint, cluster map, BEAM heat rows, deploy marks",
+      "updated_at": "2026-11-23T19:05:04.424299-05:00"
+    },
     "477d1080-b674-47e8-8b1d-c1b691ae3acc": {
       "author": "Bobby Grayson",
       "change_id": "477d1080-b674-47e8-8b1d-c1b691ae3acc",
@@ -1208,6 +1236,20 @@
       "status": "pending",
       "title": "Frontend: per-subdomain buildings, bus belts with class-coloured items, container storage, gauges, floor and backdrop",
       "updated_at": "2026-11-19T01:35:44.661538-05:00"
+    },
+    "4cd7bbd7-19df-4ece-ade2-d10f90e9ab42": {
+      "author": "Bobby Grayson",
+      "change_id": "4cd7bbd7-19df-4ece-ade2-d10f90e9ab42",
+      "created_at": "2026-11-23T18:59:26.465972-05:00",
+      "metadata": {
+        "branch": "25-density",
+        "confidence": 75,
+        "prompt": "Do all that"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "Density pass: movers/outliers, sparklines, BEAM heatmap lanes, hot processes, deploy marks, error fingerprints, cluster map, report coverage",
+      "updated_at": "2026-11-23T18:59:26.465972-05:00"
     },
     "4fe1e026-0eb9-4ec5-8718-53f3c3c4c280": {
       "author": "Bobby Grayson",
