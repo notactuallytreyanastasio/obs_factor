@@ -296,12 +296,24 @@ defmodule ObsFactor.Wire do
     prev = state.members
     apps_now = beams |> Enum.group_by(& &1.app)
 
+    # An app of one node whose node name changed (a container's hostname is
+    # its id, so a redeploy renames the node) was replaced, not joined and
+    # left: said once, as a restart.
+    prev_by_app = Enum.group_by(prev, fn {_, p} -> p.app end)
+
+    replaced =
+      for {app, [b]} <- apps_now, [{old, p}] <- [Map.get(prev_by_app, app, [])], old != b.key, not MapSet.member?(partial, app),
+          into: %{},
+          do: {app, item(b, "restart", "warn", "#{b.label} replaced: #{short(old)} → #{short(b.key)}", "a new node took the old one's place#{if is_number(p.uptime), do: " after #{dur(p.uptime)} up", else: ""}")}
+
     joined_left =
-      for {key, b} <- now, not Map.has_key?(prev, key), Enum.any?(prev, fn {_, p} -> p.app == b.app end) do
+      Map.values(replaced) ++
+      for {key, b} <- now, not Map.has_key?(prev, key), not Map.has_key?(replaced, b.app), Enum.any?(prev, fn {_, p} -> p.app == b.app end) do
         item(b, "joined", "info", "#{short(key)} joined", "#{b.label} now runs on #{length(apps_now[b.app])} nodes")
       end ++
         # a member that could not be read is not a member that left
-        for {key, p} <- prev, not Map.has_key?(now, key), Map.has_key?(apps_now, p.app), not MapSet.member?(partial, p.app) do
+        for {key, p} <- prev, not Map.has_key?(now, key), Map.has_key?(apps_now, p.app), not MapSet.member?(partial, p.app),
+            not Map.has_key?(replaced, p.app) do
           item(p, "left", "warn", "#{short(key)} left", "#{p.label} is down to #{length(apps_now[p.app])} nodes")
         end
 

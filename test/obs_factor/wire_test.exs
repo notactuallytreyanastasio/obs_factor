@@ -266,4 +266,11 @@ defmodule ObsFactor.WireTest do
       refute Map.has_key?(st.members, "marginalia@172.18.0.12")
     end
   end
+
+  test "a one-node app whose node name changed was replaced, not joined and left" do
+    one = fn host, up -> %{"nodes" => [%{"id" => "app", "label" => "Blog", "kind" => "app", "inside" => %{"ok" => true, "runtime" => %{"kind" => "beam", "uptime_s" => up, "gauges" => %{}}, "cluster" => %{"node" => "blog@#{host}", "distributed" => true}}}]} end
+    {_, st} = Wire.observe(Wire.new(), one.("aaa", 9000), @t)
+    {items, _} = Wire.observe(st, one.("bbb", 3), @t + 5_000)
+    assert [%{kind: "restart", head: "Blog replaced: blog@aaa → blog@bbb", text: "a new node took the old one's place after 2h 30m up"}] = items
+  end
 end
