@@ -217,6 +217,10 @@ defmodule ObsFactor.Discovery do
               probe: probe,
               report: report,
               databases: split(l["databases"]),
+              # the keys Topology.validate/1 gives every node (deploys, chapter 33):
+              # nil here, so ObsFactor.Deploys guesses the .deployed path from the service
+              deployed: nil,
+              repo: nil,
               discovered: true,
               labelled_report: true
             }
