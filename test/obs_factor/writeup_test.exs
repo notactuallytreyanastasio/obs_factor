@@ -30,7 +30,9 @@ defmodule ObsFactor.WriteupTest do
           %{id: "caddy", label: "Caddy", kind: "proxy", status: "working", hosts: [%{rps: 2.0, err_rps: 0.0}]},
           %{id: "marginalia", label: "Marginalia", kind: "app", status: "working", hosts: [],
             inside: %{ok: true, runtime: %{kind: "beam"}, tables: [%{repo: "Marginalia.Repo", table: "links", rate: 1.5, avg_ms: 2.0, total_ms: 30.0, err_rate: 0.0}],
-                      liveviews: %{total: 3, views: [%{view: "MarginaliaWeb.ReadLive", alive: 3}]}}},
+                      liveviews: %{total: 3, views: [%{view: "MarginaliaWeb.ReadLive", alive: 3}]},
+                      pubsub: [%{name: "Marginalia.PubSub", topics: 40, subscriptions: 55, subscribers: 30, patterns_cut: 0, counts_only: nil,
+                                 top: [%{pattern: "run:#", topics: 38, subscriptions: 50}, %{pattern: "presence", topics: 1, subscriptions: 5}]}]}},
           %{id: "blog", label: "Blog", kind: "app", status: "working", hosts: []}
         ]
       }
@@ -67,12 +69,17 @@ defmodule ObsFactor.WriteupTest do
     assert md =~ "| marginalia_prod | Marginalia | 12 → 12 (12) |"
     assert md =~ "| links | Marginalia.Repo | 1.5/s | 2 ms | 30 ms | 0% |"
     assert md =~ "**Marginalia**: 3 alive (MarginaliaWeb.ReadLive 3)"
+    # PubSub at the end of the range: patterns, not topics
+    assert md =~ "## PubSub"
+    assert md =~ "### Marginalia: Marginalia.PubSub\n\n40 topics, 55 subscriptions by 30 processes."
+    assert md =~ "| `run:#` | 38 | 50 |\n| `presence` | 1 | 5 |"
   end
 
   test "by app: the other buildings are left out of every section", %{t0: t0, to: to} do
     {:ok, w} = Writeup.build(from: t0, to: to, apps: ["blog"])
     refute w.markdown =~ "marginalia@10"
     refute w.markdown =~ "error in Runs"
+    refute w.markdown =~ "## PubSub"
     assert w.markdown =~ "blog@1"
     assert w.markdown =~ "only Blog"
   end

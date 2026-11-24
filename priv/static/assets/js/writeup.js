@@ -13,7 +13,7 @@
 import * as bus from "./bus.js";
 import { esc } from "./fmt.js";
 
-const SECTIONS = [["summary", "Summary"], ["incidents", "Incidents"], ["timeline", "Timeline"], ["hot", "Where it burned"], ["beam", "The BEAM"], ["errors", "Errors"], ["db", "Databases"], ["method", "How it was made"]];
+const SECTIONS = [["summary", "Summary"], ["incidents", "Incidents"], ["timeline", "Timeline"], ["hot", "Where it burned"], ["beam", "The BEAM"], ["errors", "Errors"], ["db", "Databases"], ["pubsub", "PubSub"], ["method", "How it was made"]];
 const pad = (n) => String(n).padStart(2, "0");
 const stamp = (ms) => { const d = new Date(ms); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`; };
 

@@ -75,7 +75,8 @@ defmodule ObsFactor.Ticker do
   # mailboxes the observer engine last reported. A wire that raises loses
   # its news for this tick, not the snapshot.
   defp read_wire(wire, json, at) do
-    snap = Jason.decode!(json)
+    # the observer's own PubSub servers, for the wire only (ObsFactor.Wire.Topics)
+    snap = json |> Jason.decode!() |> Map.put("observer_pubsub", ObsFactor.Topics.own())
     boxes = ObsFactor.Wire.Mailboxes.read()
     {items, wire} = ObsFactor.Wire.observe(wire, snap, at, boxes)
     {items, ObsFactor.Wire.metrics(snap, boxes), wire}

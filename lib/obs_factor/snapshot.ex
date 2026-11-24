@@ -573,6 +573,7 @@ defmodule ObsFactor.Snapshot do
     streams: nil,
     tables: nil,
     liveviews: nil,
+    pubsub: nil,
     events: nil,
     truncated: nil,
     cluster: nil,
@@ -622,6 +623,8 @@ defmodule ObsFactor.Snapshot do
             end),
           tables: tables,
           liveviews: report[:liveviews],
+          # PubSub servers and their top topic patterns (ObsFactor.Topics)
+          pubsub: report[:pubsub],
           events: report.events,
           # What is not shown here is counted, whoever cut it.
           truncated:
@@ -668,10 +671,11 @@ defmodule ObsFactor.Snapshot do
           runtime: %{m.runtime | rates: Map.new(m.runtime.rates, fn {k, v} -> {k, round_to(v, 3)} end)},
           cluster: cluster_view(m[:cluster]),
           tables: m |> Map.get(:tables, []) |> tables_view() |> elem(0),
-          liveviews: m[:liveviews]
+          liveviews: m[:liveviews],
+          pubsub: m[:pubsub]
         })
       else
-        Map.merge(base, %{runtime: nil, cluster: nil, tables: nil, liveviews: nil})
+        Map.merge(base, %{runtime: nil, cluster: nil, tables: nil, liveviews: nil, pubsub: nil})
       end
     end)
   end

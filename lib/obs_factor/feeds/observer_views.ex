@@ -15,10 +15,12 @@ defmodule ObsFactor.Feeds.ObserverViews do
   | `proc:<pid>` | `proc/<pid>` | 1 s |
   | `ets` | `ets` | 5 s |
   | `ports` | `ports` | 5 s |
+  | `pubsub` | `pubsub?limit=1000` (every server, whole topics) | 5 s |
+  | `pubsub:<server>:<topic>` | `pubsub?server=<server>&topic=<topic>` (that topic's subscribers) | 2 s |
 
   Intervals can be changed per view with
   `config :obs_factor, :observer_feed_intervals_ms, %{"proc" => 2_000}`
-  (keys: system, apps, tree, procs, proc, ets, ports).
+  (keys: system, apps, tree, procs, proc, ets, ports, pubsub, pubsub_topic).
 
   A join is refused (`{:error, reason}`) for a malformed topic, an unknown
   view, a node that is not `observer` or a topology node with a `report`
@@ -46,10 +48,12 @@ defmodule ObsFactor.Feeds.ObserverViews do
     "procs" => 2_000,
     "proc" => 1_000,
     "ets" => 5_000,
-    "ports" => 5_000
+    "ports" => 5_000,
+    "pubsub" => 5_000,
+    "pubsub_topic" => 2_000
   }
 
-  @views "system | apps | tree:<app> | procs:<reductions|memory|message_queue_len> | proc:<pid> | ets | ports"
+  @views "system | apps | tree:<app> | procs:<reductions|memory|message_queue_len> | proc:<pid> | ets | ports | pubsub | pubsub:<server>:<topic>"
 
   @doc """
   `{:ok, node_id, member or nil, view}` for a well-formed observer topic
@@ -112,6 +116,21 @@ defmodule ObsFactor.Feeds.ObserverViews do
       else:
         {:error,
          "proc:<pid> needs a pid written 0.123.0, got #{inspect(String.slice(pid, 0, 60))}"}
+  end
+
+  # PubSub (FactoryReport.PubSub): every server, or one topic's subscribers.
+  # A server is a name as the engine writes it (MyApp.PubSub, :my_pubsub);
+  # the topic is the rest, colons and all, printable, at most 120 bytes.
+  defp view("pubsub"), do: {:ok, "pubsub", ["pubsub"], %{"limit" => "1000"}}
+
+  defp view("pubsub:" <> rest) do
+    case Regex.run(~r/\A(:?[A-Za-z0-9_.]{1,120}):([[:print:]]{1,120})\z/u, rest, capture: :all_but_first) do
+      [server, topic] when byte_size(topic) <= 120 ->
+        {:ok, "pubsub_topic", ["pubsub"], %{"server" => server, "topic" => topic}}
+
+      _ ->
+        {:error, "pubsub:<server>:<topic> needs a server name and a printable topic of at most 120 bytes, got #{inspect(String.slice(rest, 0, 60))}"}
+    end
   end
 
   defp view(other),

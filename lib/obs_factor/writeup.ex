@@ -11,7 +11,7 @@ defmodule ObsFactor.Writeup do
     * `spec` - a wire filter (`ObsFactor.WireFilters` spec: apps, sevs,
       kinds, q), which narrows the timeline and the errors
     * `apps` - node ids: every section only about those buildings
-    * `sections` - which of #{inspect(~w(summary incidents timeline hot beam errors db method))}
+    * `sections` - which of #{inspect(~w(summary incidents timeline hot beam errors db pubsub method))}
       (all by default)
     * `base_url` - where the floor is, for the replay links
 
@@ -23,7 +23,7 @@ defmodule ObsFactor.Writeup do
 
   alias ObsFactor.{Insights, Tape, WireFilters}
 
-  @sections ~w(summary incidents timeline hot beam errors db method)
+  @sections ~w(summary incidents timeline hot beam errors db pubsub method)
   @error_kinds ~w(error warning failing crash handler)
   @max_rows 200
 
@@ -281,6 +281,9 @@ defmodule ObsFactor.Writeup do
     |> Enum.reject(&(&1 in [nil, ""]))
     |> Enum.join("\n\n")
   end
+
+  # PubSub servers and their top topic patterns at the end (ObsFactor.Writeup.Topics)
+  defp section("pubsub", ctx), do: ObsFactor.Writeup.Topics.section(ctx.data.frame, &in_app?(ctx, &1))
 
   defp section("method", ctx) do
     """
