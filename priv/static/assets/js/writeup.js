@@ -28,10 +28,15 @@ export class Writeups {
     document.body.appendChild(this.el);
     this.shared = [];
     this.el.addEventListener("click", (e) => this.onClick(e));
-    this.el.addEventListener("change", () => this.refresh());
+    this.el.addEventListener("change", (e) => { if (e.target.closest(".wu-more")) this.renderEvery(); else this.refresh(); });
     this.el.addEventListener("input", (e) => { if (e.target.name === "title") { clearTimeout(this.tt); this.tt = setTimeout(() => this.refresh(), 500); } });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !this.el.hidden) { e.preventDefault(); e.stopPropagation(); this.close(); } }, true);
-    bus.subscribe("tape", (ev, p) => { if (ev === "writeups") { this.shared = p.writeups; this.renderShared(); } }, {});
+    this.schedules = []; this.tokens = [];
+    bus.subscribe("tape", (ev, p) => {
+      if (ev === "writeups") { this.shared = p.writeups; this.renderShared(); }
+      else if (ev === "schedules") { this.schedules = p.schedules; this.renderSchedules(); }
+      else if (ev === "api_tokens") { this.tokens = p.tokens; this.renderTokens(); }
+    }, {});
   }
 
   get open() { return !this.el.hidden; }
@@ -44,6 +49,8 @@ export class Writeups {
     this.render();
     this.refresh();
     bus.push("tape", "writeups", {}).then((r) => { this.shared = r.writeups; this.renderShared(); }).catch(() => {});
+    bus.push("tape", "schedules", {}).then((r) => { this.schedules = r.schedules; this.renderSchedules(); }).catch(() => {});
+    bus.push("tape", "api_tokens", {}).then((r) => { this.tokens = r.tokens; this.renderTokens(); }).catch(() => {});
   }
 
   close() { this.el.hidden = true; document.body.classList.remove("writing"); }
@@ -77,10 +84,60 @@ export class Writeups {
         </div>
         <p class="wu-msg" hidden></p>
         <div class="wu-shared"></div>
+        <details class="wu-more"><summary>Schedule this</summary>
+          <p class="dim">Writes itself up every day or week with these options, saves it as a shared link, and posts the link to a webhook if you give one (Slack's incoming webhooks work).</p>
+          <div class="wu-grid">
+            <label class="wu-f">Name <input name="sname" maxlength="80" value="${esc(s.title || "Daily writeup")}"></label>
+            <label class="wu-f">Every <select name="every"><option value="daily">day</option><option value="weekly">week</option></select></label>
+            <label class="wu-f wu-wd">On <select name="weekday">${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => `<option value="${i + 1}">${d}</option>`).join("")}</select></label>
+            <label class="wu-f">At (UTC) <select name="hour">${Array.from({ length: 24 }, (_, h) => `<option value="${h}"${h === 8 ? " selected" : ""}>${String(h).padStart(2, "0")}:00</option>`).join("")}</select></label>
+            <label class="wu-f wu-wide">Webhook <span class="dim">(optional)</span> <input name="webhook" placeholder="https://hooks.slack.com/services/…" spellcheck="false"></label>
+          </div>
+          <div class="wu-acts"><button type="button" data-a="schedule">Save schedule</button></div>
+          <div class="wu-schedules"></div>
+        </details>
+        <details class="wu-more"><summary>Script access</summary>
+          <p class="dim">A token lets a script fetch writeups without logging in. It is shown once.</p>
+          <div class="wu-acts"><input name="tname" maxlength="60" placeholder="what will use it (e.g. nightly cron)"><button type="button" data-a="token">Make token</button></div>
+          <div class="wu-newtoken" hidden></div>
+          <div class="wu-tokens"></div>
+        </details>
       </form>
       <article class="wu-doc" aria-live="polite"><p class="dim">writing…</p></article>
     </div>`;
-    this.renderShared();
+    this.renderShared(); this.renderSchedules(); this.renderTokens(); this.renderEvery();
+  }
+
+  // the weekday only for a weekly schedule
+  renderEvery() {
+    const f = this.el.querySelector("form");
+    const wd = this.el.querySelector(".wu-wd");
+    if (f && wd) wd.hidden = f.every.value !== "weekly";
+  }
+
+  renderSchedules() {
+    const box = this.el.querySelector(".wu-schedules");
+    if (!box) return;
+    const every = (x) => x.every === "daily" ? `daily at ${String(x.hour).padStart(2, "0")}:00` : `${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][x.weekday - 1]}s at ${String(x.hour).padStart(2, "0")}:00`;
+    box.innerHTML = this.schedules.length ? `<ul>${this.schedules.map((x) => `<li data-sid="${x.id}"><b>${esc(x.name)}</b><span class="dim">${every(x)} UTC · next ${stamp(x.next_at)}${x.webhook ? " · webhook" : ""}</span>
+        ${x.last_run_at ? `<span class="dim">last ${stamp(x.last_run_at)}${x.last_slug ? ` · <a href="/w/${esc(x.last_slug)}.md" target="_blank" rel="noopener">read it</a>` : ""}</span>` : ""}
+        ${x.last_error ? `<span class="bad">${esc(x.last_error)}</span>` : ""}
+        <span class="wu-l"><button type="button" data-a="runnow">run now</button><button type="button" class="bad" data-a="unschedule">delete</button></span></li>`).join("")}</ul>` : "";
+  }
+
+  renderTokens() {
+    const box = this.el.querySelector(".wu-tokens");
+    if (!box) return;
+    box.innerHTML = this.tokens.length ? `<ul>${this.tokens.map((t) => `<li data-tid="${t.id}"><b>${esc(t.name)}</b><span class="dim">${esc(t.hint)} · ${t.last_used_at ? `used ${stamp(t.last_used_at)}` : "never used"}${t.by ? ` · ${esc(t.by)}` : ""}</span>
+        <span class="wu-l"><button type="button" class="bad" data-a="revoketoken">revoke</button></span></li>`).join("")}</ul>` : "";
+  }
+
+  // what a script would send for the options on screen
+  curl(token) {
+    const o = this.options();
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(o)) q.set(k, Array.isArray(v) ? v.join(",") : String(v));
+    return `curl -fsS -H "Authorization: Bearer ${token}" "${location.origin}/api/writeup.md?${q}" -o writeup.md`;
   }
 
   renderShared() {
@@ -129,6 +186,40 @@ export class Writeups {
         .then((r) => copy(r.writeup.url).then(() => this.say(`shared: ${r.writeup.url} (copied)`), () => this.say(`shared: ${r.writeup.url}`)))
         .catch((x) => this.say(x.message, true))
         .finally(() => { b.disabled = false; });
+    }
+    if (a === "schedule") {
+      const f = this.el.querySelector("form");
+      const o = this.options();
+      const body = { name: f.sname.value, every: f.every.value, hour: +f.hour.value, weekday: f.every.value === "weekly" ? +f.weekday.value : null,
+        webhook: f.webhook.value.trim() || null, options: { apps: o.apps, sections: o.sections, ...(o.set ? { set: o.set } : {}) }, by: this.api.who() };
+      return bus.push("tape", "save_schedule", body).then((r) => this.say(`scheduled “${r.schedule.name}”: next ${stamp(r.schedule.next_at)} UTC`)).catch((x) => this.say(x.message, true));
+    }
+    if (a === "runnow") {
+      const id = +b.closest("[data-sid]").dataset.sid;
+      b.disabled = true;
+      return bus.push("tape", "run_schedule", { id }).then((r) => this.say(`written: ${location.origin}/w/${r.writeup.slug}.md`)).catch((x) => this.say(x.message, true)).finally(() => { b.disabled = false; });
+    }
+    if (a === "unschedule") {
+      const id = +b.closest("[data-sid]").dataset.sid;
+      if (!window.confirm("Delete this schedule? Writeups it already wrote stay shared.")) return;
+      return bus.push("tape", "delete_schedule", { id }).then(() => this.say("schedule deleted")).catch((x) => this.say(x.message, true));
+    }
+    if (a === "token") {
+      const name = this.el.querySelector("[name=tname]").value;
+      return bus.push("tape", "create_token", { name, by: this.api.who() }).then((r) => {
+        const box = this.el.querySelector(".wu-newtoken");
+        box.hidden = false;
+        const c = this.curl(r.token.token);
+        box.innerHTML = `<p><b>${esc(r.token.name)}</b>: copy it now, it is not shown again.</p><code>${esc(r.token.token)}</code>
+          <p class="dim">For these options:</p><code>${esc(c)}</code>
+          <div class="wu-acts"><button type="button" data-a="copytoken" data-v="${esc(r.token.token)}">copy token</button><button type="button" data-a="copytoken" data-v="${esc(c)}">copy curl</button></div>`;
+      }).catch((x) => this.say(x.message, true));
+    }
+    if (a === "copytoken") return copy(b.dataset.v).then(() => this.say("copied"), () => this.say("the browser would not copy", true));
+    if (a === "revoketoken") {
+      const id = +b.closest("[data-tid]").dataset.tid;
+      if (!window.confirm("Revoke this token? Scripts using it get 401 from now on.")) return;
+      return bus.push("tape", "revoke_token", { id }).then(() => this.say("token revoked")).catch((x) => this.say(x.message, true));
     }
     if (a === "copylink") return copy(b.dataset.url).then(() => this.say("link copied"), () => this.say(b.dataset.url));
     if (a === "revoke") {

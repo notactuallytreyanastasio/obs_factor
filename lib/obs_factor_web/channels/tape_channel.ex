@@ -42,6 +42,13 @@ defmodule ObsFactorWeb.TapeChannel do
       under an unguessable link, `%{writeup: %{slug, url, ...}}`;
       `writeups` lists them; `delete_writeup` `%{slug}` revokes one. Saves
       and revokes push `writeups` `%{writeups}` to everyone.
+    * `create_token` `%{name, by}` -> `%{token: %{id, name, token}}`, a
+      script token shown this once (`ObsFactor.ApiTokens`); `api_tokens`
+      lists them; `revoke_token` `%{id}`. Pushes `api_tokens` `%{tokens}`.
+    * `save_schedule` `%{name, every, hour, weekday, options, webhook, by}`
+      (with `id`: change one), `delete_schedule` `%{id}`, `run_schedule`
+      `%{id}`, `schedules`: writeups that write themselves
+      (`ObsFactor.Writeup.Schedules`). Pushes `schedules` `%{schedules}`.
     * `save_filter` `%{name, spec, by}` (with `id`: change one) and
       `delete_filter` `%{id}`: the wire's saved filter sets
       (`ObsFactor.WireFilters`), followed by a `filters` push
@@ -75,6 +82,16 @@ defmodule ObsFactorWeb.TapeChannel do
   @impl true
   def handle_info({:tape_frame, tick}, socket) do
     push(socket, "tick", tick)
+    {:noreply, socket}
+  end
+
+  def handle_info({:api_tokens, list}, socket) do
+    push(socket, "api_tokens", %{tokens: list})
+    {:noreply, socket}
+  end
+
+  def handle_info({:writeup_schedules, list}, socket) do
+    push(socket, "schedules", %{schedules: list})
     {:noreply, socket}
   end
 
@@ -132,6 +149,60 @@ defmodule ObsFactorWeb.TapeChannel do
     {:reply, reply, socket}
   end
 
+  # tokens for scripts (ObsFactor.ApiTokens): made here, shown once
+  def handle_in("create_token", params, socket) when is_map(params) do
+    by = if is_binary(params["by"]), do: params["by"]
+
+    reply =
+      case ObsFactor.ApiTokens.create(params["name"], ObsFactor.ApiTokens.scopes(), by) do
+        {:ok, t} -> broadcast_list(:api_tokens, ObsFactor.ApiTokens.list()); {:ok, %{token: t}}
+        {:error, e} -> {:error, %{error: Tape.message(e)}}
+      end
+
+    {:reply, reply, socket}
+  end
+
+  def handle_in("revoke_token", %{"id" => id}, socket) do
+    reply =
+      case ObsFactor.ApiTokens.revoke(id) do
+        {:ok, i} -> broadcast_list(:api_tokens, ObsFactor.ApiTokens.list()); {:ok, %{revoked: i}}
+        {:error, e} -> {:error, %{error: Tape.message(e)}}
+      end
+
+    {:reply, reply, socket}
+  end
+
+  # scheduled writeups (ObsFactor.Writeup.Schedules)
+  def handle_in("save_schedule", params, socket) when is_map(params) do
+    reply =
+      case ObsFactor.Writeup.Schedules.save(params) do
+        {:ok, s} -> ObsFactor.Writeup.Scheduler.broadcast(); {:ok, %{schedule: s}}
+        {:error, e} -> {:error, %{error: Tape.message(e)}}
+      end
+
+    {:reply, reply, socket}
+  end
+
+  def handle_in("delete_schedule", %{"id" => id}, socket) do
+    reply =
+      case ObsFactor.Writeup.Schedules.delete(id) do
+        {:ok, i} -> ObsFactor.Writeup.Scheduler.broadcast(); {:ok, %{deleted: i}}
+        {:error, e} -> {:error, %{error: Tape.message(e)}}
+      end
+
+    {:reply, reply, socket}
+  end
+
+  def handle_in("run_schedule", %{"id" => id}, socket) when is_integer(id) do
+    reply =
+      case ObsFactor.Writeup.Scheduler.run_now(id) do
+        {:ok, saved} -> {:ok, %{writeup: saved}}
+        {:error, e} -> {:error, %{error: Tape.message(e)}}
+      end
+
+    {:reply, reply, socket}
+  end
+
   def handle_in("delete_writeup", %{"slug" => slug}, socket) when is_binary(slug) do
     reply =
       case ObsFactor.Writeup.delete(slug) do
@@ -174,6 +245,9 @@ defmodule ObsFactorWeb.TapeChannel do
     kinds = if is_list(a["kinds"]) and Enum.all?(a["kinds"], &is_binary/1) and length(a["kinds"]) <= 40, do: a["kinds"]
     window(f, t, fn f, t -> wrap(Tape.wire(f, t, limit, Tape.db(), kinds), :wire) end)
   end
+  defp read("api_tokens", _), do: wrap(ObsFactor.ApiTokens.list(), :tokens) |> err()
+  defp read("schedules", _), do: wrap(ObsFactor.Writeup.Schedules.list(), :schedules) |> err()
+
   defp read("writeups", _) do
     case ObsFactor.Writeup.list() do
       {:ok, l} -> {:ok, %{writeups: Enum.map(l, &Map.put(&1, :url, ObsFactorWeb.Endpoint.url() <> "/w/" <> &1.slug <> ".md"))}}
@@ -233,6 +307,9 @@ defmodule ObsFactorWeb.TapeChannel do
       {:error, %{error: "no tape: OBJECTIVES_PG_URL is not set"}}
     end
   end
+
+  defp broadcast_list(tag, {:ok, list}), do: Phoenix.PubSub.broadcast(ObsFactor.PubSub, Tape.topic(), {tag, list})
+  defp broadcast_list(_, _), do: :ok
 
   defp ok_or({:ok, v}, _), do: v
   defp ok_or(_, d), do: d
