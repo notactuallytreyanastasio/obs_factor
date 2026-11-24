@@ -35,7 +35,8 @@ defmodule ObsFactorWeb.Identity do
 
   require Logger
 
-  @operator_only ~w(observer_action create_token revoke_token save_schedule delete_schedule run_schedule)
+  @operator_only ~w(observer_action create_token revoke_token save_schedule delete_schedule run_schedule
+                    save_alert_route delete_alert_route test_alert_route save_slo delete_slo)
 
   @what %{
     "observer_action" => "act on a process (observer action)",
@@ -43,7 +44,13 @@ defmodule ObsFactorWeb.Identity do
     "revoke_token" => "revoke a script token",
     "save_schedule" => "create or change a scheduled writeup",
     "delete_schedule" => "delete a scheduled writeup",
-    "run_schedule" => "run a scheduled writeup"
+    "run_schedule" => "run a scheduled writeup",
+    # chapters 28 and 32, built beside this one: their writes are an operator's too
+    "save_alert_route" => "create or change an alert route",
+    "delete_alert_route" => "delete an alert route",
+    "test_alert_route" => "send a test alert",
+    "save_slo" => "set an error budget",
+    "delete_slo" => "remove an error budget"
   }
 
   defp role_words(%{"role" => r}) when is_binary(r), do: "a " <> r

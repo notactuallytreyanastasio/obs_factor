@@ -56,6 +56,15 @@ defmodule ObsFactorWeb.AlertsChannel do
   @impl true
   def handle_in("routes", _, socket), do: {:reply, answer(Alerts.list(), :routes), socket}
 
+  # identities (ObsFactorWeb.Identity): routes are an operator's to change
+  def handle_in(event, params, socket) when event in ~w(save_route delete_route test_route) and
+                                              not is_map_key(socket.assigns, :__checked__) do
+    case ObsFactorWeb.Identity.authorize(socket.assigns[:identity], event_action(event), []) do
+      :ok -> handle_in(event, params, Phoenix.Socket.assign(socket, :__checked__, true))
+      {:error, why} -> {:reply, {:error, %{error: why}}, socket}
+    end
+  end
+
   def handle_in("save_route", params, socket) when is_map(params), do: {:reply, changed(Alerts.save(params), :route), socket}
 
   def handle_in("delete_route", %{"id" => id}, socket), do: {:reply, changed(Alerts.delete(id), :deleted), socket}
@@ -87,4 +96,8 @@ defmodule ObsFactorWeb.AlertsChannel do
 
   defp ok_or({:ok, v}, _), do: v
   defp ok_or(_, d), do: d
+
+  defp event_action("save_route"), do: "save_alert_route"
+  defp event_action("delete_route"), do: "delete_alert_route"
+  defp event_action("test_route"), do: "test_alert_route"
 end

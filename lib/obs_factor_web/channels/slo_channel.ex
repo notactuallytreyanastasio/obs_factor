@@ -50,11 +50,12 @@ defmodule ObsFactorWeb.SLOChannel do
   end
 
   @impl true
+  # identities (ObsFactorWeb.Identity): targets are an operator's to change
   def handle_in("save", params, socket) when is_map(params),
-    do: {:reply, write(fn -> SLOs.save(params) end, :target), socket}
+    do: {:reply, operator(socket, "save_slo", fn -> write(fn -> SLOs.save(params) end, :target) end), socket}
 
   def handle_in("delete", %{"node" => node}, socket),
-    do: {:reply, write(fn -> SLOs.delete(node) end, :deleted), socket}
+    do: {:reply, operator(socket, "delete_slo", fn -> write(fn -> SLOs.delete(node) end, :deleted) end), socket}
 
   def handle_in(event, params, socket),
     do: {:reply, {:error, %{error: "slo: cannot #{inspect(event)} with #{inspect(params)}"}}, socket}
@@ -87,5 +88,12 @@ defmodule ObsFactorWeb.SLOChannel do
     _ -> :ok
   catch
     :exit, _ -> :ok
+  end
+
+  defp operator(socket, action, fun) do
+    case ObsFactorWeb.Identity.authorize(socket.assigns[:identity], action, []) do
+      :ok -> fun.()
+      {:error, why} -> {:error, %{error: why}}
+    end
   end
 end
