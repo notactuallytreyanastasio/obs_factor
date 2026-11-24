@@ -122,6 +122,7 @@ export class Fires {
     if (!t) return;
     if (t.dataset.a === "close") return this.toggle(false);
     if (t.dataset.a === "refresh") return this.fetch();
+    if (t.dataset.a === "writeup") { const w = this.window ?? this.api.timeline.window(); return this.api.timeline.api.openWriteup?.({ from: w.from, to: w.to, title: w.title ?? undefined }); }
     if (t.dataset.node) this.api.go(t.dataset.node);
     if (t.dataset.seek) { this.api.timeline.play(false); this.api.timeline.seek(+t.dataset.seek); }
   }
@@ -130,7 +131,7 @@ export class Fires {
     if (!this.open) return;
     const w = this.window ?? this.api.timeline.window();
     const head = `<div class="fi-head"><h3>Fires</h3><span class="fi-win">${w.title ? `window “${esc(w.title)}”` : w.selected ? "selected" : w.live ? "last" : "in view"} ${span(w.to - w.from)}${w.selected || !w.live ? ` · ${hms(w.from)}–${hms(w.to)}` : ""}</span>
-      <button type="button" class="fi-x" data-a="refresh" title="Read again">↻</button><button type="button" class="fi-x" data-a="close" aria-label="Close">×</button></div>${w.note ? `<p class="fi-note">${esc(w.note)}</p>` : ""}`;
+      <button type="button" class="fi-x" data-a="writeup" title="This stretch as a Markdown document">✎</button><button type="button" class="fi-x" data-a="refresh" title="Read again">↻</button><button type="button" class="fi-x" data-a="close" aria-label="Close">×</button></div>${w.note ? `<p class="fi-note">${esc(w.note)}</p>` : ""}`;
     if (this.error && !this.data) { this.el.innerHTML = `${head}<p class="fi-err">${esc(this.error)}</p>`; return; }
     if (!this.data) { this.el.innerHTML = `${head}<p class="fi-dim">reading the tape…</p>`; return; }
     const d = this.data, s = d.score;
