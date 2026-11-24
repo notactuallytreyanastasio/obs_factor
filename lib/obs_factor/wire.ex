@@ -64,7 +64,7 @@ defmodule ObsFactor.Wire do
 
     {peers_items, outliers} = peer_outliers(state.outliers, beams)
     {odd_items, base, odd} = baseline(state.base, state.odd, beams)
-    {deploys, containers} = container_news(state.containers, nodes, state.first)
+    {deploys, containers} = container_news(state.containers, nodes, state.first, now_ms)
 
     # a standing condition is news the moment it is first seen, even on the
     # first tick: the blog's reductions were 60x everyone else's before
@@ -595,37 +595,87 @@ defmodule ObsFactor.Wire do
   # the restart count up is a crash the restart policy caught; started
   # again without it is a deploy or a manual restart (Docker's uptime does
   # not tell them apart); a new image is named.
-  defp container_news(prev, nodes, first) do
+  #
+  # deploys (ObsFactor.Deploys): when the node's .deployed changed, the
+  # restart is named "deployed <sha> (<subject>)". The deploy scripts write
+  # .deployed after the restart, so a restart not yet explained is held
+  # (`pending`) for Deploys.pair_ms/0, and a .deployed that changes in that
+  # time names it then, as a second item.
+  defp container_news(prev, nodes, first, now_ms) do
+    pair_ms = ObsFactor.Deploys.pair_ms()
+
     now =
       # the report may be unreadable while the container restarts: that is
       # when this matters, so it is any node with a report at all
       for n <- nodes, n["inside"] != nil or n["kind"] == "db", c = n["container"], is_map(c), into: %{} do
         image = Enum.find_value(n["facts"] || [], fn %{"label" => "image", "value" => v} -> v; _ -> nil end)
-        {n["id"], %{label: n["label"], up: c["uptime_s"], restarts: c["restarts"] || 0, image: image}}
+        pending = with %{pending: at} when is_integer(at) and now_ms - at <= pair_ms <- prev[n["id"]], do: at, else: (_ -> nil)
+        {n["id"], %{label: n["label"], up: c["uptime_s"], restarts: c["restarts"] || 0, image: image,
+           # a tick without a reading keeps the last one: a gap must not make the next reading look new
+           deployed: deployed(n) || get_in(prev, [n["id"], :deployed]), pending: pending}}
       end
 
     changed = fn c, p -> is_number(c.up) and is_number(p.up) and (c.up < p.up or c.image != p.image) end
 
-    items =
+    # a .deployed seen for the first time is not news: it is what was already there
+    new_code? = fn c, p -> c.deployed != nil and p[:deployed] != nil and key(c.deployed) != key(p[:deployed]) end
+
+    {items, now} =
       if first do
-        []
+        {[], now}
       else
-        for {id, c} <- now, p = prev[id], p != nil, changed.(c, p) do
+        Enum.reduce(now, {[], now}, fn {id, c}, {items, acc} ->
+          p = prev[id]
           who = %{app: id, label: c.label, key: nil}
 
           cond do
-            c.image != p.image and p.image != nil -> item(who, "deploy", "info", "deployed #{c.image}", "image #{p.image} → #{c.image}")
-            c.restarts > p.restarts -> item(who, "crash", "alert", "container crashed and restarted", "restart #{c.restarts}: the restart policy brought it back after #{dur(p.up)} up")
-            # uptime back to zero, not by the restart policy: a deploy or a
-            # manual restart look the same from here, so it says both
-            true -> item(who, "deploy", "info", "container started again", "after #{dur(p.up)} up, not by the restart policy: a deploy, or a manual restart")
+            p == nil ->
+              {items, acc}
+
+            changed.(c, p) ->
+              {i, pending} =
+                cond do
+                  c.image != p.image and p.image != nil -> {item(who, "deploy", "info", "deployed #{c.image}", "image #{p.image} → #{c.image}"), nil}
+                  c.restarts > p.restarts -> {item(who, "crash", "alert", "container crashed and restarted", "restart #{c.restarts}: the restart policy brought it back after #{dur(p.up)} up"), nil}
+                  new_code?.(c, p) -> {item(who, "deploy", "info", "deployed #{commit(c.deployed)}", "after #{dur(p.up)} up; #{deployed_text(c.deployed)}"), nil}
+                  # uptime back to zero, not by the restart policy: a deploy or a
+                  # manual restart look the same from here, so it says both
+                  true -> {item(who, "deploy", "info", "container started again", "after #{dur(p.up)} up, not by the restart policy: a deploy, or a manual restart"), now_ms}
+                end
+
+              {[i | items], Map.put(acc, id, %{c | pending: pending})}
+
+            # the .deployed of a restart already said: it was a deploy
+            c.pending != nil and new_code?.(c, p) ->
+              i = item(who, "deploy", "info", "deployed #{commit(c.deployed)}", "the container started again #{div(now_ms - c.pending, 1000)} s before; #{deployed_text(c.deployed)}")
+              {[i | items], Map.put(acc, id, %{c | pending: nil})}
+
+            true ->
+              {items, acc}
           end
-        end
+        end)
+        |> then(fn {items, acc} -> {Enum.reverse(items), acc} end)
       end
 
     # a node off the snapshot this tick keeps its last container
     {items, Map.merge(prev, now)}
   end
+
+  # deploys: what the node's .deployed says (nil: none, or unreadable)
+  defp deployed(%{"deployed" => %{"sha" => sha} = d}), do: %{sha: sha, dirty: d["dirty"] == true, at: d["at"], subject: d["subject"], subject_error: d["subject_error"]}
+  defp deployed(_), do: nil
+
+  defp key(nil), do: nil
+  defp key(d), do: {d.sha, d.dirty, d.at}
+
+  defp commit(d), do: "#{d.sha}#{if d.dirty, do: "+dirty", else: ""}#{if d.subject, do: " (#{d.subject})", else: ""}"
+
+  defp deployed_text(d),
+    do: ".deployed names #{d.sha}#{if d.dirty, do: " with uncommitted changes", else: ""}#{cond do
+      d.subject -> ""
+      d.subject_error -> " (no commit subject: #{d.subject_error})"
+      true -> " (no commit subject: GITHUB_TOKEN or the node's repo is not set)"
+    end}"
 
   # ---- items ------------------------------------------------------------------
 

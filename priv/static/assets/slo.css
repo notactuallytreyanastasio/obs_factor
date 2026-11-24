@@ -1,0 +1,29 @@
+/* The board's SLO tab (slo.js): error budgets per app. */
+.slo-app { margin: 0 0 10px; }
+.slo-app h4 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.slo-app h4 .dim { flex: 1; text-transform: none; letter-spacing: 0; font: 11px var(--sans); }
+.slo-go { color: var(--text); cursor: pointer; font: 700 12px var(--sans); letter-spacing: 0.04em; text-transform: none; }
+.slo-go:hover { color: #7fe0ff; }
+#board .slo td.nm { width: auto; max-width: 200px; white-space: normal; line-height: 1.25; padding: 3px 5px; }
+#board .slo td.slo-bud { text-align: left; }
+.slo-bar { display: inline-block; vertical-align: middle; width: 90px; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.slo-bar i { display: block; height: 100%; }
+.slo-bar.ok i { background: #3ddc84; }
+.slo-bar.mid i { background: #ffc46b; }
+.slo-bar.low i { background: #ff8a50; }
+.slo-bar.out { background: rgba(255, 60, 20, 0.35); }
+.slo-flag { display: inline-block; margin-right: 3px; padding: 0 5px; border-radius: 3px; font: 800 9px var(--sans); letter-spacing: 0.1em; }
+.slo-flag.fast { background: #ff5a3a; color: #071018; }
+.slo-flag.slow { background: #ffc46b; color: #071018; }
+.slo-note { color: var(--muted); font-size: 11px; margin: 4px 0 0; }
+.slo-btn { height: 22px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; font: 11px var(--sans); }
+.slo-btn.on { color: #071018; background: #7fe0ff; border-color: #7fe0ff; font-weight: 700; }
+.slo-form { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: flex-end; margin: 12px 0 0; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.slo-form h4 { width: 100%; }
+.slo-form label { display: flex; flex-direction: column; gap: 2px; color: var(--dim); font: 700 9px var(--sans); letter-spacing: 0.1em; text-transform: uppercase; }
+.slo-form input, .slo-form select { height: 24px; min-width: 0; width: 110px; padding: 0 6px; border-radius: 6px; border: 1px solid var(--line); background: #0b1220; color: var(--text); font: 11px var(--mono); text-transform: none; letter-spacing: 0; }
+.slo-form input[name=node] { width: 150px; }
+.slo-msg { color: var(--muted); font-size: 11px; }
+/* a phone is narrower than the seven columns: the table scrolls, not the page */
+.slo-scroll { overflow-x: auto; }
+#board .slo-scroll th { position: static; }

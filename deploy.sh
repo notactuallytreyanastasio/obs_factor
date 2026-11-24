@@ -158,6 +158,13 @@ same_fs=$(ssh "$HOST" 'mkdir -p /var/lib/obs_factor/statfs && [ "$(stat -f -c %i
 [ "$same_fs" = yes ] && did "/var/lib/obs_factor/statfs is on /" \
   || warn "/var/lib/obs_factor/statfs is NOT on the root filesystem: host-disk will describe another disk"
 
+# Deploys (ObsFactor.Deploys): the apps' .deployed files, mounted one by one
+# (deploy/compose.obs-factor.yml). Missing is not fatal: the floor works,
+# and no node shows what is deployed.
+deployed_mounts=$(ssh "$HOST" "cd $STACK_DIR && docker compose config obs-factor 2>/dev/null | grep -c 'target: /host-opt/' || true" </dev/null)
+[ "${deployed_mounts:-0}" -gt 0 ] && did "$deployed_mounts .deployed files mounted at /host-opt" \
+  || warn "no .deployed files mounted at /host-opt: the floor will not say what is deployed (deploy/compose.obs-factor.yml)"
+
 ssh "$HOST" "cd $STACK_DIR && docker compose build obs-factor && docker compose up -d docker-proxy obs-factor" </dev/null >/dev/null
 did "rebuilt + restarted obs-factor"
 
@@ -171,10 +178,11 @@ bold "health"
 ok=0
 for _ in 1 2 3 4 5 6 7 8 9 10; do
   body=$(curl -s --max-time 10 -w ' %{http_code}' "$URL" || echo ' 000')
-  if [ "$body" = "ok 200" ]; then ok=1; break; fi
+  # /health is JSON since chapter 31: 200 and "ok":true once a snapshot is fresh
+  case "$body" in *'"ok":true'*' 200') ok=1; break ;; esac
   sleep 3
 done
-if [ $ok -eq 1 ]; then did "$URL  ok 200"; else warn "$URL  answered: ${body:-nothing}"; fi
+if [ $ok -eq 1 ]; then did "$URL  $body"; else warn "$URL  answered: ${body:-nothing}"; fi
 
 rev=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
 git diff --quiet 2>/dev/null || rev="$rev+dirty"

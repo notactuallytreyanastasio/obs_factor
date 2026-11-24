@@ -11,7 +11,7 @@ defmodule ObsFactor.Writeup do
     * `spec` - a wire filter (`ObsFactor.WireFilters` spec: apps, sevs,
       kinds, q), which narrows the timeline and the errors
     * `apps` - node ids: every section only about those buildings
-    * `sections` - which of #{inspect(~w(summary incidents timeline hot beam errors db method))}
+    * `sections` - which of #{inspect(~w(summary incidents timeline hot beam errors db slos method))}
       (all by default)
     * `base_url` - where the floor is, for the replay links
 
@@ -23,7 +23,7 @@ defmodule ObsFactor.Writeup do
 
   alias ObsFactor.{Insights, Tape, WireFilters}
 
-  @sections ~w(summary incidents timeline hot beam errors db method)
+  @sections ~w(summary incidents timeline hot beam errors db slos method)
   @error_kinds ~w(error warning failing crash handler)
   @max_rows 200
 
@@ -43,7 +43,7 @@ defmodule ObsFactor.Writeup do
       base = opts[:base_url] || "https://factory.bobbby.online"
       title = opts[:title] || (win && win.title) || "obs_factor: #{stamp(from)} – #{stamp(to)} UTC"
 
-      ctx = %{from: from, to: to, win: win, spec: spec, apps: apps, base: base, data: data, labels: labels(data.frame)}
+      ctx = %{from: from, to: to, win: win, spec: spec, apps: apps, base: base, data: data, labels: labels(data.frame), db: db}
       body = Enum.map(sections, &section(&1, ctx)) |> Enum.reject(&(&1 in [nil, ""]))
 
       md = Enum.join([head(title, ctx) | body], "\n\n") <> "\n"
@@ -83,15 +83,50 @@ defmodule ObsFactor.Writeup do
          {:ok, marks} <- Tape.marks(from, to, db),
          {:ok, beam} <- Tape.series(from, to, 240, db, "beam:"),
          {:ok, dbs} <- Tape.series(from, to, 240, db, "pg:"),
-         {:ok, repos} <- Tape.series(from, to, 240, db, "repo:") do
+         {:ok, repos} <- Tape.series(from, to, 240, db, "repo:"),
+         # deploys (ObsFactor.Deploys): what each .deployed file said, with its commit
+         {:ok, deploys} <- ObsFactor.Deploys.list(from, to, db) do
       frame =
         case Tape.frame(to, db) do
           {:ok, _, json, _} -> Jason.decode!(json)
           _ -> %{"nodes" => []}
         end
 
-      {:ok, %{insights: insights, lanes: lanes, wire: Enum.reverse(wire), wire_cut: length(wire) >= 5000, marks: marks, beam: beam, dbs: dbs, repos: repos, frame: frame}}
+      # evidence (ObsFactor.Evidence): the top processes at the moment, per
+      # wire id; a writeup without it says so rather than failing
+      evidence =
+        case ObsFactor.Evidence.by_wire(from, to, db) do
+          {:ok, m} -> m
+          {:error, _} -> %{}
+        end
+
+      {:ok, %{insights: insights, lanes: lanes, wire: Enum.reverse(wire), wire_cut: length(wire) >= 5000, marks: marks, beam: beam, dbs: dbs, repos: repos, frame: frame, deploys: deploys, evidence: evidence}}
     end
+  end
+
+  # the top processes the evidence caught, under the item: three hottest,
+  # the biggest by memory, the biggest mailbox (when there is one)
+  defp evidence_md(nil), do: ""
+
+  defp evidence_md(e) do
+    p = e.procs
+    who = e.member || e.address
+    short = fn t -> t |> to_string() |> String.replace("Elixir.", "") end
+    # a registered name says who; an unnamed process is its initial call and pid
+    who_is = fn r -> if r["registered_name"], do: short.(r["registered_name"]), else: "#{short.(r["initial_call"] || "?")} #{r["pid"]}" end
+    name = fn r -> "`#{who_is.(r)}`#{if r["current_function"], do: " in `#{short.(r["current_function"])}`", else: ""}" end
+    hot = (p["reductions"] || []) |> Enum.take(3) |> Enum.map(&"#{name.(&1)} #{num(&1["reductions_per_s"])} reductions/s")
+    big = (p["memory"] || []) |> Enum.take(1) |> Enum.map(&"#{name.(&1)} #{bytes(&1["memory"])}")
+    box = (p["message_queue_len"] || []) |> Enum.take(1) |> Enum.filter(&((&1["message_queue_len"] || 0) > 0)) |> Enum.map(&"#{name.(&1)} #{num(&1["message_queue_len"])} messages")
+
+    lines =
+      [{"hottest", hot}, {"biggest", big}, {"biggest mailbox", box}]
+      |> Enum.reject(fn {_, l} -> l == [] end)
+      |> Enum.map(fn {k, l} -> "\n    - #{k}: " <> Enum.join(l, "; ") end)
+
+    if lines == [],
+      do: "\n  - evidence taken at #{stamp(e.at)}#{if who, do: " on #{who}", else: ""}: the engine did not answer",
+      else: "\n  - evidence taken at #{stamp(e.at)}#{if who, do: " on #{who}", else: ""}:" <> Enum.join(lines)
   end
 
   defp labels(frame), do: Map.new(frame["nodes"] || [], &{&1["id"], &1["label"]})
@@ -170,15 +205,24 @@ defmodule ObsFactor.Writeup do
         %{at: at, who: label(ctx, node), what: "objective #{kind}", detail: "#{title}#{if by, do: " (by #{by})", else: ""}"}
       end
 
+    # deploys (ObsFactor.Deploys): read as a wire item of kind deploy, so a filter treats them alike
+    deploys =
+      for d <- Map.get(ctx.data, :deploys, []),
+          w = deploy_item(ctx, d),
+          in_app?(ctx, d.node),
+          matches?(ctx.spec, w) do
+        %{at: d.at, who: w.label, what: "info · deploy", detail: w.head <> if(d.url, do: " — [#{d.sha}](#{d.url})", else: " — #{w.text}")}
+      end
+
     events =
-      (Enum.map(wire, &%{at: &1.at, who: &1.label || &1.app || "?", what: "#{&1.sev} · #{&1.kind}", detail: "#{&1.head}#{if &1.text, do: " — " <> &1.text, else: ""}"}) ++ marks)
+      (Enum.map(wire, &%{at: &1.at, who: &1.label || &1.app || "?", what: "#{&1.sev} · #{&1.kind}", detail: "#{&1.head}#{if &1.text, do: " — " <> &1.text, else: ""}"}) ++ marks ++ deploys)
       |> Enum.sort_by(& &1.at)
 
     if events == [] do
       "## Timeline\n\nNothing happened#{if ctx.spec, do: " that the filter lets through", else: ""}."
     else
       rows = for e <- Enum.take(events, @max_rows), do: [stamp(e.at), e.who, e.what, e.detail]
-      "## Timeline\n\nThe BEAM wire and what people did about the objectives, oldest first.\n\n" <> table(["When", "Who", "What", ""], rows) <> cut(events) <>
+      "## Timeline\n\nThe BEAM wire, the deploys (with their commits) and what people did about the objectives, oldest first.\n\n" <> table(["When", "Who", "What", ""], rows) <> cut(events) <>
         if(ctx.data.wire_cut, do: "\n\n_The wire held more than 5,000 items in this range: only the newest 5,000 were read._", else: "")
     end
   end
@@ -219,11 +263,15 @@ defmodule ObsFactor.Writeup do
            "#{num(s["rq"][:max])}/#{num(s["sched"][:last])}", num(s["mbox"][:max]), Map.get(restarts, node, 0)]
         end
 
-      odd = ctx.data.wire |> in_apps(ctx) |> Enum.filter(&(&1.kind in ~w(outlier anomaly leader partition)))
+      # an item with evidence is out of the ordinary whatever its kind: the
+      # wire only captures for outliers, anomalies, crashes, restarts,
+      # mailboxes, run queues and failing or surging Repo queries
+      ev = Map.get(ctx.data, :evidence, %{})
+      odd = ctx.data.wire |> in_apps(ctx) |> Enum.filter(&(&1.kind in ~w(outlier anomaly leader partition) or Map.has_key?(ev, &1.id)))
 
       "## The BEAM\n\nPer node over the range: first → last (max). Reductions are a mean of the tape's samples.\n\n" <>
         table(["Node", "Processes", "Memory", "Reductions", "Run queue max / schedulers", "Biggest mailbox", "Restarts"], rows) <>
-        if(odd == [], do: "", else: "\n\n### Out of the ordinary\n\n" <> Enum.map_join(odd, "\n", &"- #{stamp(&1.at)} · #{&1.label || &1.app}: #{&1.head}"))
+        if(odd == [], do: "", else: "\n\n### Out of the ordinary\n\n" <> Enum.map_join(odd, "\n", &("- #{stamp(&1.at)} · #{&1.label || &1.app}: #{&1.head}" <> evidence_md(ev[&1.id]))))
     end
   end
 
@@ -281,6 +329,9 @@ defmodule ObsFactor.Writeup do
     |> Enum.reject(&(&1 in [nil, ""]))
     |> Enum.join("\n\n")
   end
+
+  # error budgets as they stood at the end of the range (ObsFactor.SLOs)
+  defp section("slos", ctx), do: ObsFactor.SLOs.writeup(ctx.to, ctx.apps, ctx.db)
 
   defp section("method", ctx) do
     """
@@ -395,6 +446,14 @@ defmodule ObsFactor.Writeup do
 
   defp cut(items) when length(items) > @max_rows, do: "\n\n_#{length(items) - @max_rows} more not shown._"
   defp cut(_), do: ""
+
+  # deploys: a kept deploy as the wire would have said it
+  defp deploy_item(ctx, d) do
+    sha = ObsFactor.Deploys.label(d)
+    %{app: d.node, label: label(ctx, d.node), member: nil, kind: "deploy", sev: "info",
+      head: "deployed #{sha}#{if d.subject, do: " (#{d.subject})", else: ""}",
+      text: ".deployed names #{sha}#{if d.repo, do: " in #{d.repo}", else: ""}"}
+  end
 
   defp label(_ctx, nil), do: "the observer"
   defp label(ctx, id), do: Map.get(ctx.labels, id) || id
