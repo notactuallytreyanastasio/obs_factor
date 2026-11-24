@@ -557,6 +557,11 @@ defmodule ObsFactor.Snapshot do
           %{^id => report} ->
             report
 
+          # A report URL that came from a container's labels this tick
+          # (ObsFactor.Discovery) is read from the next round on.
+          _ when is_map_key(t, :labelled_report) ->
+            %{ok: false, error: "not read yet: connected by its labels since the last read", at: nil}
+
           _ ->
             raise ArgumentError,
                   "reports source has no result for node #{inspect(id)}, which has a report URL"

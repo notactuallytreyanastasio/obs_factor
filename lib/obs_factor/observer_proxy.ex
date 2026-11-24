@@ -147,7 +147,8 @@ defmodule ObsFactor.ObserverProxy do
   defp proxy_info, do: %{"actions" => not is_nil(actions_token())}
 
   defp topology_node(id) do
-    case Enum.find(ObsFactor.topology().nodes, &(&1.id == id)) do
+    # the static topology plus apps connected by labels (ObsFactor.Discovery)
+    case Enum.find(ObsFactor.Discovery.topology().nodes, &(&1.id == id)) do
       nil -> {404, %{"error" => "no node #{inspect(id)} in the topology"}}
       %{report: nil} -> {404, %{"error" => "node #{id} has no report URL, so no observer"}}
       node -> {:ok, node}
