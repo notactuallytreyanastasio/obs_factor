@@ -10,7 +10,9 @@ defmodule ObsFactor.Sources do
   """
 
   @table __MODULE__
-  @names [:docker, :caddy, :postgres, :host, :probes, :sites, :access, :reports]
+  @names [:docker, :caddy, :postgres, :host, :probes, :sites, :access, :reports,
+          # deploys (ObsFactor.Deploys): the .deployed files
+          :deploys]
 
   # :builder only exists when the observer is pointed at a builder
   # (BUILDER_URL): a box without one has nothing to report as failing.

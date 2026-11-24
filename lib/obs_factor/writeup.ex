@@ -83,14 +83,16 @@ defmodule ObsFactor.Writeup do
          {:ok, marks} <- Tape.marks(from, to, db),
          {:ok, beam} <- Tape.series(from, to, 240, db, "beam:"),
          {:ok, dbs} <- Tape.series(from, to, 240, db, "pg:"),
-         {:ok, repos} <- Tape.series(from, to, 240, db, "repo:") do
+         {:ok, repos} <- Tape.series(from, to, 240, db, "repo:"),
+         # deploys (ObsFactor.Deploys): what each .deployed file said, with its commit
+         {:ok, deploys} <- ObsFactor.Deploys.list(from, to, db) do
       frame =
         case Tape.frame(to, db) do
           {:ok, _, json, _} -> Jason.decode!(json)
           _ -> %{"nodes" => []}
         end
 
-      {:ok, %{insights: insights, lanes: lanes, wire: Enum.reverse(wire), wire_cut: length(wire) >= 5000, marks: marks, beam: beam, dbs: dbs, repos: repos, frame: frame}}
+      {:ok, %{insights: insights, lanes: lanes, wire: Enum.reverse(wire), wire_cut: length(wire) >= 5000, marks: marks, beam: beam, dbs: dbs, repos: repos, frame: frame, deploys: deploys}}
     end
   end
 
@@ -170,15 +172,24 @@ defmodule ObsFactor.Writeup do
         %{at: at, who: label(ctx, node), what: "objective #{kind}", detail: "#{title}#{if by, do: " (by #{by})", else: ""}"}
       end
 
+    # deploys (ObsFactor.Deploys): read as a wire item of kind deploy, so a filter treats them alike
+    deploys =
+      for d <- Map.get(ctx.data, :deploys, []),
+          w = deploy_item(ctx, d),
+          in_app?(ctx, d.node),
+          matches?(ctx.spec, w) do
+        %{at: d.at, who: w.label, what: "info · deploy", detail: w.head <> if(d.url, do: " — [#{d.sha}](#{d.url})", else: " — #{w.text}")}
+      end
+
     events =
-      (Enum.map(wire, &%{at: &1.at, who: &1.label || &1.app || "?", what: "#{&1.sev} · #{&1.kind}", detail: "#{&1.head}#{if &1.text, do: " — " <> &1.text, else: ""}"}) ++ marks)
+      (Enum.map(wire, &%{at: &1.at, who: &1.label || &1.app || "?", what: "#{&1.sev} · #{&1.kind}", detail: "#{&1.head}#{if &1.text, do: " — " <> &1.text, else: ""}"}) ++ marks ++ deploys)
       |> Enum.sort_by(& &1.at)
 
     if events == [] do
       "## Timeline\n\nNothing happened#{if ctx.spec, do: " that the filter lets through", else: ""}."
     else
       rows = for e <- Enum.take(events, @max_rows), do: [stamp(e.at), e.who, e.what, e.detail]
-      "## Timeline\n\nThe BEAM wire and what people did about the objectives, oldest first.\n\n" <> table(["When", "Who", "What", ""], rows) <> cut(events) <>
+      "## Timeline\n\nThe BEAM wire, the deploys (with their commits) and what people did about the objectives, oldest first.\n\n" <> table(["When", "Who", "What", ""], rows) <> cut(events) <>
         if(ctx.data.wire_cut, do: "\n\n_The wire held more than 5,000 items in this range: only the newest 5,000 were read._", else: "")
     end
   end
@@ -395,6 +406,14 @@ defmodule ObsFactor.Writeup do
 
   defp cut(items) when length(items) > @max_rows, do: "\n\n_#{length(items) - @max_rows} more not shown._"
   defp cut(_), do: ""
+
+  # deploys: a kept deploy as the wire would have said it
+  defp deploy_item(ctx, d) do
+    sha = ObsFactor.Deploys.label(d)
+    %{app: d.node, label: label(ctx, d.node), member: nil, kind: "deploy", sev: "info",
+      head: "deployed #{sha}#{if d.subject, do: " (#{d.subject})", else: ""}",
+      text: ".deployed names #{sha}#{if d.repo, do: " in #{d.repo}", else: ""}"}
+  end
 
   defp label(_ctx, nil), do: "the observer"
   defp label(ctx, id), do: Map.get(ctx.labels, id) || id
