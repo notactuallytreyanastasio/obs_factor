@@ -115,3 +115,14 @@ if config_env() == :prod do
     http: [ip: {0, 0, 0, 0, 0, 0, 0, 0}],
     secret_key_base: secret_key_base
 end
+
+# Alerts that go out (ObsFactor.Alerts) and the webhook guard
+# (ObsFactor.WebhookGuard). ALERT_ALLOW_PRIVATE_HOSTS=true lets a webhook
+# (an alert route, a writeup schedule) point at a private, loopback or
+# link-local address; unset, those are refused. ALERT_DEDUP_MINUTES: the
+# dedup window a new route gets (15).
+if config_env() != :test do
+  config :obs_factor,
+    alert_allow_private_hosts: System.get_env("ALERT_ALLOW_PRIVATE_HOSTS") == "true",
+    alert_dedup_minutes: String.to_integer(blank_to_nil.(System.get_env("ALERT_DEDUP_MINUTES")) || "15")
+end

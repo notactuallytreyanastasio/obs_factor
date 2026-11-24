@@ -155,16 +155,10 @@ defmodule ObsFactor.Writeup.Schedules do
       [id, DateTime.from_unix!(instant, :millisecond), slug, err])
   end
 
+  # ObsFactor.WebhookGuard: no private, loopback or link-local destination,
+  # no redirects (a review found a logged-in user could aim this at the box)
   @doc false
-  def post(url, body) do
-    case Req.post(url, json: body, receive_timeout: 10_000, retry: false) do
-      {:ok, %{status: s}} when s in 200..299 -> :ok
-      {:ok, %{status: s}} -> {:error, "answered #{s}"}
-      {:error, e} -> {:error, Exception.message(e)}
-    end
-  rescue
-    e -> {:error, Exception.message(e)}
-  end
+  def post(url, body), do: ObsFactor.WebhookGuard.post(url, body)
 
   # ---- the rows -------------------------------------------------------------------
 
@@ -212,12 +206,7 @@ defmodule ObsFactor.Writeup.Schedules do
 
   defp webhook(w) when w in [nil, ""], do: {:ok, nil}
 
-  defp webhook(w) when is_binary(w) do
-    case URI.parse(String.trim(w)) do
-      %URI{scheme: s, host: h} when s in ["https", "http"] and is_binary(h) and h != "" -> {:ok, String.trim(w)}
-      _ -> {:error, "a webhook is an http(s) URL"}
-    end
-  end
+  defp webhook(w) when is_binary(w), do: ObsFactor.WebhookGuard.check(w)
 
   defp webhook(_), do: {:error, "a webhook is an http(s) URL"}
 
