@@ -172,6 +172,7 @@ defmodule FactoryReport do
     {units, cut_units, cut_members} = Tracker.units(@max_units, @max_members)
     {streams, cut_streams} = Streams.rows(@max_streams)
     {tables, cut_tables} = Tables.rows(@max_tables)
+    {pubsub, cut_pubsub} = FactoryReport.PubSub.section()
 
     %{
       "factory_report" => @version,
@@ -183,12 +184,14 @@ defmodule FactoryReport do
       "liveviews" => LiveViews.section(),
       "streams" => streams,
       "tables" => tables,
+      "pubsub" => pubsub,
       "events" => LogHandler.events(),
       "truncated" => %{
         "units" => cut_units,
         "members" => cut_members,
         "streams" => cut_streams,
-        "tables" => cut_tables
+        "tables" => cut_tables,
+        "pubsub" => cut_pubsub
       }
     }
   end

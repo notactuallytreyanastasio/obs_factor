@@ -271,6 +271,45 @@ above, newest first:
 or `null`. Crash reports from OTP (a GenServer that died) arrive already
 translated by Elixir's Logger and are listed like any other error.
 
+**`pubsub`: every Phoenix.PubSub server in the VM**
+
+Found by walking the registered names for a `Registry` whose metadata says
+`pubsub` (that is what `{Phoenix.PubSub, name: MyApp.PubSub}` starts; checked
+on phoenix_pubsub 2.4.1). One entry per server:
+
+```json
+{"name": "Blog.PubSub", "adapter": "Phoenix.PubSub.PG2", "keys": "duplicate", "partitions": 3,
+ "topics": 212, "subscriptions": 431, "subscribers": 220,
+ "top": [{"pattern": "post:#", "topics": 180, "subscriptions": 190},
+         {"pattern": "presence", "topics": 1, "subscriptions": 40}],
+ "patterns_cut": 0, "counts_only": null, "walk_limit": 100000, "took_ms": 0.31}
+```
+
+`subscriptions` is registry entries (a process subscribed twice to a topic
+is two), `subscribers` distinct processes. **No topic is named**: a topic
+carries ids as often as not (`room:user-1234`), so `top` ranks *patterns*,
+the topic with digit runs, hex/UUID runs and `phx-...` ids blanked to `#`,
+with how many topics each holds. Whole topics, and who is subscribed to
+each, are in the observer (`GET /observer/pubsub`), on demand.
+
+Past 100,000 subscriptions on one server the topics are not walked:
+`topics`, `subscribers` are `null`, `top` is `[]` and `counts_only` says
+why. Walking 100,000 subscriptions over 5,000 topics took 24 to 40 ms on an
+M-series laptop (OTP 28); counting only is one `:ets.info/2` per partition.
+
+**What it cannot see: broadcasts.** Phoenix.PubSub emits no telemetry, so
+how often a topic is broadcast to is not observable from outside the app;
+only who is listening is. If you want broadcast counts, call
+`FactoryReport.PubSub.broadcast/3` where you call `Phoenix.PubSub.broadcast/3`:
+it counts one occurrence in the `pubsub.broadcast` stream under the topic's
+pattern, then broadcasts, and returns what Phoenix.PubSub returned. The
+observer turns that stream into a rate like any other. It is opt-in
+because the alternative, wrapping or replacing the app's PubSub adapter,
+would sit in the path of every message; a function you choose to call
+costs one `:ets.update_counter/3` and can be removed by search and replace.
+`Endpoint.broadcast/3`, `broadcast_from/4` and `local_broadcast/3` are not
+wrapped.
+
 **Bounds** (`truncated` says what was cut)
 
 - 100 units, the most populous first; `truncated.units` is how many more.
@@ -287,6 +326,9 @@ translated by Elixir's Logger and are listed like any other error.
 - 100 LiveView modules in `liveviews.views` (`views_cut` is the rest); a
   walk of at most 20,000 processes.
 - 50 events, each message cut at 300 characters.
+- 10 PubSub servers, by name (`truncated.pubsub` is the rest); 25
+  patterns per server (`patterns_cut`); a walk of at most 100,000
+  subscriptions per server.
 - Names and labels are cut at 120 characters and are always valid UTF-8.
 - A kind holds at most `:max_stream_names` names. What arrives after that
   is counted in that kind's `"(other)"` row (so nothing is lost from the
@@ -398,6 +440,8 @@ request and response shapes are in obs_factor's `docs/contract.md`,
 | `GET /observer/proc/:pid?state=true` | one process: links, monitors, stack, heap, GC, dictionary keys, supervisor path, state if allowed |
 | `GET /observer/ets` | tables by memory |
 | `GET /observer/ports` | ports by traffic |
+| `GET /observer/pubsub?server=&limit=100&sort=subscriptions\|topic` | every PubSub server (or one), with its whole topics (at most 1,000) and each one's pattern |
+| `GET /observer/pubsub?server=MyApp.PubSub&topic=room:42` | that topic's subscribers: a process summary each, plus `kind` (`liveview`, `channel`, `process`), `module`, `entries`, `fastlane` |
 | `POST /observer/proc/:pid/kill` | `exit(pid, :kill)` |
 | `POST /observer/proc/:pid/exit` `{"reason": "shutdown"\|"normal"\|"kill"}` | `exit(pid, reason)` |
 | `POST /observer/proc/:pid/gc` | `:erlang.garbage_collect(pid)` |

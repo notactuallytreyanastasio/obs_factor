@@ -90,10 +90,10 @@ defmodule FactoryReportTest do
       assert report["app"] == "factory_report"
       assert {:ok, at, 0} = DateTime.from_iso8601(report["at"])
       assert DateTime.diff(DateTime.utc_now(), at) in 0..5
-      assert report["truncated"] == %{"units" => 0, "members" => 0, "streams" => 0, "tables" => 0}
+      assert report["truncated"] == %{"units" => 0, "members" => 0, "streams" => 0, "tables" => 0, "pubsub" => 0}
 
       assert Enum.sort(Map.keys(report)) ==
-               ~w(app at cluster events factory_report liveviews runtime streams tables truncated units)
+               ~w(app at cluster events factory_report liveviews pubsub runtime streams tables truncated units)
 
       decoded = report |> Jason.encode!() |> Jason.decode!()
       assert decoded == report

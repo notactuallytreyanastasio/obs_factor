@@ -100,6 +100,18 @@ defmodule FactoryReport.TestLive.Room do
   end
 end
 
+# Subscribes to its feed's topic once connected, as LiveViews do.
+defmodule FactoryReport.TestLive.Feed do
+  use Phoenix.LiveView
+
+  def mount(%{"id" => id}, _session, socket) do
+    if connected?(socket), do: Phoenix.PubSub.subscribe(FactoryReport.TestPubSub, "feed:" <> id)
+    {:ok, assign(socket, id: id)}
+  end
+
+  def render(assigns), do: ~H"<p>feed {@id}</p>"
+end
+
 # No mount/3 and no handle_params/3: LiveView emits neither telemetry event.
 defmodule FactoryReport.TestLive.Bare do
   use Phoenix.LiveView
@@ -125,6 +137,7 @@ defmodule FactoryReport.TestRouter do
     live "/counter", FactoryReport.TestLive.Counter
     live "/room/:id", FactoryReport.TestLive.Room
     live "/bare", FactoryReport.TestLive.Bare
+    live "/feed/:id", FactoryReport.TestLive.Feed
   end
 end
 
