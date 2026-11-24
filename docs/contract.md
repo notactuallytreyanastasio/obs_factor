@@ -1253,3 +1253,73 @@ mailbox 100/1000, memory 50/200 MiB, reductions 500k/2M per second).
 
 The jump list (`jump.js`, Cmd/Ctrl+K) joins `objectives` while it is open.
 
+
+## Alerts that go out *(2026-11-24)*
+
+`ObsFactor.Alerts` sends a message to webhooks when something breaks, so
+nobody has to be watching the floor. It runs only with an objectives
+database (`OBJECTIVES_PG_URL`); routes live there, in `alert_routes`
+(created at runtime, `CREATE TABLE IF NOT EXISTS`).
+
+What raises one, heard by `ObsFactor.Alerts.Engine` on `ObsFactor.PubSub`
+(the ticker does not wait on it):
+
+* `{:objective, row}` on `objectives`: a `rule` row whose newest event is
+  `seen` or `came back`, written in the last 15 s (the 30 s last_seen flush
+  re-broadcasts the same event; it is not news), fires. A row whose newest
+  event is `cleared itself` or `crossed off` resolves, for the routes that
+  were told it fired. Cleared before its firing was sent: nothing is sent.
+  Pins are not sent.
+* `{:tape_frame, tick}` on `tape`: `tick.wire`, the `ObsFactor.Wire` items
+  of `sev` `alert` (crash, partition, failing, error, atoms past 80 %,
+  mailbox 10 000, pgfull), and `warn` for a route that asks.
+
+Items are held 1.5 s from the first, then each enabled route outside its
+quiet hours gets one message listing what it wants: severity (`alert`, or
+`warn` for both), apps (`node` / wire `app`), and for wire items a
+`WireFilters` spec (by `filter_id`; objectives pass it). The same key
+(`obj:<objective key>`, `wire:<app>|<kind>|<member>`) goes to a route at
+most once per its `dedup_minutes` (default `ALERT_DEDUP_MINUTES`, 15).
+Quiet hours drop, they do not defer.
+
+Delivery: a task under `ObsFactor.TaskSupervisor`, retried once after 5 s;
+the route gets `last_sent_at` and `sent_count`, or `last_error` and
+`last_error_at`; then `{:alert_routes, list}` on `alerts`.
+
+The body (Slack incoming webhooks read `text`, `*bold*` and `<url|label>`):
+
+```json
+{"text": "obs_factor: 2 firing\n*[ALERT]* Marginalia: marginalia down\n    new\n    <https://f.test/?t=2026-11-24T01:46:27Z|replay 01:46:27 UTC> · <https://f.test/?scope=marginalia|building>\n...",
+ "source": "obs_factor", "route": "ops",
+ "items": [{"state": "firing", "severity": "alert", "source": "objective", "kind": "objective",
+            "app": "marginalia", "label": "Marginalia", "title": "marginalia down", "detail": "new",
+            "at": "2026-11-24T01:46:27Z", "key": "obj:marginalia|marginalia down",
+            "replay_url": "https://f.test/?t=2026-11-24T01:46:27Z", "building_url": "https://f.test/?scope=marginalia"}]}
+```
+
+`state` is `firing`, `resolved` or `test`. The base is
+`ObsFactorWeb.Endpoint.url()` (`https://PHX_HOST` in prod).
+
+### Channel `alerts`
+
+Join reply `%{routes, filters, dedup_minutes, allow_private}` or
+`%{error}`. A route is `%{id, name, url_hint, min_severity, apps, filter_id,
+quiet_from, quiet_to, dedup_minutes, enabled, by, created_at, last_sent_at,
+last_error, last_error_at, sent_count}`: never the URL (a Slack webhook URL
+is the credential); `url_hint` is scheme, host and the path's last four
+characters. Pushes: `routes`; `save_route` `%{name, url, min_severity,
+apps, filter_id, quiet_from, quiet_to, dedup_minutes, enabled, by}` (with
+`id` to change one, a blank `url` keeps it) -> `%{route}`; `delete_route`
+`%{id}`; `test_route` `%{id}` -> `%{sent: true}` or the error, sent once
+whatever the filters, and recorded. Changes push `routes` `%{routes}` to
+everyone.
+
+### `ObsFactor.WebhookGuard`
+
+Every webhook the observer POSTs to (alert routes, writeup schedules) is
+checked when saved and when sent: http(s) only; no loopback, RFC 1918,
+fc00::/7, link-local, CGNAT, 0/8, benchmarking, multicast or reserved
+address, also inside ::ffff:0:0/96 and 64:ff9b::/96; not `localhost`. A
+name is resolved: at save a name that does not resolve is accepted, at
+send it is refused. Redirects are not followed (a 3xx is an error).
+`ALERT_ALLOW_PRIVATE_HOSTS=true` turns the address check off.
