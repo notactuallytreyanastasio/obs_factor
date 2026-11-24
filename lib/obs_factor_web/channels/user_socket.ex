@@ -17,6 +17,8 @@ defmodule ObsFactorWeb.UserSocket do
   channel "logs", ObsFactorWeb.LogsChannel
   channel "actions", ObsFactorWeb.ActionsChannel
   channel "tape", ObsFactorWeb.TapeChannel
+  # what a flagged BEAM was doing at the moment (ObsFactor.Evidence)
+  channel "evidence", ObsFactorWeb.EvidenceChannel
   channel "observer:*", ObsFactorWeb.FeedChannel
   channel "history:*", ObsFactorWeb.FeedChannel
   channel "builds:*", ObsFactorWeb.FeedChannel
