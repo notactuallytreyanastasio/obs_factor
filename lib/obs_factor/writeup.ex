@@ -131,7 +131,7 @@ defmodule ObsFactor.Writeup do
       ["Burned out with nobody coming", "#{s.burned_out}#{if s.unattended > 0, do: " (#{s.unattended} never looked at)", else: ""}"],
       ["Still burning at the end", s.burning],
       ["Median time to respond", if(s.respond_ms, do: dur(s.respond_ms), else: "nobody said they were looking")],
-      ["Calm", if(c.share, do: "#{round(c.share * 100)}% of the tape had no alert", else: "no tape")],
+      ["Calm", if(c.share, do: "#{pct_calm(c.share)} of the tape had no alert", else: "no tape")],
       ["Longest burn", if(s.longest, do: "#{dur(s.longest.ms)}: #{label(ctx, s.longest.node)}, #{s.longest.title}", else: "none")],
       ["BEAM nodes on the tape", length(beam_nodes)],
       ["Deploys and restarts", count.(~w(deploy restart joined left))],
@@ -294,6 +294,15 @@ defmodule ObsFactor.Writeup do
     """
     |> String.trim_trailing()
   end
+
+  @doc false
+  def __pct__(share), do: pct_calm(share)
+
+  # 15 s of fire in 2 h is not "100% calm": short of whole, it says so
+  # floored on thousandths (0.998 * 100 is 99.79999...): never up to 100.0
+  defp pct_calm(share) when share < 1 and share >= 0.995, do: "#{min(trunc(share * 1000 + 1.0e-9), 999) / 10}%"
+  defp pct_calm(share) when share < 1 and share > 0.99, do: "#{Float.round(share * 100, 1)}%"
+  defp pct_calm(share), do: "#{round(share * 100)}%"
 
   defp note_if_scoped(%{apps: []}), do: "_The fire counts are for the whole floor._"
   defp note_if_scoped(_), do: "_The fire counts are for the whole floor; the sections below are only about the buildings named above._"

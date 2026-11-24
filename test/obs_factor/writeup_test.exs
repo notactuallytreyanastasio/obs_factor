@@ -127,4 +127,11 @@ defmodule ObsFactor.WriteupTest do
     refute resp.resp_body =~ "## Incidents"
     assert build_conn() |> post("/login", %{"password" => Application.fetch_env!(:obs_factor, :password)}) |> recycle() |> get("/api/writeup.md?from=1&to=0") |> json_response(400)
   end
+
+  test "a calm share short of whole is never written as 100%" do
+    assert Writeup.__pct__(0.998) == "99.8%"
+    assert Writeup.__pct__(0.9999) == "99.9%"
+    assert Writeup.__pct__(1.0) == "100%"
+    assert Writeup.__pct__(0.5) == "50%"
+  end
 end
