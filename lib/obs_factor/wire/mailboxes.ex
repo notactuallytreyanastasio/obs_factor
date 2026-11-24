@@ -104,7 +104,8 @@ defmodule ObsFactor.Wire.Mailboxes do
 
   defp targets do
     reports =
-      for n <- ObsFactor.topology().nodes, n.report do
+      # plus apps connected by labels (ObsFactor.Discovery)
+      for n <- ObsFactor.Discovery.topology().nodes, n[:report] do
         case ObserverProxy.members(n.id) do
           {:ok, [_ | _] = addrs} -> Enum.map(addrs, &{n.id, &1})
           _ -> [{n.id, nil}]
