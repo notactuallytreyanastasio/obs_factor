@@ -40,6 +40,17 @@ defmodule ObsFactorWeb.Router do
     get "/", PageController, :index
   end
 
+  # what scripts read: a bearer token with the scope, or the page's session
+  pipeline :writeups_read do
+    plug ObsFactorWeb.Plugs.TokenOrSession, scope: "writeups:read"
+  end
+
+  scope "/api", ObsFactorWeb do
+    pipe_through [:browser, :writeups_read]
+
+    get "/writeup.md", WriteupController, :build
+  end
+
   scope "/api", ObsFactorWeb do
     pipe_through [:browser, :api_gate]
 
@@ -52,7 +63,6 @@ defmodule ObsFactorWeb.Router do
     get "/builds/:id", BuildsController, :show
     get "/builds/:id/log", BuildsController, :log
     get "/logs", ApiController, :logs
-    get "/writeup.md", WriteupController, :build
     get "/objectives", ObjectivesController, :index
     post "/objectives", ObjectivesController, :create
     post "/objectives/:id", ObjectivesController, :update
