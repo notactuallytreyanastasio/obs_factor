@@ -171,10 +171,11 @@ bold "health"
 ok=0
 for _ in 1 2 3 4 5 6 7 8 9 10; do
   body=$(curl -s --max-time 10 -w ' %{http_code}' "$URL" || echo ' 000')
-  if [ "$body" = "ok 200" ]; then ok=1; break; fi
+  # /health is JSON since chapter 31: 200 and "ok":true once a snapshot is fresh
+  case "$body" in *'"ok":true'*' 200') ok=1; break ;; esac
   sleep 3
 done
-if [ $ok -eq 1 ]; then did "$URL  ok 200"; else warn "$URL  answered: ${body:-nothing}"; fi
+if [ $ok -eq 1 ]; then did "$URL  $body"; else warn "$URL  answered: ${body:-nothing}"; fi
 
 rev=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
 git diff --quiet 2>/dev/null || rev="$rev+dirty"
