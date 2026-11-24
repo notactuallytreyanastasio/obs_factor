@@ -330,6 +330,16 @@
       "to_change_id": "7e0c4208-d03d-45d2-bf21-a78159179b41",
       "weight": 1.0
     },
+    "4247605deae819800a0b": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:20:32.034108-05:00",
+      "edge_id": "4247605deae819800a0b",
+      "edge_type": "leads_to",
+      "from_change_id": "dfc28105-b368-4cfa-9c5f-da4ff2e94a9c",
+      "rationale": "implements",
+      "to_change_id": "7bae7abc-6f35-41b7-b9f6-e60fb8defb6b",
+      "weight": 1.0
+    },
     "430c144282e06ddca37e": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-18T17:31:50.097014-05:00",
@@ -418,6 +428,16 @@
       "from_change_id": "f93f665e-4a76-4e9d-b8db-f30ca20cce2a",
       "rationale": "found while testing",
       "to_change_id": "c7cf1c8f-2857-476d-bfaf-97e625528b75",
+      "weight": 1.0
+    },
+    "647c03b93d1da137797c": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:20:31.975130-05:00",
+      "edge_id": "647c03b93d1da137797c",
+      "edge_type": "leads_to",
+      "from_change_id": "dfc28105-b368-4cfa-9c5f-da4ff2e94a9c",
+      "rationale": "implements",
+      "to_change_id": "c2c281ce-9eaa-4234-8b26-43162e0a0521",
       "weight": 1.0
     },
     "647e9c000cad0e28de4f": {
@@ -1509,6 +1529,20 @@
       "title": "BEAM wire + BEAM-only board (index, chyron, crawl, Wire/BEAM/DB tabs)",
       "updated_at": "2026-11-23T18:38:08.143114-05:00"
     },
+    "7bae7abc-6f35-41b7-b9f6-e60fb8defb6b": {
+      "author": "Bobby Grayson",
+      "change_id": "7bae7abc-6f35-41b7-b9f6-e60fb8defb6b",
+      "created_at": "2026-11-23T20:20:31.914949-05:00",
+      "metadata": {
+        "branch": "27-tokens-schedules",
+        "commit": "5183284574fa65bcfaaccfebe5bc3462a989020d",
+        "confidence": 85
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Write up panel: schedules and script tokens",
+      "updated_at": "2026-11-23T20:20:31.914949-05:00"
+    },
     "7e0c4208-d03d-45d2-bf21-a78159179b41": {
       "author": "Bobby Grayson",
       "change_id": "7e0c4208-d03d-45d2-bf21-a78159179b41",
@@ -1945,6 +1979,20 @@
       "title": "Published as stacked PRs 1-3 (sites fail alone, Sites panel, production and setup docs)",
       "updated_at": "2026-11-19T00:31:42.002112-05:00"
     },
+    "c2c281ce-9eaa-4234-8b26-43162e0a0521": {
+      "author": "Bobby Grayson",
+      "change_id": "c2c281ce-9eaa-4234-8b26-43162e0a0521",
+      "created_at": "2026-11-23T20:18:17.519118-05:00",
+      "metadata": {
+        "branch": "27-tokens-schedules",
+        "commit": "fce96e6ae73845a7074bb12dd84246ce1d9f5882",
+        "confidence": 85
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "ApiTokens + TokenOrSession plug; Writeup schedules + scheduler; channel events",
+      "updated_at": "2026-11-23T20:18:17.519118-05:00"
+    },
     "c7cf1c8f-2857-476d-bfaf-97e625528b75": {
       "author": "Bobby Grayson",
       "change_id": "c7cf1c8f-2857-476d-bfaf-97e625528b75",
@@ -2065,6 +2113,20 @@
       "status": "pending",
       "title": "Deployed: factory.bobbby.online live behind Cloudflare, six sources ok, 45 nodes; classifier and icecast removed (86 connections); caddy pinned 2.10.2; Sites panel added; one unreadable site no longer fails the sites source",
       "updated_at": "2026-11-19T00:31:06.956772-05:00"
+    },
+    "dfc28105-b368-4cfa-9c5f-da4ff2e94a9c": {
+      "author": "Bobby Grayson",
+      "change_id": "dfc28105-b368-4cfa-9c5f-da4ff2e94a9c",
+      "created_at": "2026-11-23T20:15:43.879666-05:00",
+      "metadata": {
+        "branch": "27-tokens-schedules",
+        "confidence": 80,
+        "prompt": "Do that"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "Script tokens for the writeup API, and scheduled writeups (daily/weekly, saved + webhook)",
+      "updated_at": "2026-11-23T20:15:43.879666-05:00"
     },
     "e0da1a22-c64a-4d9a-b4ee-2df64ffe7851": {
       "author": "Bobby Grayson",
