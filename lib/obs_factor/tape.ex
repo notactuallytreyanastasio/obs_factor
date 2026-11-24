@@ -255,18 +255,27 @@ defmodule ObsFactor.Tape do
   with metrics as `summary/2` keeps them (`%{}` for frames written before
   the column existed).
   """
-  def series(from_ms, to_ms, points, db \\ @db) when points in 1..2000 do
+  def series(from_ms, to_ms, points, db \\ @db, prefix \\ nil) when points in 1..2000 do
+    # with a prefix ("beam:"), only those keys of each frame: the timeline's
+    # BEAM rows over a week are 400 small maps, not 400 whole ones
+    pick =
+      if prefix,
+        do: "(SELECT coalesce(jsonb_object_agg(k, v), '{}'::jsonb) FROM jsonb_each(coalesce(metrics, '{}'::jsonb)) AS e(k, v) WHERE starts_with(k, $4))",
+        else: "coalesce(metrics, '{}'::jsonb)"
+
     sql = """
     WITH f AS (
       SELECT at, metrics, row_number() OVER (ORDER BY at DESC) - 1 AS i, count(*) OVER () AS n
       FROM tape_frames WHERE at >= $1 AND at <= $2
     )
-    SELECT at, coalesce(metrics, '{}'::jsonb) FROM f
+    SELECT at, #{pick} FROM f
     WHERE i % greatest(1, ceil(n::numeric / $3)::int) = 0
     ORDER BY at
     """
 
-    with {:ok, %{rows: rows}} <- q(db, sql, [dt(from_ms), dt(to_ms), points]) do
+    params = [dt(from_ms), dt(to_ms), points] ++ if(prefix, do: [prefix], else: [])
+
+    with {:ok, %{rows: rows}} <- q(db, sql, params) do
       {:ok, Enum.map(rows, fn [at, m] -> [ms(at), m] end)}
     end
   end

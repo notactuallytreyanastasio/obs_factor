@@ -163,4 +163,50 @@ defmodule ObsFactor.WireTest do
     assert %{rate: 0.2, name: "Marginalia.Repo"} = m["repo:marginalia"]
     refute Map.has_key?(m, "beam:site")
   end
+
+  describe "standing conditions" do
+    defp three(reds10), do: [member("10", r: %{"reductions" => reds10}), member("12"), member("20")]
+
+    test "a node 10x the others' median is news on the very first tick, and once" do
+      {items, st} = Wire.observe(Wire.new(), snap(three(1_000_000.0)), @t)
+      assert [%{kind: "outlier", member: "marginalia@172.18.0.10", head: "reductions 1,000,000/s: 167x the other nodes"}] = items
+      {[], st} = Wire.observe(st, snap(three(1_000_000.0)), @t + 5_000)
+      # it ends, and when it starts again it is news again
+      {[], st} = Wire.observe(st, snap(three(6000.0)), @t + 10_000)
+      {[%{kind: "outlier"}], _} = Wire.observe(st, snap(three(900_000.0)), @t + 80_000)
+    end
+
+    test "a node far above its own normal, once the normal is known" do
+      st =
+        Enum.reduce(0..70, Wire.new(), fn i, st ->
+          {_, st} = Wire.observe(st, snap(two([r: %{"reductions" => 60_000.0 + rem(i, 3) * 100}])), @t + i * 5_000)
+          st
+        end)
+
+      {items, st} = Wire.observe(st, snap(two([r: %{"reductions" => 400_000.0}])), @t + 71 * 5_000)
+      assert [%{kind: "anomaly", head: "reductions 400,000/s: " <> _}] = Enum.filter(items, &(&1.kind == "anomaly"))
+      {items, _} = Wire.observe(st, snap(two([r: %{"reductions" => 410_000.0}])), @t + 72 * 5_000)
+      assert Enum.filter(items, &(&1.kind == "anomaly")) == []
+    end
+  end
+
+  describe "containers" do
+    defp with_container(s, up, restarts, image) do
+      update_in(s, ["nodes", Access.at(0)], &Map.merge(&1, %{"container" => %{"uptime_s" => up, "restarts" => restarts}, "facts" => [%{"label" => "image", "value" => image}]}))
+    end
+
+    test "recreated is a deploy, restarted by the policy is a crash, a new image is named" do
+      base = with_container(snap(two()), 5000, 0, "blog-app:1")
+      assert [%{kind: "deploy", head: "redeployed"}] = run(base, with_container(snap(two()), 3, 0, "blog-app:1"))
+      assert [%{kind: "crash", sev: "alert"}] = run(base, with_container(snap(two()), 3, 1, "blog-app:1"))
+      assert [%{kind: "deploy", head: "deployed blog-app:2"}] = run(base, with_container(snap(two()), 3, 0, "blog-app:2"))
+    end
+  end
+
+  test "metrics carry the hottest and biggest process, and each link's traffic" do
+    boxes = %{{"marginalia", "10"} => %{top: [], hot: [%{"registered_name" => "Marginalia.Runs", "reductions_per_s" => 42_000}], big: [%{"registered_name" => ":code_server", "memory" => 9_000_000}]}}
+    m = Wire.metrics(snap(two([sendq: 10])), boxes)["beam:marginalia@172.18.0.10"]
+    assert %{hot_name: "Marginalia.Runs", hot_reds: 42_000, big_name: ":code_server", big_mem: 9_000_000} = m
+    assert m.links == %{"marginalia@172.18.0.12" => [1.0, 10]}
+  end
 end

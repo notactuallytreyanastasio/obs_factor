@@ -16,7 +16,7 @@ defmodule ObsFactorWeb.TapeChannel do
     * `index` `%{from, to, buckets}`: the timeline strip (`Tape.index/3`)
     * `frame` `%{at}`: `%{at, next, snapshot}`, the snapshot as it was then and
       when the next frame is (nil: this is the newest)
-    * `series` `%{from, to, points}`: `%{series: [[at, %{node => %{key => n}}]]}`,
+    * `series` `%{from, to, points, prefix}` (prefix optional, e.g. `"beam:"`): `%{series: [[at, %{node => %{key => n}}]]}`,
       the board's numbers per node, at most `points` frames (`Tape.series/4`)
     * `lanes` `%{from, to}`: `%{lanes: [[node, severity, from, to, frames, text]]}`,
       each building's runs of alerts and warnings (`Tape.lanes/3`)
@@ -111,8 +111,10 @@ defmodule ObsFactorWeb.TapeChannel do
     end
   end
 
-  defp read("series", %{"from" => f, "to" => t, "points" => p}) when is_integer(p) and p in 1..2000,
-    do: window(f, t, fn f, t -> wrap(Tape.series(f, t, p), :series) end)
+  defp read("series", %{"from" => f, "to" => t, "points" => p} = a) when is_integer(p) and p in 1..2000 do
+    prefix = if is_binary(a["prefix"]) and byte_size(a["prefix"]) in 1..20, do: a["prefix"]
+    window(f, t, fn f, t -> wrap(Tape.series(f, t, p, Tape.db(), prefix), :series) end)
+  end
 
   defp read("wire", %{"from" => f, "to" => t}), do: window(f, t, fn f, t -> wrap(Tape.wire(f, t), :wire) end)
   defp read("lanes", %{"from" => f, "to" => t}), do: window(f, t, fn f, t -> wrap(Tape.lanes(f, t), :lanes) end)

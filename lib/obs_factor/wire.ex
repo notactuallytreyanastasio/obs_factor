@@ -35,7 +35,17 @@ defmodule ObsFactor.Wire do
 
   @quiet_ms 60_000
 
-  def new, do: %{first: true, members: %{}, events: MapSet.new(), streams: %{}, db: %{}, total_conns: nil, mbox: %{}, said: %{}}
+  def new,
+    do: %{first: true, members: %{}, events: MapSet.new(), streams: %{}, db: %{}, total_conns: nil, mbox: %{}, said: %{},
+          outliers: MapSet.new(), base: %{}, odd: MapSet.new(), containers: %{}}
+
+  # what the peer and baseline checks look at, and the floor below which a
+  # number is too small to be news however far from normal it is
+  @watched [{"reductions", :rates, "reductions", 50_000}, {"memory", :gauges, "memory.total", 300_000_000},
+            {"processes", :gauges, "process.count", 3_000}, {"binary memory", :gauges, "memory.binary", 100_000_000}]
+  # a baseline: exponentially weighted over about 30 minutes of 5 s ticks
+  @alpha 1 / 360
+  @mature 60
 
   @doc "`{items, state}` for one snapshot (decoded JSON) at `now_ms`."
   def observe(state, snap, now_ms, mailboxes \\ %{}) do
@@ -43,12 +53,21 @@ defmodule ObsFactor.Wire do
     beams = beams(nodes)
     dbs = databases(nodes)
 
+    {peers_items, outliers} = peer_outliers(state.outliers, beams)
+    {odd_items, base, odd} = baseline(state.base, state.odd, beams)
+    {deploys, containers} = container_news(state.containers, nodes, state.first)
+
+    # a standing condition is news the moment it is first seen, even on the
+    # first tick: the blog's reductions were 60x everyone else's before
+    # anyone thought to look
     items =
-      if state.first,
-        do: [],
-        else:
-          member_news(state, beams) ++
-            app_news(state, nodes) ++ db_news(state, dbs, nodes) ++ mailbox_news(state, beams, mailboxes)
+      if state.first do
+        peers_items
+      else
+        member_news(state, beams) ++
+          app_news(state, nodes) ++ db_news(state, dbs, nodes) ++ mailbox_news(state, beams, mailboxes) ++
+          peers_items ++ odd_items ++ deploys
+      end
 
     {items, said} = quiet(items, state.said, now_ms)
 
@@ -61,7 +80,11 @@ defmodule ObsFactor.Wire do
         db: dbs.per_db,
         total_conns: dbs.total,
         mbox: top_boxes(beams, mailboxes),
-        said: said
+        said: said,
+        outliers: outliers,
+        base: base,
+        odd: odd,
+        containers: containers
     }
 
     {Enum.map(items, &Map.put(&1, :at, now_ms)), state}
@@ -81,6 +104,9 @@ defmodule ObsFactor.Wire do
         g = b.gauges
         r = b.rates
         box = top_box(mailboxes, b)
+        read = Map.get(mailboxes, {b.app, b.address}) || Map.get(mailboxes, {b.app, nil}) || %{}
+        hot = List.first(read[:hot] || [])
+        big = List.first(read[:big] || [])
 
         {"beam:" <> b.key,
          %{
@@ -101,7 +127,13 @@ defmodule ObsFactor.Wire do
            mbox: box && box.len,
            mbox_name: box && box.name,
            up: b.uptime,
-           leads: b.leads
+           leads: b.leads,
+           hot_name: hot && proc_name(hot),
+           hot_reds: hot && hot["reductions_per_s"],
+           big_name: big && proc_name(big),
+           big_mem: big && big["memory"],
+           # per peer: [bytes/s out, send queue bytes], for the cluster map
+           links: if(b.conns == %{}, do: nil, else: Map.new(b.conns, fn {peer, c} -> {peer, [c["out_bps"] || 0, c["send_queue_bytes"] || 0]} end))
          }
          |> Map.reject(fn {_, v} -> is_nil(v) end)}
       end
@@ -440,6 +472,106 @@ defmodule ObsFactor.Wire do
             "the biggest mailbox on #{short(b.key)}: a process receiving faster than it handles")
     end
     |> Enum.reject(&is_nil/1)
+  end
+
+  # ---- standing conditions ----------------------------------------------------
+
+  # A member far above the others: ten times the median of every BEAM
+  # node on the floor, and over the floor for that number. Said when it
+  # starts, not every tick; when it ends, it can be said again later.
+  defp peer_outliers(prev, beams) do
+    found =
+      for {what, src, key, floor} <- @watched,
+          vals = for(b <- beams, v = Map.get(b, src)[key], is_number(v), do: {b, v}),
+          length(vals) >= 3,
+          med = median(Enum.map(vals, &elem(&1, 1))),
+          med > 0,
+          {b, v} <- vals,
+          v >= floor and v >= med * 10 do
+        {{b.key, what}, item(b, "outlier", "warn", "#{what} #{amount(key, v)}: #{round(v / med)}x the other nodes", "the median of #{length(vals)} BEAM nodes is #{amount(key, med)}; #{short(b.key)} is not like the rest")}
+      end
+
+    now = MapSet.new(found, &elem(&1, 0))
+    {for({k, i} <- found, not MapSet.member?(prev, k), do: i), now}
+  end
+
+  # A member far above its own normal: an exponentially weighted mean and
+  # variance per member and number (about 30 minutes), mature after 60
+  # ticks. Over the mean by 4 standard deviations and twice the mean, and
+  # over the floor: news, once, until it comes back down.
+  defp baseline(base, odd, beams) do
+    Enum.reduce(beams, {[], base, odd}, fn b, acc ->
+      Enum.reduce(@watched, acc, fn {what, src, key, floor}, {items, base, odd} ->
+        v = Map.get(b, src)[key]
+        k = {b.key, key}
+
+        if is_number(v) do
+          {mean, var, n} = Map.get(base, k, {v * 1.0, 0.0, 0})
+          sd = :math.sqrt(var)
+          high = n >= @mature and v >= floor and v > mean * 2 and v > mean + 4 * sd
+
+          {items, odd} =
+            cond do
+              high and not MapSet.member?(odd, k) ->
+                {[item(b, "anomaly", "warn", "#{what} #{amount(key, v)}: #{Float.round(v / mean, 1)}x its normal", "its last 30 minutes averaged #{amount(key, mean)} on #{short(b.key)}") | items], MapSet.put(odd, k)}
+
+              not high and v <= mean * 1.5 ->
+                {items, MapSet.delete(odd, k)}
+
+              true ->
+                {items, odd}
+            end
+
+          d = v - mean
+          mean2 = mean + @alpha * d
+          var2 = (1 - @alpha) * (var + @alpha * d * d)
+          {items, Map.put(base, k, {mean2, var2, n + 1}), odd}
+        else
+          {items, base, odd}
+        end
+      end)
+    end)
+    |> then(fn {items, base, odd} -> {Enum.reverse(items), base, odd} end)
+  end
+
+  defp median(vals) do
+    s = Enum.sort(vals)
+    n = length(s)
+    if rem(n, 2) == 1, do: Enum.at(s, div(n, 2)), else: (Enum.at(s, div(n, 2) - 1) + Enum.at(s, div(n, 2))) / 2
+  end
+
+  defp amount("reductions", v), do: "#{num(v)}/s"
+  defp amount("memory." <> _, v), do: bytes(round(v))
+  defp amount(_, v), do: num(round(v))
+
+  # The containers of the BEAM apps (and the database): recreated is a
+  # deploy, restarted with the restart count up is a crash the restart
+  # policy caught, and a new image is said with its names.
+  defp container_news(prev, nodes, first) do
+    now =
+      for n <- nodes, beam?(n) or n["kind"] == "db", c = n["container"], is_map(c), into: %{} do
+        image = Enum.find_value(n["facts"] || [], fn %{"label" => "image", "value" => v} -> v; _ -> nil end)
+        {n["id"], %{label: n["label"], up: c["uptime_s"], restarts: c["restarts"] || 0, image: image}}
+      end
+
+    changed = fn c, p -> is_number(c.up) and is_number(p.up) and (c.up < p.up or c.image != p.image) end
+
+    items =
+      if first do
+        []
+      else
+        for {id, c} <- now, p = prev[id], p != nil, changed.(c, p) do
+          who = %{app: id, label: c.label, key: nil}
+
+          cond do
+            c.image != p.image and p.image != nil -> item(who, "deploy", "info", "deployed #{c.image}", "image #{p.image} → #{c.image}")
+            c.restarts > p.restarts -> item(who, "crash", "alert", "container crashed and restarted", "restart #{c.restarts}: the restart policy brought it back after #{dur(p.up)} up")
+            true -> item(who, "deploy", "info", "redeployed", "the container was recreated after #{dur(p.up)} up")
+          end
+        end
+      end
+
+    {items, now}
   end
 
   # ---- items ------------------------------------------------------------------

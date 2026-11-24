@@ -10,7 +10,10 @@ defmodule ObsFactor.Wire.Mailboxes do
   answers 404) is left alone for 10 minutes before it is asked again, and
   says so once in the log.
 
-  `read/0`: `%{{node_id, address | nil} => %{at, top: [proc]}}`.
+  Each read also asks for the three hottest processes (reductions over
+  500 ms, measured on the node) and the three biggest by memory.
+
+  `read/0`: `%{{node_id, address | nil} => %{at, top: [proc], hot: [proc], big: [proc]}}`.
   """
   use GenServer
   require Logger
@@ -48,13 +51,13 @@ defmodule ObsFactor.Wire.Mailboxes do
 
     results =
       targets
-      |> Task.async_stream(&read_one/1, timeout: 5_000, on_timeout: :kill_task, max_concurrency: 8)
+      |> Task.async_stream(&read_one/1, timeout: 8_000, on_timeout: :kill_task, max_concurrency: 8)
       |> Enum.zip(targets)
 
     state =
       Enum.reduce(results, state, fn
-        {{:ok, {:ok, top}}, key}, st ->
-          %{st | boxes: Map.put(st.boxes, key, %{at: System.system_time(:millisecond), top: top})}
+        {{:ok, {:ok, read}}, key}, st ->
+          %{st | boxes: Map.put(st.boxes, key, Map.put(read, :at, System.system_time(:millisecond)))}
 
         {{:ok, {:error, 404, why}}, {id, _} = key}, st ->
           unless Map.has_key?(st.off, id),
@@ -93,9 +96,18 @@ defmodule ObsFactor.Wire.Mailboxes do
     _ -> []
   end
 
+  # the three biggest mailboxes, the three hottest processes (reductions
+  # over 500 ms, measured by the engine on the node), the three biggest
+  # by memory; the mailboxes decide whether the node has an engine at all
   defp read_one({id, member}) do
-    params = %{"sort" => "message_queue_len", "limit" => "3"}
+    with {:ok, top} <- procs(id, member, %{"sort" => "message_queue_len", "limit" => "3"}) do
+      hot = case procs(id, member, %{"sort" => "reductions", "limit" => "3", "interval_ms" => "500"}) do {:ok, p} -> p; _ -> [] end
+      big = case procs(id, member, %{"sort" => "memory", "limit" => "3"}) do {:ok, p} -> p; _ -> [] end
+      {:ok, %{top: top, hot: hot, big: big}}
+    end
+  end
 
+  defp procs(id, member, params) do
     case ObserverProxy.call("GET", id, ["procs"], params, member: member) do
       {200, %{"procs" => procs}} -> {:ok, procs}
       {status, body} -> {:error, status, (is_map(body) && body["error"]) || "status #{status}"}
