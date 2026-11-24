@@ -866,6 +866,61 @@ Three ideas, and nothing else:
   Nothing reads those lines yet; they are for `docker logs` and for a later
   log source.
 
+### Reports, third round: repo time per table, LiveView sessions alive *(2026-11-23)*
+
+Two more sections of the report, both optional: a reporter from before them
+reads as `"tables": []` and `"liveviews": null`.
+
+- **`tables`**: Ecto query time per repo and table, cumulative since the
+  process started, the most `duration_us` first, at most 100 (the cut in
+  `truncated.tables`):
+  `{"repo": "Blog.Repo", "table": "posts", "count": 99120, "errors": 0, "duration_us": 55443322}`.
+  `table` is Ecto's `source` in the query event: the FROM table (a join
+  counts under its first table only), `null` for SQL with no source
+  (`Repo.query/3`, and a transaction's `begin` and `commit`), so a repo's
+  tables add up to its `db.query` stream. Checked against ecto_sql 3.14.0 and
+  Postgres. `duration_us` is Ecto's `total_time`, which includes the wait for
+  a pool connection. Not attributed to a page (`db.query` is), and not a
+  stream: a row has two names, and streams are ranked by `rate` and cut at
+  40 in `inside`, where table rows would push out the routes and pages they
+  share a repo with. Past 200 repo/table pairs a new pair is counted under
+  `"table": "(other)"`.
+- **`liveviews`**: LiveView processes alive now, per view module, found by
+  walking the VM's processes, so it does not depend on any telemetry event
+  having been seen (the `liveview` units do):
+  `{"total": 5, "views": [{"view": "BlogWeb.PostLive", "alive": 3}], "views_cut": 0, "processes": 812, "walked": 812, "walk_limit": 20000, "took_ms": 1.25}`.
+  A LiveView process is one whose `$initial_call` is `{View, :mount, 3}`
+  with `View` exporting `__live__/0`; checked on LiveView 1.0.19 and 1.2.13
+  (`$process_label` exists only from 1.1). A nested LiveView counts under its
+  own module. The walk stops at `walk_limit` processes (past it `total` is a
+  lower bound: `walked` < `processes`); it costs 1.4 to 1.9 us a process
+  (27 to 37 ms for 20,000 on an M-series laptop, OTP 28), on every read.
+  `views` is the busiest 100 (`views_cut` the rest). On a VM before OTP 26.2,
+  which cannot read one dictionary key without copying the dictionary,
+  `total` is `null`, `walked` 0 and `"unavailable"` says why.
+- **The observer** validates both (at most 100 tables and 100 views; what it
+  cuts is counted as the reporter's cut is) and adds to `inside`:
+  - `"tables"`: the 15 rows with the most `total_ms` over the window (before
+    two reads of the same process exist, the most `duration_us`), each as
+    reported plus the window: `"window_s"` (seconds between the two reads),
+    `"queries"`, `"rate"` and `"err_rate"` (per second), `"avg_ms"` (`null`
+    when no query ran) and `"total_ms"`, all `null` on the first read and
+    after a restart (a table's totals going backwards is one). What is not
+    shown is in `truncated.tables`.
+  - `"liveviews"`: as reported (`null` from a reporter without it).
+  - Both on each entry of `members` too, `null` for a member whose read
+    failed. The node's own are the sum over the members that answered:
+    window values add up (`null` if any member's is), `avg_ms` is
+    `total_ms / queries`, `window_s` the longest; sessions add up per view,
+    `total` is `null` unless every member reported one.
+
+```json
+"tables": [{"repo": "Blog.Repo", "table": "posts", "count": 1020, "errors": 0, "duration_us": 1020000,
+            "window_s": 5.0, "queries": 20, "rate": 4.0, "err_rate": 0.0, "avg_ms": 1.0, "total_ms": 20.0}],
+"liveviews": {"total": 2, "views": [{"view": "BlogWeb.PostLive", "alive": 2}], "views_cut": 0,
+              "processes": 812, "walked": 812, "walk_limit": 20000, "took_ms": 1.25, "unavailable": null}
+```
+
 ## Observer: a building's BEAM, live *(2026-11-22)*
 
 `:observer` for one VM, as JSON, in two layers: the **engine** in
