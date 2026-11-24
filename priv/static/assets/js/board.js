@@ -196,9 +196,9 @@ export class Board {
 
   fetch(end) {
     this.fetching = end;
-    const from = Math.round(end - WINDOW), to = Math.round(end);
+    const from = Math.round(end - 4 * WINDOW), to = Math.round(end);
     Promise.all([
-      bus.push("tape", "series", { from, to, points: 180 }),
+      bus.push("tape", "series", { from, to, points: 360 }),
       bus.push("tape", "wire", { from: Math.round(end - 6 * 3600e3), to: to + 1000 }),
     ])
       .then(([s, w]) => {
@@ -215,7 +215,7 @@ export class Board {
     if (this.api.timeline.replaying) return;
     if (t.metrics) {
       this.series.push([t.at, t.metrics]);
-      while (this.series.length && this.series[0][0] < t.at - WINDOW) this.series.shift();
+      while (this.series.length && this.series[0][0] < t.at - 4 * WINDOW) this.series.shift();
     }
     if (t.wire?.length) {
       // live items have no id until read back: key them by time and order
@@ -318,16 +318,16 @@ export class Board {
     const since = (this.shownAt ?? Date.now()) - MOVE;
     const errors = this.wireUpTo().filter((w) => w.at >= since && (w.kind === "error" || w.kind === "failing")).length;
     const calm = this.calm();
-    const tile = (l, field, [n, t], title) => `<span class="ix"${title ? ` title="${esc(title)}"` : ""}><b>${l}</b><em>${n == null ? "–" : FMT[field](n)}</em>${this.delta(field, n, t)}</span>`;
+    const tile = (l, field, [n, t], title, keys, max = false) => `<span class="ix"${title ? ` title="${esc(title)}"` : ""}><b>${l}</b>${keys ? this.sparkAgg(keys, field, max) : "<i></i>"}<em>${n == null ? "–" : FMT[field](n)}</em>${this.delta(field, n, t)}</span>`;
     this.index.innerHTML = !beams.length ? `<span class="ix"><b>BEAM</b><em>–</em><i class="bd-d flat">no BEAM reports on the tape yet</i></span>` :
-      tile("PROCS", "procs", procs, `processes on ${beams.length} BEAM nodes`) +
-      tile("RUN Q", "rq", rq, "the longest run queue on any node") +
-      tile("BEAM MEM", "mem", mem) +
-      tile("REDS", "reds", reds, "reductions per second, all nodes") +
-      tile("MBOX", "mbox", mbox, boxOwner ? `biggest mailbox: ${boxOwner}` : "biggest mailbox (needs the observer engine)") +
-      tile("DIST", "dist_out", dist, "distribution traffic out, all nodes") +
-      tile("REPO", "rate", q, "Repo queries per second") +
-      tile("PG CONN", "conns", conns, "connections to the apps' own databases") +
+      tile("PROCS", "procs", procs, `processes on ${beams.length} BEAM nodes`, beams) +
+      tile("RUN Q", "rq", rq, "the longest run queue on any node", beams, true) +
+      tile("BEAM MEM", "mem", mem, null, beams) +
+      tile("REDS", "reds", reds, "reductions per second, all nodes", beams) +
+      tile("MBOX", "mbox", mbox, boxOwner ? `biggest mailbox: ${boxOwner}` : "biggest mailbox (needs the observer engine)", beams, true) +
+      tile("DIST", "dist_out", dist, "distribution traffic out, all nodes", beams) +
+      tile("REPO", "rate", q, "Repo queries per second", repos) +
+      tile("PG CONN", "conns", conns, "connections to the apps' own databases", pgs) +
       `<span class="ix${errors ? " hot" : ""}"><b>ERRORS</b><em>${errors}</em><i class="bd-d ${errors ? "dn" : "flat"}">5m</i></span>` +
       `<span class="ix calm${calm?.burning ? " burning" : ""}"><b>${calm?.burning ? "BURNING" : "CALM"}</b><em>${calm ? ago(calm.ms) + (calm.atLeast ? "+" : "") : "–"}</em></span>`;
   }
@@ -391,11 +391,14 @@ export class Board {
   renderCrawl() {
     const parts = [];
     const recent = this.aired().slice(0, 6);
+    const mv = this.movers(5);
+    if (mv.length) parts.push(`<span class="cr movers"><b>MOVERS 5M</b> ${mv.map((x) => `<span data-node="${esc(x.app)}">${esc(x.name.toUpperCase())} ${esc(x.f.replace("_out", ""))} ${this.delta(x.f, x.a, x.b)}</span>`).join(" · ")}</span>`);
     for (const k of this.keys("beam:")) {
       const m = this.latest(k);
       const [p, p0] = this.move(k, "procs");
       const star = (m.leads ?? []).filter((n) => !/Swoosh/.test(n)).map((n) => `★${shortName(n).split(".").pop().toUpperCase()}`).join(" ");
-      parts.push(`<span class="cr" data-node="${esc(m.app)}"><b>${esc(this.nodeName(k, m.app).toUpperCase())}</b>${star ? ` <em>${esc(star)}</em>` : ""} ${FMT.procs(p)} procs ${this.delta("procs", p, p0)} · rq ${num(m.rq)}/${num(m.sched)} · ${bytes(m.mem)} · ${num(m.reds)} red/s${isNum(m.mbox) ? ` · mbox ${num(m.mbox)}` : ""} · ⇄${num(m.peers ?? 0)}</span>`);
+      const hot = isNum(m.hot_reds) && m.hot_reds >= 1000 ? ` · hot ${esc(shortName(m.hot_name))} ${num(m.hot_reds)}/s` : "";
+      parts.push(`<span class="cr" data-node="${esc(m.app)}"><b>${esc(this.nodeName(k, m.app).toUpperCase())}</b>${star ? ` <em>${esc(star)}</em>` : ""} ${this.spark(k, "reds", "crs")} ${FMT.procs(p)} procs ${this.delta("procs", p, p0)} · rq ${num(m.rq)}/${num(m.sched)} · ${bytes(m.mem)} · ${num(m.reds)} red/s${isNum(m.mbox) ? ` · mbox ${num(m.mbox)}` : ""}${hot} · ⇄${num(m.peers ?? 0)}</span>`);
     }
     for (const k of this.keys("repo:")) {
       const m = this.latest(k);
@@ -417,15 +420,82 @@ export class Board {
     if (Math.abs((this.crawlW ?? 0) - w) > 40) { this.crawlW = w; track.style.setProperty("--crawl-s", `${Math.max(25, w / 55)}s`); }
   }
 
-  spark(key, field) {
-    const pts = this.upTo().map(([t, m]) => [t, m[key]?.[field]]).filter(([, v]) => isNum(v));
-    if (pts.length < 2) return `<svg class="sp" viewBox="0 0 80 16"></svg>`;
+  spark(key, field, cls = "sp") { return this.sparkOf(this.recent().map(([t, m]) => [t, m[key]?.[field]]), cls); }
+
+  // one line for many keys: their sum (or max) at each point
+  sparkAgg(keys, field, max = false, cls = "ixs") {
+    return this.sparkOf(this.recent().map(([t, m]) => {
+      let v = null;
+      for (const k of keys) { const x = m[k]?.[field]; if (isNum(x)) v = v == null ? x : max ? Math.max(v, x) : v + x; }
+      return [t, v];
+    }), cls);
+  }
+
+  sparkOf(raw, cls) {
+    const pts = raw.filter(([, v]) => isNum(v));
+    if (pts.length < 2) return `<svg class="${cls}" viewBox="0 0 80 16"></svg>`;
     const t0 = pts[0][0], t1 = pts[pts.length - 1][0];
     let lo = Infinity, hi = -Infinity;
     for (const [, v] of pts) { if (v < lo) lo = v; if (v > hi) hi = v; }
     const span = hi - lo || 1;
     const d = pts.map(([t, v], i) => `${i ? "L" : "M"}${(((t - t0) / (t1 - t0 || 1)) * 80).toFixed(1)},${(15 - ((v - lo) / span) * 14).toFixed(1)}`).join("");
-    return `<svg class="sp" viewBox="0 0 80 16" preserveAspectRatio="none"><path d="${d}"/></svg>`;
+    return `<svg class="${cls}" viewBox="0 0 80 16" preserveAspectRatio="none"><path d="${d}"/></svg>`;
+  }
+
+  // the last 15 minutes of what is held (an hour is held, for the movers'
+  // and the cells' sense of normal)
+  recent() { const pts = this.upTo(); const end = pts[pts.length - 1]?.[0] ?? 0; return pts.filter((p) => p[0] >= end - WINDOW); }
+
+  // ---- movers and outliers --------------------------------------------------
+
+  // the biggest moves over 5 minutes, anywhere in the BEAMs, the Repos and
+  // the app databases; a move must also be big in absolute terms
+  movers(n = 6) {
+    const FLOOR = { procs: 20, mem: 10e6, bin: 5e6, reds: 2000, rq: 2, mbox: 20, dist_out: 1024, rate: 0.5, conns: 3 };
+    const out = [];
+    const look = (prefix, fields, name) => {
+      for (const k of this.keys(prefix)) {
+        const m = this.latest(k);
+        for (const f of fields) {
+          const [a, b] = this.move(k, f);
+          if (a == null || b == null || Math.abs(a - b) < FLOOR[f]) continue;
+          const rel = b === 0 ? Infinity : (a - b) / Math.abs(b);
+          out.push({ k, f, a, b, rel, app: m.app, name: name(k, m) });
+        }
+      }
+    };
+    look("beam:", ["procs", "mem", "bin", "reds", "rq", "mbox", "dist_out"], (k, m) => this.nodeName(k, m.app));
+    look("repo:", ["rate"], (k, m) => shortName(m.name ?? k.slice(5)));
+    look("pg:", ["conns"], (k) => k.slice(3));
+    return out.sort((x, y) => Math.abs(y.rel) - Math.abs(x.rel)).slice(0, n);
+  }
+
+  // field => median over all BEAM nodes, now: a cell 10x it is marked
+  medians() {
+    const out = {};
+    for (const f of ["procs", "mem", "bin", "reds", "mbox"]) {
+      const vals = this.keys("beam:").map((k) => this.latest(k)?.[f]).filter(isNum).sort((a, b) => a - b);
+      if (vals.length >= 3) out[f] = vals[Math.floor(vals.length / 2)];
+    }
+    return out;
+  }
+
+  odd(f, v, med) { return isNum(v) && med[f] > 0 && v >= med[f] * 10 ? ` odd" title="${Math.round(v / med[f])}x the median of the BEAM nodes` : ""; }
+
+  // ---- errors, grouped --------------------------------------------------------
+
+  // a fingerprint: the app, the kind and the headline with numbers, pids and
+  // hex blanked, so "boom at 0.123.0" and "boom at 0.456.0" are one error
+  fingerprints() {
+    const fp = (w) => `${w.app}|${w.kind}|${(w.head ?? "").replace(/#PID<[^>]+>|<\d+\.\d+\.\d+>|\b0x[0-9a-f]+\b|\d+(\.\d+)*/gi, "#")}`;
+    const groups = new Map();
+    for (const w of this.wireUpTo()) {
+      if (!["error", "warning", "failing", "crash", "handler"].includes(w.kind)) continue;
+      const k = fp(w);
+      if (!groups.has(k)) groups.set(k, { k, items: [], app: w.app, label: w.label, kind: w.kind, sev: w.sev });
+      groups.get(k).items.push(w);
+    }
+    return [...groups.values()].sort((a, b) => b.items.length - a.items.length || b.items[0].at - a.items[0].at);
   }
 
   // force: a person did something here (a click, a save, a set arriving);
@@ -434,14 +504,14 @@ export class Board {
   renderMonitor(force = true) {
     if (!this.shown) { this.el.innerHTML = ""; return; }
     const at = this.shownAt ? hms(this.shownAt) : "";
-    const tabs = [["wire", `Wire <b>${this.wireUpTo().length}</b>`], ["beam", `BEAM <b>${this.keys("beam:").length}</b>`], ["db", "DB"]];
+    const tabs = [["wire", `Wire <b>${this.wireUpTo().length}</b>`], ["errors", `Errors <b>${this.fingerprints().length}</b>`], ["beam", `BEAM <b>${this.keys("beam:").length}</b>`], ["db", "DB"]];
     const head = `<div class="bd-head"><h3>Board</h3><div class="bd-tabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${this.tab === k}">${l}</button>`).join("")}</div>
       <span class="bd-at">${this.api.timeline.replaying ? "REPLAY" : "LIVE"} ${at}</span><button type="button" class="fi-x" data-a="close" aria-label="Close">×</button></div>`;
     const active = this.el.contains(document.activeElement) && typing(document.activeElement) ? document.activeElement : null;
     if (active && !force) { if (this.tab === "wire") this.renderWireList(); return; }
     // the search box keeps its cursor across a redraw
     const keep = active?.name === "wq" ? [active.selectionStart, active.selectionEnd] : null;
-    const body = this.tab === "wire" ? this.wireTab() : this.tab === "beam" ? this.beamTab() : this.dbTab();
+    const body = this.tab === "wire" ? this.wireTab() : this.tab === "errors" ? this.errorsTab() : this.tab === "beam" ? this.beamTab() : this.dbTab();
     this.el.innerHTML = head + body;
     if (this.tab === "wire") this.renderWireList();
     if (keep) { const i = this.el.querySelector("input[name=wq]"); i?.focus(); i?.setSelectionRange(...keep); }
@@ -505,23 +575,76 @@ export class Board {
 
   suggest() { return this.describe(this.filter).slice(0, 60); }
 
+  errorsTab() {
+    const groups = this.fingerprints();
+    if (!groups.length) return `<p class="bd-empty">No error, warning, failing stream or crash on the wire in the last 6 hours up to this moment.</p>`;
+    const end = this.shownAt ?? Date.now(), start = end - 6 * 3600e3, cols = 36;
+    const bars = (items) => {
+      const n = new Array(cols).fill(0);
+      for (const w of items) { const i = Math.floor(((w.at - start) / (end - start)) * cols); if (i >= 0 && i < cols) n[i]++; }
+      const top = Math.max(1, ...n);
+      return `<svg class="eb" viewBox="0 0 ${cols * 3} 14" preserveAspectRatio="none">${n.map((v, i) => v ? `<rect x="${i * 3}" y="${14 - Math.max(2, (v / top) * 14)}" width="2.4" height="${Math.max(2, (v / top) * 14)}"/>` : "").join("")}</svg>`;
+    };
+    return `<ol class="bd-errs">${groups.map((g) => {
+      const last = g.items[0], first = g.items[g.items.length - 1];
+      return `<li class="${esc(g.sev)}" data-fp="${esc(g.k)}" data-wire="${esc(String(last.id ?? last.key))}" title="Replay the last one">
+        <span class="n">×${g.items.length}</span>
+        <div><b>${esc(g.label ?? g.app ?? "")}</b> ${esc(last.head)}<div class="x">${esc(last.text ?? "")}</div>
+        <div class="m">${esc(g.kind)} · first ${hms(first.at)} · last ${hms(last.at)} (${ago(end - last.at)} ago)</div></div>${bars(g.items)}</li>`;
+    }).join("")}</ol><p class="bd-foot">Grouped by app, kind and headline with numbers, pids and hex blanked. Bars: the last 6 hours.</p>`;
+  }
+
+  // a clustered app's members on a ring: links as thick as their traffic,
+  // red with a send queue, dashed red where a member has no link at all
+  clusterMap(app, list) {
+    const n = list.length;
+    if (n < 2) return "";
+    const W = 210, H = 150, cx = W / 2, cy = H / 2 + 4, r = 52;
+    const pos = new Map(list.map(([k], i) => { const a = -Math.PI / 2 + (i * 2 * Math.PI) / n; return [k.slice(5), [cx + r * Math.cos(a), cy + r * Math.sin(a)]]; }));
+    const edges = [];
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const [ka, ma] = list[i], [kb, mb] = list[j];
+      const a = ka.slice(5), b = kb.slice(5);
+      const ab = ma.links?.[b], ba = mb.links?.[a];
+      const [x1, y1] = pos.get(a), [x2, y2] = pos.get(b);
+      if (!ab && !ba) { edges.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="gone"><title>${esc(shortNode(a))} and ${esc(shortNode(b))}: no link</title></line>`); continue; }
+      const bps = (ab?.[0] ?? 0) + (ba?.[0] ?? 0), q = Math.max(ab?.[1] ?? 0, ba?.[1] ?? 0);
+      const w = 0.8 + Math.min(5, Math.log10(1 + bps));
+      edges.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="${q > 0 ? "q" : ""}" stroke-width="${w.toFixed(1)}"><title>${esc(shortNode(a))} ⇄ ${esc(shortNode(b))}: ${bytes(bps)}/s${q ? `, send queue ${bytes(q)}` : ""}</title></line>`);
+    }
+    const nodes = list.map(([k, m]) => {
+      const [x, y] = pos.get(k.slice(5));
+      const lead = (m.leads ?? []).filter((x2) => !/Swoosh/.test(x2));
+      const hot = isNum(m.rq) && isNum(m.sched) && m.rq > m.sched;
+      return `<g><circle cx="${x}" cy="${y}" r="${lead.length ? 9 : 7}" class="${hot ? "hot" : ""}${lead.length ? " lead" : ""}"><title>${esc(k.slice(5))}: ${num(m.procs)} procs, rq ${num(m.rq)}/${num(m.sched)}${lead.length ? `, leads ${esc(lead.map(shortName).join(", "))}` : ""}</title></circle>
+        ${lead.length ? `<text x="${x}" y="${y + 3.5}" class="star">★</text>` : ""}<text x="${x}" y="${y + (y > cy ? 20 : -13)}" class="lbl">${esc(shortNode(k.slice(5)).replace(/^[^@]+/, ""))}</text></g>`;
+    }).join("");
+    return `<svg class="cmap" viewBox="0 0 ${W} ${H}" aria-label="${esc(this.label(app))} cluster">${edges.join("")}${nodes}</svg>`;
+  }
+
   beamTab() {
     const keys = this.keys("beam:");
     if (!keys.length) return `<p class="bd-empty">No BEAM node on the tape at this moment.</p>`;
+    const med = this.medians();
+    const mv = this.movers(8);
     const byApp = new Map();
     for (const k of keys) { const m = this.latest(k); if (!byApp.has(m.app)) byApp.set(m.app, []); byApp.get(m.app).push([k, m]); }
+    const maps = [...byApp].filter(([, l]) => l.length > 1).map(([app, l]) => `<figure data-node="${esc(app)}">${this.clusterMap(app, l)}<figcaption>${esc(this.label(app))}</figcaption></figure>`).join("");
+    const movers = mv.length ? `<div class="bd-movers"><h4>Movers, 5 min</h4>${mv.map((x) => `<span data-node="${esc(x.app)}"><b>${esc(x.name)}</b> ${esc(x.f.replace("_out", ""))} ${FMT[x.f](x.b)} → ${FMT[x.f](x.a)} ${this.delta(x.f, x.a, x.b)}</span>`).join("")}</div>` : "";
     const rows = [...byApp].map(([app, list]) => `<tr class="grp" data-node="${esc(app)}"><td colspan="9">${esc(this.label(app))} <span class="dim">${list.length} node${list.length === 1 ? "" : "s"}</span></td></tr>` +
       list.map(([k, m]) => {
         const [p, p0] = this.move(k, "procs");
         const hot = isNum(m.rq) && isNum(m.sched) && m.rq > m.sched;
-        return `<tr data-node="${esc(app)}"><td class="nm" title="${esc(k.slice(5))}">${esc(this.nodeName(k, app))}${(m.leads ?? []).filter((n) => !/Swoosh/.test(n)).map((n) => ` <em title="leads ${esc(n)}">★${esc(shortName(n).split(".").pop())}</em>`).join("")}</td>
-          <td class="r">${num(p)} ${this.delta("procs", p, p0)}</td><td>${this.spark(k, "procs")}</td>
-          <td class="r${hot ? " bad" : ""}">${num(m.rq)}/${num(m.sched)}</td><td class="r">${bytes(m.mem)}</td><td class="r">${bytes(m.bin)}</td>
-          <td class="r">${num(m.reds)}/s</td><td class="r${(m.mbox ?? 0) >= 100 ? " bad" : ""}" title="${esc(shortName(m.mbox_name ?? ""))}">${isNum(m.mbox) ? num(m.mbox) : "–"}</td>
+        const procs = [isNum(m.hot_reds) && m.hot_name ? `hot ${esc(shortName(m.hot_name))} ${num(m.hot_reds)}/s` : "", m.big_name ? `big ${esc(shortName(m.big_name))} ${bytes(m.big_mem)}` : ""].filter(Boolean).join(" · ");
+        return `<tr data-node="${esc(app)}"><td class="nm" title="${esc(k.slice(5))}">${esc(this.nodeName(k, app))}${(m.leads ?? []).filter((n) => !/Swoosh/.test(n)).map((n) => ` <em title="leads ${esc(n)}">★${esc(shortName(n).split(".").pop())}</em>`).join("")}${procs ? `<div class="pr">${procs}</div>` : ""}</td>
+          <td class="r${this.odd("procs", m.procs, med)}">${num(p)} ${this.delta("procs", p, p0)}</td><td>${this.spark(k, "reds")}</td>
+          <td class="r${hot ? " bad" : ""}">${num(m.rq)}/${num(m.sched)}</td><td class="r${this.odd("mem", m.mem, med)}">${bytes(m.mem)}</td><td class="r${this.odd("bin", m.bin, med)}">${bytes(m.bin)}</td>
+          <td class="r${this.odd("reds", m.reds, med)}">${num(m.reds)}/s</td><td class="r${(m.mbox ?? 0) >= 100 ? " bad" : ""}" title="${esc(shortName(m.mbox_name ?? ""))}">${isNum(m.mbox) ? num(m.mbox) : "–"}</td>
           <td class="r">${bytes(m.dist_out ?? 0)}/s${(m.sendq ?? 0) > 0 ? ` <span class="bad">q ${bytes(m.sendq)}</span>` : ""} · ${up(m.up)}</td></tr>`;
       }).join("")).join("");
-    return `<table><thead><tr><th>node</th><th class="r">procs</th><th>15m</th><th class="r">run q</th><th class="r">mem</th><th class="r">binary</th><th class="r">reds</th><th class="r">mbox</th><th class="r">dist out · up</th></tr></thead><tbody>${rows}</tbody></table>
-      <p class="bd-foot">★ marks what a node leads (a :global name). Run queue over schedulers is red: more runnable processes than CPUs. mbox is the biggest mailbox, from the observer engine where the app has it.</p>`;
+    return `${maps ? `<div class="bd-maps">${maps}</div>` : ""}${movers}
+      <table><thead><tr><th>node</th><th class="r">procs</th><th>reds 15m</th><th class="r">run q</th><th class="r">mem</th><th class="r">binary</th><th class="r">reds</th><th class="r">mbox</th><th class="r">dist out · up</th></tr></thead><tbody>${rows}</tbody></table>
+      <p class="bd-foot">★ what a node leads (a :global name). Orange cells are 10x or more the median of the BEAM nodes. Run queue over schedulers is red. hot: the busiest process over 500 ms; big: the biggest by memory; mbox: the biggest mailbox (where the app has the observer engine).</p>`;
   }
 
   dbTab() {

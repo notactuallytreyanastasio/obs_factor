@@ -195,9 +195,9 @@ defmodule ObsFactor.WireTest do
       update_in(s, ["nodes", Access.at(0)], &Map.merge(&1, %{"container" => %{"uptime_s" => up, "restarts" => restarts}, "facts" => [%{"label" => "image", "value" => image}]}))
     end
 
-    test "recreated is a deploy, restarted by the policy is a crash, a new image is named" do
+    test "started again is a deploy (or a manual restart), restarted by the policy is a crash, a new image is named" do
       base = with_container(snap(two()), 5000, 0, "blog-app:1")
-      assert [%{kind: "deploy", head: "redeployed"}] = run(base, with_container(snap(two()), 3, 0, "blog-app:1"))
+      assert [%{kind: "deploy", head: "container started again"}] = run(base, with_container(snap(two()), 3, 0, "blog-app:1"))
       assert [%{kind: "crash", sev: "alert"}] = run(base, with_container(snap(two()), 3, 1, "blog-app:1"))
       assert [%{kind: "deploy", head: "deployed blog-app:2"}] = run(base, with_container(snap(two()), 3, 0, "blog-app:2"))
     end

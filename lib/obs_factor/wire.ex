@@ -544,9 +544,10 @@ defmodule ObsFactor.Wire do
   defp amount("memory." <> _, v), do: bytes(round(v))
   defp amount(_, v), do: num(round(v))
 
-  # The containers of the BEAM apps (and the database): recreated is a
-  # deploy, restarted with the restart count up is a crash the restart
-  # policy caught, and a new image is said with its names.
+  # The containers of the BEAM apps (and the database): started again with
+  # the restart count up is a crash the restart policy caught; started
+  # again without it is a deploy or a manual restart (Docker's uptime does
+  # not tell them apart); a new image is named.
   defp container_news(prev, nodes, first) do
     now =
       for n <- nodes, beam?(n) or n["kind"] == "db", c = n["container"], is_map(c), into: %{} do
@@ -566,7 +567,9 @@ defmodule ObsFactor.Wire do
           cond do
             c.image != p.image and p.image != nil -> item(who, "deploy", "info", "deployed #{c.image}", "image #{p.image} → #{c.image}")
             c.restarts > p.restarts -> item(who, "crash", "alert", "container crashed and restarted", "restart #{c.restarts}: the restart policy brought it back after #{dur(p.up)} up")
-            true -> item(who, "deploy", "info", "redeployed", "the container was recreated after #{dur(p.up)} up")
+            # uptime back to zero, not by the restart policy: a deploy or a
+            # manual restart look the same from here, so it says both
+            true -> item(who, "deploy", "info", "container started again", "after #{dur(p.up)} up, not by the restart policy: a deploy, or a manual restart")
           end
         end
       end
