@@ -27,6 +27,8 @@
 
 import * as bus from "./bus.js";
 import { esc, num, bytes } from "./fmt.js";
+// the SLO tab: error budgets per app (ObsFactor.SLOs), its own topic and module
+import { SLOs } from "./slo.js";
 import { Evidence } from "./evidence.js"; // the "evidence" expander on wire items
 
 const WINDOW = 15 * 60e3; // what the sparklines and moves look back over
@@ -89,6 +91,7 @@ export class Board {
     this.index = document.getElementById("indexrow");
     this.news = document.getElementById("news");
     this.news.innerHTML = `<div class="nw-chyron"><span class="nw-bug">LIVE</span><span class="nw-tag">BEAM</span><span class="nw-head"></span><span class="nw-clock"></span></div><div class="nw-crawl"><div class="nw-track"></div></div>`;
+    this.slo = new SLOs(this); // the SLO tab (slo.js)
     this.btn.textContent = "Board";
     this.btn.addEventListener("click", () => this.toggle());
     this.el.addEventListener("click", (e) => this.onClick(e));
@@ -538,6 +541,7 @@ export class Board {
     if (!this.shown) { this.el.innerHTML = ""; return; }
     const at = this.shownAt ? hms(this.shownAt) : "";
     const tabs = [["wire", `Wire <b>${this.wireUpTo().length}</b>`], ["errors", `Errors <b>${this.fingerprints().length}</b>`], ["beam", `BEAM <b>${this.keys("beam:").length}</b>`], ["db", "DB"]];
+    tabs.push(["slo", `SLO <b>${this.slo.count()}${this.slo.burning() ? "!" : ""}</b>`]); // slo.js: "!" while a burn flag is up
     const head = `<div class="bd-head"><h3>Board</h3><div class="bd-tabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${this.tab === k}">${l}</button>`).join("")}</div>
       <span class="bd-at">${this.api.timeline.replaying ? "REPLAY" : "LIVE"} ${at}</span><button type="button" class="fi-x" data-a="close" aria-label="Close">×</button></div>`;
     const active = this.el.contains(document.activeElement) && typing(document.activeElement) ? document.activeElement : null;
@@ -546,7 +550,7 @@ export class Board {
     // the input being typed in (the search, or a set's name while someone
     // else's set arrives) keeps its text, focus and cursor across a redraw
     const keep = active && (active.name === "wq" || active.name === "name") ? { name: active.name, value: active.value, sel: [active.selectionStart, active.selectionEnd] } : null;
-    const body = this.tab === "wire" ? this.wireTab() : this.tab === "errors" ? this.errorsTab() : this.tab === "beam" ? this.beamTab() : this.dbTab();
+    const body = this.tab === "slo" ? this.slo.tab() : this.tab === "wire" ? this.wireTab() : this.tab === "errors" ? this.errorsTab() : this.tab === "beam" ? this.beamTab() : this.dbTab();
     this.el.innerHTML = head + body;
     if (this.tab === "wire") this.renderWireList();
     if (keep) { const i = this.el.querySelector(`input[name=${keep.name}]`); if (i) { i.value = keep.value; i.focus(); i.setSelectionRange(...keep.sel); } }

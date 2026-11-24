@@ -11,7 +11,7 @@ defmodule ObsFactor.Writeup do
     * `spec` - a wire filter (`ObsFactor.WireFilters` spec: apps, sevs,
       kinds, q), which narrows the timeline and the errors
     * `apps` - node ids: every section only about those buildings
-    * `sections` - which of #{inspect(~w(summary incidents timeline hot beam errors db method))}
+    * `sections` - which of #{inspect(~w(summary incidents timeline hot beam errors db slos method))}
       (all by default)
     * `base_url` - where the floor is, for the replay links
 
@@ -23,7 +23,7 @@ defmodule ObsFactor.Writeup do
 
   alias ObsFactor.{Insights, Tape, WireFilters}
 
-  @sections ~w(summary incidents timeline hot beam errors db method)
+  @sections ~w(summary incidents timeline hot beam errors db slos method)
   @error_kinds ~w(error warning failing crash handler)
   @max_rows 200
 
@@ -43,7 +43,7 @@ defmodule ObsFactor.Writeup do
       base = opts[:base_url] || "https://factory.bobbby.online"
       title = opts[:title] || (win && win.title) || "obs_factor: #{stamp(from)} – #{stamp(to)} UTC"
 
-      ctx = %{from: from, to: to, win: win, spec: spec, apps: apps, base: base, data: data, labels: labels(data.frame)}
+      ctx = %{from: from, to: to, win: win, spec: spec, apps: apps, base: base, data: data, labels: labels(data.frame), db: db}
       body = Enum.map(sections, &section(&1, ctx)) |> Enum.reject(&(&1 in [nil, ""]))
 
       md = Enum.join([head(title, ctx) | body], "\n\n") <> "\n"
@@ -318,6 +318,9 @@ defmodule ObsFactor.Writeup do
     |> Enum.reject(&(&1 in [nil, ""]))
     |> Enum.join("\n\n")
   end
+
+  # error budgets as they stood at the end of the range (ObsFactor.SLOs)
+  defp section("slos", ctx), do: ObsFactor.SLOs.writeup(ctx.to, ctx.apps, ctx.db)
 
   defp section("method", ctx) do
     """

@@ -53,6 +53,8 @@ defmodule ObsFactor.Ticker do
       Phoenix.PubSub.broadcast(ObsFactor.PubSub, @topic, {:snapshot, json})
       at = DateTime.to_unix(now, :millisecond)
       {items, beam, wire} = read_wire(wire, json, at)
+      # burn flags that started since the last tick (ObsFactor.SLOs): on the wire like any item
+      items = items ++ ObsFactor.SLOs.drain()
       # evidence (ObsFactor.Evidence): what the flagged BEAM is doing right
       # now, captured in a task; a cast, never a wait
       ObsFactor.Evidence.notice(items)
