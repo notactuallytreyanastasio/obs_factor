@@ -11,7 +11,7 @@ defmodule ObsFactor.Writeup do
     * `spec` - a wire filter (`ObsFactor.WireFilters` spec: apps, sevs,
       kinds, q), which narrows the timeline and the errors
     * `apps` - node ids: every section only about those buildings
-    * `sections` - which of #{inspect(~w(summary incidents timeline hot beam errors db method))}
+    * `sections` - which of #{inspect(~w(summary incidents timeline hot beam errors db slos method))}
       (all by default)
     * `base_url` - where the floor is, for the replay links
 
@@ -23,7 +23,7 @@ defmodule ObsFactor.Writeup do
 
   alias ObsFactor.{Insights, Tape, WireFilters}
 
-  @sections ~w(summary incidents timeline hot beam errors db method)
+  @sections ~w(summary incidents timeline hot beam errors db slos method)
   @error_kinds ~w(error warning failing crash handler)
   @max_rows 200
 
@@ -43,7 +43,7 @@ defmodule ObsFactor.Writeup do
       base = opts[:base_url] || "https://factory.bobbby.online"
       title = opts[:title] || (win && win.title) || "obs_factor: #{stamp(from)} – #{stamp(to)} UTC"
 
-      ctx = %{from: from, to: to, win: win, spec: spec, apps: apps, base: base, data: data, labels: labels(data.frame)}
+      ctx = %{from: from, to: to, win: win, spec: spec, apps: apps, base: base, data: data, labels: labels(data.frame), db: db}
       body = Enum.map(sections, &section(&1, ctx)) |> Enum.reject(&(&1 in [nil, ""]))
 
       md = Enum.join([head(title, ctx) | body], "\n\n") <> "\n"
@@ -92,8 +92,41 @@ defmodule ObsFactor.Writeup do
           _ -> %{"nodes" => []}
         end
 
-      {:ok, %{insights: insights, lanes: lanes, wire: Enum.reverse(wire), wire_cut: length(wire) >= 5000, marks: marks, beam: beam, dbs: dbs, repos: repos, frame: frame, deploys: deploys}}
+      # evidence (ObsFactor.Evidence): the top processes at the moment, per
+      # wire id; a writeup without it says so rather than failing
+      evidence =
+        case ObsFactor.Evidence.by_wire(from, to, db) do
+          {:ok, m} -> m
+          {:error, _} -> %{}
+        end
+
+      {:ok, %{insights: insights, lanes: lanes, wire: Enum.reverse(wire), wire_cut: length(wire) >= 5000, marks: marks, beam: beam, dbs: dbs, repos: repos, frame: frame, deploys: deploys, evidence: evidence}}
     end
+  end
+
+  # the top processes the evidence caught, under the item: three hottest,
+  # the biggest by memory, the biggest mailbox (when there is one)
+  defp evidence_md(nil), do: ""
+
+  defp evidence_md(e) do
+    p = e.procs
+    who = e.member || e.address
+    short = fn t -> t |> to_string() |> String.replace("Elixir.", "") end
+    # a registered name says who; an unnamed process is its initial call and pid
+    who_is = fn r -> if r["registered_name"], do: short.(r["registered_name"]), else: "#{short.(r["initial_call"] || "?")} #{r["pid"]}" end
+    name = fn r -> "`#{who_is.(r)}`#{if r["current_function"], do: " in `#{short.(r["current_function"])}`", else: ""}" end
+    hot = (p["reductions"] || []) |> Enum.take(3) |> Enum.map(&"#{name.(&1)} #{num(&1["reductions_per_s"])} reductions/s")
+    big = (p["memory"] || []) |> Enum.take(1) |> Enum.map(&"#{name.(&1)} #{bytes(&1["memory"])}")
+    box = (p["message_queue_len"] || []) |> Enum.take(1) |> Enum.filter(&((&1["message_queue_len"] || 0) > 0)) |> Enum.map(&"#{name.(&1)} #{num(&1["message_queue_len"])} messages")
+
+    lines =
+      [{"hottest", hot}, {"biggest", big}, {"biggest mailbox", box}]
+      |> Enum.reject(fn {_, l} -> l == [] end)
+      |> Enum.map(fn {k, l} -> "\n    - #{k}: " <> Enum.join(l, "; ") end)
+
+    if lines == [],
+      do: "\n  - evidence taken at #{stamp(e.at)}#{if who, do: " on #{who}", else: ""}: the engine did not answer",
+      else: "\n  - evidence taken at #{stamp(e.at)}#{if who, do: " on #{who}", else: ""}:" <> Enum.join(lines)
   end
 
   defp labels(frame), do: Map.new(frame["nodes"] || [], &{&1["id"], &1["label"]})
@@ -230,11 +263,15 @@ defmodule ObsFactor.Writeup do
            "#{num(s["rq"][:max])}/#{num(s["sched"][:last])}", num(s["mbox"][:max]), Map.get(restarts, node, 0)]
         end
 
-      odd = ctx.data.wire |> in_apps(ctx) |> Enum.filter(&(&1.kind in ~w(outlier anomaly leader partition)))
+      # an item with evidence is out of the ordinary whatever its kind: the
+      # wire only captures for outliers, anomalies, crashes, restarts,
+      # mailboxes, run queues and failing or surging Repo queries
+      ev = Map.get(ctx.data, :evidence, %{})
+      odd = ctx.data.wire |> in_apps(ctx) |> Enum.filter(&(&1.kind in ~w(outlier anomaly leader partition) or Map.has_key?(ev, &1.id)))
 
       "## The BEAM\n\nPer node over the range: first → last (max). Reductions are a mean of the tape's samples.\n\n" <>
         table(["Node", "Processes", "Memory", "Reductions", "Run queue max / schedulers", "Biggest mailbox", "Restarts"], rows) <>
-        if(odd == [], do: "", else: "\n\n### Out of the ordinary\n\n" <> Enum.map_join(odd, "\n", &"- #{stamp(&1.at)} · #{&1.label || &1.app}: #{&1.head}"))
+        if(odd == [], do: "", else: "\n\n### Out of the ordinary\n\n" <> Enum.map_join(odd, "\n", &("- #{stamp(&1.at)} · #{&1.label || &1.app}: #{&1.head}" <> evidence_md(ev[&1.id]))))
     end
   end
 
@@ -292,6 +329,9 @@ defmodule ObsFactor.Writeup do
     |> Enum.reject(&(&1 in [nil, ""]))
     |> Enum.join("\n\n")
   end
+
+  # error budgets as they stood at the end of the range (ObsFactor.SLOs)
+  defp section("slos", ctx), do: ObsFactor.SLOs.writeup(ctx.to, ctx.apps, ctx.db)
 
   defp section("method", ctx) do
     """

@@ -56,6 +56,10 @@ services:
       # from GitHub. Optional: unset, the timeline and the wire say the sha
       # alone. A fine-grained token, read-only Contents on the five repos.
       GITHUB_TOKEN: ${OBS_FACTOR_GITHUB_TOKEN:-}
+      # Dead-man's switch (deploy/WATCHDOG.md). Unset: no pings.
+      HEARTBEAT_URL: ${HEARTBEAT_URL:-}
+      HEARTBEAT_FAIL: ${HEARTBEAT_FAIL:-}
+      HEARTBEAT_METHOD: ${HEARTBEAT_METHOD:-}
     volumes:
       # statfs() needs a path on the host's root filesystem and nothing else.
       # An empty directory, created by Docker (as root) on first `up`. NOT

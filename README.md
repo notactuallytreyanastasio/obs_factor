@@ -737,7 +737,7 @@ and `blimp-blog` is the same with and without the additions, so
 Marginalia's conventions: the suite gates the deploy on `mix test`'s own
 exit status (to a log file, never through a pipe), rsync with excludes,
 `-n` dry run, `--host`, `--no-test`, a `.deployed` stamp, and a health check
-that wants `ok` and 200 from `https://factory.bobbby.online/health`. It never
+that wants 200 and `"ok":true` from `https://factory.bobbby.online/health`. It never
 edits `/opt/blog`: after syncing it checks, read-only, that both services
 are in the compose file, the three Caddyfile additions are there, the
 `.env` keys have values (names only are printed) and the Postgres role

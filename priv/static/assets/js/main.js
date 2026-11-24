@@ -24,6 +24,7 @@ import { Fires } from "./fires.js";
 import { Board } from "./board.js";
 import { Writeups } from "./writeup.js";
 import { DeployMarks } from "./deploys.js"; // deploys.js
+import { AlertsPanel } from "./alerts.js"; // alerts.js: the routes alerts go out on
 
 const $ = (id) => document.getElementById(id);
 // scope.js: /?scope=<id>. Up here because Missions, built further down at
@@ -874,6 +875,9 @@ $("writeupbtn")?.addEventListener("click", () => { toggleMenu(false); const to =
 window.__obsFactorTape = { timeline, fires, board, bus, writeups };
 // deploys.js: the short sha of each deploy on the timeline
 window.__obsFactorTape.deployMarks = new DeployMarks({ timeline, label: (id) => outerSnap?.nodes.find((n) => n.id === id)?.label ?? id });
+// alerts.js: the Alerts panel, opened by #alertsbtn in the controls
+const alertsPanel = new AlertsPanel({ apps: () => writeups.api.apps(), sets: () => board?.sets ?? [], who: () => missions.who || null });
+window.__obsFactorAlerts = alertsPanel;
 
 connect({
   onSnapshot,
