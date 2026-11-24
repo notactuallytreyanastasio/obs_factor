@@ -44,6 +44,18 @@ if config_env() != :test do
   config :obs_factor, objectives_pg_url: blank_to_nil.(System.get_env("OBJECTIVES_PG_URL"))
 end
 
+# --- heartbeat (ObsFactor.Heartbeat, docs/contract.md "Heartbeat") ---
+# HEARTBEAT_URL: pinged every 60 s while the observer is healthy. Unset: no
+# pings. HEARTBEAT_FAIL=1 also POSTs <url>/fail when it is not.
+# HEARTBEAT_METHOD=get for push URLs that only take GET.
+if config_env() != :test do
+  config :obs_factor, :heartbeat,
+    url: blank_to_nil.(System.get_env("HEARTBEAT_URL")),
+    fail: System.get_env("HEARTBEAT_FAIL") in ~w(1 true yes),
+    method: if(System.get_env("HEARTBEAT_METHOD", "") |> String.downcase() == "get", do: :get, else: :post)
+end
+# --- end heartbeat ---
+
 # OBS_ROLE=builder runs the builder (lib/obs_factor/builder) instead of the
 # observer. The observer reads a builder at BUILDER_URL when it is set.
 config :obs_factor, :role, if(System.get_env("OBS_ROLE") == "builder", do: :builder, else: :observer)

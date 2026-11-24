@@ -96,7 +96,11 @@ defmodule ObsFactor.Application do
           {ObsFactor.Collector,
            {ObsFactor.Reports, interval_ms: tick, targets: reports, token: src[:report_token]}},
           ObsFactor.Wire.Mailboxes,
-          {ObsFactor.Ticker, tick_ms: tick}
+          # evidence taken when the wire flags a BEAM (does nothing without a tape)
+          ObsFactor.Evidence,
+          {ObsFactor.Ticker, tick_ms: tick},
+          # heartbeat: pings HEARTBEAT_URL while healthy; nil when unset
+          ObsFactor.Heartbeat.configured_child()
         ],
         &is_nil/1
       )

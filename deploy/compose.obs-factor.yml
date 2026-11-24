@@ -52,6 +52,10 @@ services:
       # Caddy's access log (deploy/Caddyfile.access). Needs the caddy_logs
       # volume below on both this service and `caddy`.
       ACCESS_LOG: /caddy-logs/access.log
+      # Dead-man's switch (deploy/WATCHDOG.md). Unset: no pings.
+      HEARTBEAT_URL: ${HEARTBEAT_URL:-}
+      HEARTBEAT_FAIL: ${HEARTBEAT_FAIL:-}
+      HEARTBEAT_METHOD: ${HEARTBEAT_METHOD:-}
     volumes:
       # statfs() needs a path on the host's root filesystem and nothing else.
       # An empty directory, created by Docker (as root) on first `up`. NOT
