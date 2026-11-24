@@ -854,6 +854,7 @@ fires = new Fires({
 board = new Board({
   timeline,
   who: () => missions.who || null,
+  openProc: (row) => { board.toggle(false); procs.openProc(row); }, // the PubSub tab's subscribers
   go: (id) => { if (outerSnap?.nodes.some((n) => n.id === id)) { if (insideOf) leave(); select(id, true); } },
   closeOthers: () => { inspector.close(); toggleLegend(false); toggleSites(false); toggleBuilder(false); },
   onToggle: () => { dirty = true; },

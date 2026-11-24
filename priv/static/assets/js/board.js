@@ -20,6 +20,8 @@
 //                           run queue on schedulers, memory, binaries,
 //                           reductions, biggest mailbox, distribution
 //                     DB    each app's Repo stream and its Postgres database
+//                     PubSub  each Phoenix.PubSub server, its topics and who
+//                           listens (board_pubsub.js)
 //
 // The numbers are the tape's (each frame's `beam:`, `repo:` and `pg:`
 // metrics) and the wire is the tape's, so a replayed moment shows the
@@ -27,6 +29,7 @@
 
 import * as bus from "./bus.js";
 import { esc, num, bytes } from "./fmt.js";
+import { PubSubTab } from "./board_pubsub.js"; // the PubSub tab
 
 const WINDOW = 15 * 60e3; // what the sparklines and moves look back over
 const MOVE = 5 * 60e3; // a move is against this long ago
@@ -81,6 +84,7 @@ export class Board {
     this.sets = []; // saved filter sets, shared (ObsFactor.WireFilters)
     this.setId = null; // the saved set the filter was loaded from
     this.air = store.get(AIR_KEY); // the set on air: the chyron and crawl follow it (this viewer only)
+    this.pubsub = new PubSubTab(this); // the PubSub tab (board_pubsub.js)
     this.el = document.getElementById("board");
     this.btn = document.getElementById("boardbtn");
     this.index = document.getElementById("indexrow");
@@ -130,11 +134,13 @@ export class Board {
     this.btn.setAttribute("aria-expanded", String(on));
     document.body.classList.toggle("board-open", on);
     if (on) this.renderMonitor();
+    else this.pubsub.idle(); // the PubSub tab's live feeds go with the board
     this.api.onToggle?.();
   }
 
   onClick(e) {
     if (e.target.closest("[data-a=close]")) return this.toggle(false);
+    if (this.tab === "pubsub" && this.pubsub.onClick(e)) return; // the PubSub tab's own clicks
     const tab = e.target.closest("[data-tab]");
     if (tab) { this.tab = tab.dataset.tab; return this.renderMonitor(); }
     const f = e.target.closest("[data-f]");
@@ -532,7 +538,7 @@ export class Board {
   renderMonitor(force = true) {
     if (!this.shown) { this.el.innerHTML = ""; return; }
     const at = this.shownAt ? hms(this.shownAt) : "";
-    const tabs = [["wire", `Wire <b>${this.wireUpTo().length}</b>`], ["errors", `Errors <b>${this.fingerprints().length}</b>`], ["beam", `BEAM <b>${this.keys("beam:").length}</b>`], ["db", "DB"]];
+    const tabs = [["wire", `Wire <b>${this.wireUpTo().length}</b>`], ["errors", `Errors <b>${this.fingerprints().length}</b>`], ["beam", `BEAM <b>${this.keys("beam:").length}</b>`], ["db", "DB"], ["pubsub", `PubSub <b>${this.pubsub.count()}</b>`]];
     const head = `<div class="bd-head"><h3>Board</h3><div class="bd-tabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${this.tab === k}">${l}</button>`).join("")}</div>
       <span class="bd-at">${this.api.timeline.replaying ? "REPLAY" : "LIVE"} ${at}</span><button type="button" class="fi-x" data-a="close" aria-label="Close">×</button></div>`;
     const active = this.el.contains(document.activeElement) && typing(document.activeElement) ? document.activeElement : null;
@@ -541,7 +547,8 @@ export class Board {
     // the input being typed in (the search, or a set's name while someone
     // else's set arrives) keeps its text, focus and cursor across a redraw
     const keep = active && (active.name === "wq" || active.name === "name") ? { name: active.name, value: active.value, sel: [active.selectionStart, active.selectionEnd] } : null;
-    const body = this.tab === "wire" ? this.wireTab() : this.tab === "errors" ? this.errorsTab() : this.tab === "beam" ? this.beamTab() : this.dbTab();
+    if (this.tab !== "pubsub") this.pubsub.idle(); // its feeds only while it shows
+    const body = this.tab === "wire" ? this.wireTab() : this.tab === "errors" ? this.errorsTab() : this.tab === "beam" ? this.beamTab() : this.tab === "pubsub" ? this.pubsub.tab() : this.dbTab();
     this.el.innerHTML = head + body;
     if (this.tab === "wire") this.renderWireList();
     if (keep) { const i = this.el.querySelector(`input[name=${keep.name}]`); if (i) { i.value = keep.value; i.focus(); i.setSelectionRange(...keep.sel); } }
