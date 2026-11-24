@@ -21,7 +21,7 @@ defmodule ObsFactor.RollupsTest do
   """
   use ObsFactorWeb.ChannelCase, async: false
 
-  alias ObsFactor.{Objectives, Rollups, Tape}
+  alias ObsFactor.{Objectives, Rollups, Tape, Writeup}
 
   @url System.get_env("OBJECTIVES_TEST_PG_URL", "postgres://postgres:postgres@localhost/obs_factor_test")
   @hour 3_600_000
@@ -152,6 +152,72 @@ defmodule ObsFactor.RollupsTest do
       # an edge in the middle of an hour off the tape: the whole hour, said so
       {:ok, s} = Rollups.summarize(h + 30 * 60_000, h + @hour, db)
       assert s.hours == 1 and s.widened
+    end
+
+    test "a writeup older than the tape is built from the rollups, and says so", %{h: h, db: db} do
+      {:ok, w} = Writeup.build(from: h, to: h + 2 * @hour, db: db, base_url: "https://factory.test")
+      md = w.markdown
+      assert md =~ "_All of it from hourly rollups: the tape keeps 7 days and starts at"
+      assert md =~ "| Hours on record | 2 of 2 |"
+      assert md =~ "| Time with an alert | 30m 0s |"
+      assert md =~ "| Calm | 75% of the recorded time had no alert |"
+      assert md =~ "| Longest burning | App 30m 0s |"
+      assert md =~ "| Deploys and restarts | 2 |"
+      assert md =~ "| Crashes | 1 |"
+      # per building: H at 10/s, H+1 at 16.67/s, time-weighted
+      assert md =~ "| App | 13.33/s (max 100) |"
+      # the BEAM and databases from the rollups: mean (max)
+      assert md =~ "| app@1 | 125 (200) |"
+      assert md =~ "| app_prod | App | 5 (5) | 1/s (1/s) |"
+      # what needs frames says it has none, rather than "nothing happened"
+      assert md =~ "## Incidents\n\n_Not on the tape any more"
+      refute md =~ "Nothing was on fire"
+      assert md =~ "Hourly rollups (`tape_rollups`, kept 13 months)"
+    end
+
+    test "a writeup that starts before the tape has the tape's sections and the rollups before it", %{h: h, now: now, db: db} do
+      {:ok, w} = Writeup.build(from: h, to: now, db: db)
+      md = w.markdown
+      assert md =~ ~r/_\d{4}-\d\d-\d\d \d\d:00:00 – \d{4}-\d\d-\d\d \d\d:00:00 from hourly rollups \(summary, BEAM, databases only\); from .*, the tape\._/
+      assert md =~ "| Fires started |"
+      assert md =~ "### Before the tape, from hourly rollups"
+      assert md =~ "| Time with an alert | 30m 0s |"
+    end
+
+    test "writeups go back 92 days, not 93", %{now: now, db: db} do
+      assert {:ok, _} = Writeup.build(from: now - 92 * 86_400_000, to: now, db: db, sections: ["summary"])
+      assert {:error, "a writeup needs a window id, or from and to (unix ms, from first, at most 92 days)"} =
+               Writeup.build(from: now - 93 * 86_400_000, to: now, db: db)
+    end
+
+    test "compare with the same period last week", %{h: h, db: db} do
+      {:ok, w} = Writeup.build(from: h, to: h + @hour, db: db, compare: "week", sections: ["summary", "method"])
+      md = w.markdown
+      [_, cmp] = String.split(md, "## Compared with last week\n\n")
+      assert md =~ ~r/## Summary.*## Compared with last week.*## How these numbers were made/s
+      assert cmp =~ "| Hours on record | 1 | 1 | same |"
+      # 30 minutes now, 15 a week ago
+      assert cmp =~ "| Time with an alert | 30m 0s | 15m 0s | +100% |"
+      assert cmp =~ "| Requests through the proxies, mean | 10/s | 5/s | +100% |"
+      assert cmp =~ "| Crashes | 1 | 0 | +1 |"
+
+      {:ok, w} = Writeup.build(from: h, to: h + @hour, db: db, compare: "month", sections: ["summary"])
+      assert w.markdown =~ "| Hours on record | 1 | 0 |"
+      assert w.markdown =~ "_Nothing was recorded last month: no rollups go back that far._"
+
+      assert {:error, "compare is week or month, got \"year\""} = Writeup.build(from: h, to: h + @hour, db: db, compare: "year")
+    end
+
+    test "over the tape channel: the index carries rollups_to, a writeup takes compare and 92 days", %{h: h, now: now} do
+      {:ok, _, socket} = subscribe_and_join(authed_socket("r"), ObsFactorWeb.TapeChannel, "tape")
+      ref = push(socket, "index", %{"from" => h, "to" => now, "buckets" => 30})
+      assert_reply ref, :ok, %{rollups_to: rt, buckets: [[t, _, 1 | _] | _]}
+      assert is_integer(rt) and t == h
+
+      ref = push(socket, "writeup", %{"from" => now - 92 * 86_400_000, "to" => now, "compare" => "week", "sections" => ["summary"]})
+      assert_reply ref, :ok, %{markdown: md}, 5_000
+      assert md =~ "## Compared with last week"
+      assert md =~ "### Before the tape, from hourly rollups"
     end
 
     test "the timeline's index has rollup columns before the tape, and says up to where", %{h: h, now: now, db: db} do
