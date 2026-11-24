@@ -1253,3 +1253,64 @@ mailbox 100/1000, memory 50/200 MiB, reductions 500k/2M per second).
 
 The jump list (`jump.js`, Cmd/Ctrl+K) joins `objectives` while it is open.
 
+
+## Connecting an app by its labels *(2026-11-24)*
+
+The how-to is docs/CONNECT.md; this is the contract.
+
+**Discovery** (`ObsFactor.Discovery`, run inside `ObsFactor.Labelled.merge/3`
+on every tick). A non-one-off container labelled `obs_factor.report=<http(s)
+URL>` is merged into the topology; optional labels `obs_factor.label`,
+`obs_factor.hosts`, `obs_factor.databases` (comma separated),
+`obs_factor.platform`, `obs_factor.probe`, `obs_factor.id`. One node per
+compose service (the first container by name), or per container name when
+there is no compose service.
+
+- Claimed by a topology node (same `service`, or same `container`): empty
+  `report`, `probe`, `hosts`, `databases` are filled from the labels; a set
+  field the labels contradict keeps the topology's value and adds a
+  `warn` to `attention` (`node: null`): `container <name> (node <id>):
+  obs_factor.<field> says "<label>", the topology says "<topology>"; the
+  topology wins`. `label`, `platform` and `id` are compared the same way and
+  never filled.
+- Claimed by nobody: a node `kind: "app"`, `pos: null`, `platform` the
+  label's if it is a platform, else the proxy's (with a `warn` when the label
+  named an unknown one), `id` = `obs_factor.id` or the compose service
+  (lowercased, other characters as `-`). A taken or malformed id, or a
+  report that is not an http(s) URL: not placed (the container stays
+  `unplaced`), with a `warn`. A host another node has: left off, with a
+  `warn`.
+- A container with `obs_factor.report` is Discovery's, also when it has
+  `obs_factor.id`: the builder's `obs_factor.id` rules (Building apps) apply
+  only to containers without `obs_factor.report`.
+
+The merged topology (`ObsFactor.Discovery.topology/0`) is used by the
+snapshot, the reports collector (static targets plus
+`Discovery.report_targets/0`), the probes, `/api/nodes/:id/observer/*` and
+the wire's mailbox poller. A node whose report URL came from labels and that
+the reports collector has not read yet has `inside.error` `"not read yet:
+connected by its labels since the last read"`; a topology report URL
+missing from the collector's result still fails the snapshot.
+
+**`GET /api/connect`** (behind the session). Query: `app` (required,
+`[a-z][a-z0-9_]*`), `service` (default `app` with `_` as `-`), `kind`
+(`phoenix` | `elixir`, default `phoenix`), optional `label`, `hosts`,
+`databases`, `platform`, `probe_port`, `app_dir` (default `../<app>`),
+`check=false` (no checklist). 422 `{"error"}` names the first bad field.
+200:
+
+```json
+{"input": {"app": "ledger", "service": "ledger", "kind": "phoenix", "module": "Ledger", "label": "Ledger",
+           "hosts": ["ledger.bobbby.online"], "databases": ["ledger_prod"], "platform": null, "probe_port": null,
+           "app_dir": "../ledger"},
+ "report_url": "http://ledger:9568/report",
+ "snippets": [{"id": "install" | "deps" | "dockerfile" | "application" | "prod" | "compose",
+               "title": "...", "file": "mix.exs" | null, "text": "...", "note": "..."}],
+ "checklist": [{"id": "container" | "floor" | "report" | "observer" | "actions",
+                "title": "...", "state": "ok" | "wait" | "bad", "detail": "..."}]}
+```
+
+The checklist reads `Sources` and asks the app's engine (`GET /observer`
+through `ObsFactor.ObserverProxy`) only when its report answered; each step
+is `wait` until the one before it is `ok`. The page is `connect.js`, opened
+from the menu (Connect an app); it asks again every 5 s while open.
