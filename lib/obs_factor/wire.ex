@@ -35,33 +35,68 @@ defmodule ObsFactor.Wire do
 
   @quiet_ms 60_000
 
-  def new, do: %{first: true, members: %{}, events: MapSet.new(), streams: %{}, db: %{}, total_conns: nil, mbox: %{}, said: %{}}
+  def new,
+    do: %{first: true, members: %{}, events: MapSet.new(), streams: %{}, db: %{}, total_conns: nil, mbox: %{}, said: %{},
+          outliers: MapSet.new(), base: %{}, odd: MapSet.new(), containers: %{}, last_seen: %{}}
+
+  # baselines and remembered members not seen for this long are dropped: a
+  # compose redeploy gives members new addresses, so new node names
+  @forget_ms 3_600_000
+
+  # what the peer and baseline checks look at, and the floor below which a
+  # number is too small to be news however far from normal it is
+  @watched [{"reductions", :rates, "reductions", 50_000}, {"memory", :gauges, "memory.total", 300_000_000},
+            {"processes", :gauges, "process.count", 3_000}, {"binary memory", :gauges, "memory.binary", 100_000_000}]
+  # a baseline: exponentially weighted over about 30 minutes of 5 s ticks
+  @alpha 1 / 360
+  @mature 60
 
   @doc "`{items, state}` for one snapshot (decoded JSON) at `now_ms`."
   def observe(state, snap, now_ms, mailboxes \\ %{}) do
     nodes = snap["nodes"] || []
     beams = beams(nodes)
     dbs = databases(nodes)
+    # apps with a member whose report could not be read this tick: their
+    # missing members are unreadable, not gone
+    partial = for n <- nodes, beam?(n), Enum.any?(n["inside"]["members"] || [], &(&1["ok"] != true)), into: MapSet.new(), do: n["id"]
+    reporting = for n <- nodes, beam?(n), into: MapSet.new(), do: n["id"]
+    on_floor = MapSet.new(nodes, & &1["id"])
 
+    {peers_items, outliers} = peer_outliers(state.outliers, beams)
+    {odd_items, base, odd} = baseline(state.base, state.odd, beams)
+    {deploys, containers} = container_news(state.containers, nodes, state.first)
+
+    # a standing condition is news the moment it is first seen, even on the
+    # first tick: the blog's reductions were 60x everyone else's before
+    # anyone thought to look
     items =
-      if state.first,
-        do: [],
-        else:
-          member_news(state, beams) ++
-            app_news(state, nodes) ++ db_news(state, dbs, nodes) ++ mailbox_news(state, beams, mailboxes)
+      if state.first do
+        peers_items
+      else
+        member_news(state, beams, partial) ++
+          app_news(state, nodes) ++ db_news(state, dbs, nodes) ++ mailbox_news(state, beams, mailboxes) ++
+          peers_items ++ odd_items ++ deploys
+      end
 
     {items, said} = quiet(items, state.said, now_ms)
+    last_seen = Enum.reduce(beams, state.last_seen, &Map.put(&2, &1.key, now_ms))
+    stale = for {k, at} <- last_seen, now_ms - at > @forget_ms, into: MapSet.new(), do: k
 
     state = %{
       state
       | first: false,
-        members: remember(state.members, beams),
-        events: seen_events(nodes, state.events),
-        streams: streams(nodes),
+        members: state.members |> remember(beams, partial, on_floor) |> Map.drop(MapSet.to_list(stale)),
+        events: seen_events(nodes, state.events, reporting),
+        streams: streams(nodes, state.streams, reporting),
         db: dbs.per_db,
         total_conns: dbs.total,
-        mbox: top_boxes(beams, mailboxes),
-        said: said
+        mbox: top_boxes(state.mbox, beams, mailboxes),
+        said: said,
+        outliers: outliers,
+        base: Map.reject(base, fn {{k, _}, _} -> MapSet.member?(stale, k) end),
+        odd: MapSet.reject(odd, fn {k, _} -> MapSet.member?(stale, k) end),
+        containers: containers,
+        last_seen: Map.drop(last_seen, MapSet.to_list(stale))
     }
 
     {Enum.map(items, &Map.put(&1, :at, now_ms)), state}
@@ -81,6 +116,9 @@ defmodule ObsFactor.Wire do
         g = b.gauges
         r = b.rates
         box = top_box(mailboxes, b)
+        read = Map.get(mailboxes, {b.app, b.address}) || %{}
+        hot = List.first(read[:hot] || [])
+        big = List.first(read[:big] || [])
 
         {"beam:" <> b.key,
          %{
@@ -101,7 +139,13 @@ defmodule ObsFactor.Wire do
            mbox: box && box.len,
            mbox_name: box && box.name,
            up: b.uptime,
-           leads: b.leads
+           leads: b.leads,
+           hot_name: hot && proc_name(hot),
+           hot_reds: hot && hot["reductions_per_s"],
+           big_name: big && proc_name(big),
+           big_mem: big && big["memory"],
+           # per peer: [bytes/s out, send queue bytes], for the cluster map
+           links: if(b.conns == %{}, do: nil, else: Map.new(b.conns, fn {peer, c} -> {peer, [c["out_bps"] || 0, c["send_queue_bytes"] || 0]} end))
          }
          |> Map.reject(fn {_, v} -> is_nil(v) end)}
       end
@@ -127,7 +171,9 @@ defmodule ObsFactor.Wire do
   defp beams(nodes) do
     for n <- nodes, beam?(n), m <- members_of(n["inside"]) do
       cluster = m["cluster"] || %{}
-      key = cluster["node"] || n["id"]
+      # a node name names a member only when distributed: every app started
+      # without distribution is nonode@nohost, and they overwrote each other
+      key = if cluster["distributed"] == true and is_binary(cluster["node"]), do: cluster["node"], else: n["id"]
       rt = m["runtime"] || %{}
 
       %{
@@ -148,16 +194,22 @@ defmodule ObsFactor.Wire do
   defp members_of(%{"members" => [_ | _] = ms}), do: Enum.filter(ms, &(&1["ok"] == true))
   defp members_of(inside), do: [inside]
 
-  defp streams(nodes) do
-    for n <- nodes, beam?(n), s <- n["inside"]["streams"] || [], into: %{} do
+  # an app whose report failed this tick keeps what it had: otherwise its
+  # old errors and streams look new when it answers again
+  defp streams(nodes, prev, reporting) do
+    kept = for {{app, _, _} = k, v} <- prev, not MapSet.member?(reporting, app), into: %{}, do: {k, v}
+
+    for n <- nodes, beam?(n), s <- n["inside"]["streams"] || [], into: kept do
       {{n["id"], s["kind"], s["name"]}, s}
     end
   end
 
-  defp seen_events(nodes, seen) do
+  # only what reports still carry is remembered (they keep their last few),
+  # and, for an app not answering this tick, what it carried last
+  defp seen_events(nodes, seen, reporting) do
+    kept = for {app, _, _, _} = k <- seen, not MapSet.member?(reporting, app), into: MapSet.new(), do: k
     keys = for n <- nodes, beam?(n), e <- n["inside"]["events"] || [], do: event_key(n, e)
-    # only what reports still carry is remembered: they keep their last few
-    if keys == [], do: seen, else: MapSet.new(keys)
+    MapSet.union(kept, MapSet.new(keys))
   end
 
   defp event_key(n, e), do: {n["id"], e["at"], e["name"], String.slice(e["message"] || "", 0, 120)}
@@ -203,13 +255,18 @@ defmodule ObsFactor.Wire do
   defp ensure_dot(s), do: if(String.contains?(s, "."), do: s, else: s <> ".0")
 
   defp top_box(mailboxes, b) do
-    case Map.get(mailboxes, {b.app, b.address}) || Map.get(mailboxes, {b.app, nil}) do
+    # a member's own reading only: falling back to the app's address-less
+    # reading served an hours-old reading of some other member
+    case Map.get(mailboxes, {b.app, b.address}) do
       %{top: [p | _]} -> %{len: p["message_queue_len"] || 0, name: proc_name(p)}
       _ -> nil
     end
   end
 
-  defp top_boxes(beams, mailboxes), do: Map.new(beams, &{&1.key, top_box(mailboxes, &1)})
+  # no reading this tick (a poll in flight, a timeout) keeps the last one:
+  # forgetting it re-announced every standing mailbox
+  defp top_boxes(prev, beams, mailboxes),
+    do: Map.new(beams, &{&1.key, top_box(mailboxes, &1) || Map.get(prev, &1.key)})
 
   defp proc_name(p), do: p["registered_name"] || p["initial_call"] || p["pid"]
 
@@ -217,24 +274,46 @@ defmodule ObsFactor.Wire do
   # often as not) keeps its members as last seen: when it answers again its
   # uptime is compared with that, and the restart is news. Forgetting them
   # made a restarted node look like a new one, and said nothing.
-  defp remember(prev, beams) do
+  # The same for one member of a cluster whose own read failed while the
+  # others answered. An app no longer on the floor at all is let go.
+  defp remember(prev, beams, partial, on_floor) do
     apps = MapSet.new(beams, & &1.app)
-    kept = for {k, m} <- prev, not MapSet.member?(apps, m.app), into: %{}, do: {k, m}
+
+    kept =
+      for {k, m} <- prev,
+          not MapSet.member?(apps, m.app) or MapSet.member?(partial, m.app),
+          MapSet.member?(on_floor, m.app),
+          into: %{},
+          do: {k, m}
+
     Map.merge(kept, Map.new(beams, &{&1.key, &1}))
   end
 
   # ---- what changed ----------------------------------------------------------
 
-  defp member_news(state, beams) do
+  defp member_news(state, beams, partial) do
     now = Map.new(beams, &{&1.key, &1})
     prev = state.members
     apps_now = beams |> Enum.group_by(& &1.app)
 
+    # An app of one node whose node name changed (a container's hostname is
+    # its id, so a redeploy renames the node) was replaced, not joined and
+    # left: said once, as a restart.
+    prev_by_app = Enum.group_by(prev, fn {_, p} -> p.app end)
+
+    replaced =
+      for {app, [b]} <- apps_now, [{old, p}] <- [Map.get(prev_by_app, app, [])], old != b.key, not MapSet.member?(partial, app),
+          into: %{},
+          do: {app, item(b, "restart", "warn", "#{b.label} replaced: #{short(old)} → #{short(b.key)}", "a new node took the old one's place#{if is_number(p.uptime), do: " after #{dur(p.uptime)} up", else: ""}")}
+
     joined_left =
-      for {key, b} <- now, not Map.has_key?(prev, key), Enum.any?(prev, fn {_, p} -> p.app == b.app end) do
+      Map.values(replaced) ++
+      for {key, b} <- now, not Map.has_key?(prev, key), not Map.has_key?(replaced, b.app), Enum.any?(prev, fn {_, p} -> p.app == b.app end) do
         item(b, "joined", "info", "#{short(key)} joined", "#{b.label} now runs on #{length(apps_now[b.app])} nodes")
       end ++
-        for {key, p} <- prev, not Map.has_key?(now, key), Map.has_key?(apps_now, p.app) do
+        # a member that could not be read is not a member that left
+        for {key, p} <- prev, not Map.has_key?(now, key), Map.has_key?(apps_now, p.app), not MapSet.member?(partial, p.app),
+            not Map.has_key?(replaced, p.app) do
           item(p, "left", "warn", "#{short(key)} left", "#{p.label} is down to #{length(apps_now[p.app])} nodes")
         end
 
@@ -442,6 +521,112 @@ defmodule ObsFactor.Wire do
     |> Enum.reject(&is_nil/1)
   end
 
+  # ---- standing conditions ----------------------------------------------------
+
+  # A member far above the others: ten times the median of every BEAM
+  # node on the floor, and over the floor for that number. Said when it
+  # starts, not every tick; when it ends, it can be said again later.
+  defp peer_outliers(prev, beams) do
+    found =
+      for {what, src, key, floor} <- @watched,
+          vals = for(b <- beams, v = Map.get(b, src)[key], is_number(v), do: {b, v}),
+          length(vals) >= 3,
+          med = median(Enum.map(vals, &elem(&1, 1))),
+          med > 0,
+          {b, v} <- vals,
+          v >= floor and v >= med * 10 do
+        {{b.key, what}, item(b, "outlier", "warn", "#{what} #{amount(key, v)}: #{round(v / med)}x the BEAM median", "the median of all #{length(vals)} BEAM nodes, this one included, is #{amount(key, med)}; #{short(b.key)} is not like the rest")}
+      end
+
+    now = MapSet.new(found, &elem(&1, 0))
+    {for({k, i} <- found, not MapSet.member?(prev, k), do: i), now}
+  end
+
+  # A member far above its own normal: an exponentially weighted mean and
+  # variance per member and number (about 30 minutes), mature after 60
+  # ticks. Over the mean by 4 standard deviations and twice the mean, and
+  # over the floor: news, once, until it comes back down.
+  defp baseline(base, odd, beams) do
+    Enum.reduce(beams, {[], base, odd}, fn b, acc ->
+      Enum.reduce(@watched, acc, fn {what, src, key, floor}, {items, base, odd} ->
+        v = Map.get(b, src)[key]
+        k = {b.key, key}
+
+        if is_number(v) do
+          {mean, var, n} = Map.get(base, k, {v * 1.0, 0.0, 0})
+          sd = :math.sqrt(var)
+          high = n >= @mature and v >= floor and v > mean * 2 and v > mean + 4 * sd
+
+          {items, odd} =
+            cond do
+              high and not MapSet.member?(odd, k) ->
+                {[item(b, "anomaly", "warn", "#{what} #{amount(key, v)}: #{Float.round(v / mean, 1)}x its normal", "its last 30 minutes averaged #{amount(key, mean)} on #{short(b.key)}") | items], MapSet.put(odd, k)}
+
+              not high and v <= mean * 1.5 ->
+                {items, MapSet.delete(odd, k)}
+
+              true ->
+                {items, odd}
+            end
+
+          d = v - mean
+          mean2 = mean + @alpha * d
+          var2 = (1 - @alpha) * (var + @alpha * d * d)
+          {items, Map.put(base, k, {mean2, var2, n + 1}), odd}
+        else
+          {items, base, odd}
+        end
+      end)
+    end)
+    |> then(fn {items, base, odd} -> {Enum.reverse(items), base, odd} end)
+  end
+
+  defp median(vals) do
+    s = Enum.sort(vals)
+    n = length(s)
+    if rem(n, 2) == 1, do: Enum.at(s, div(n, 2)), else: (Enum.at(s, div(n, 2) - 1) + Enum.at(s, div(n, 2))) / 2
+  end
+
+  defp amount("reductions", v), do: "#{num(v)}/s"
+  defp amount("memory." <> _, v), do: bytes(round(v))
+  defp amount(_, v), do: num(round(v))
+
+  # The containers of the BEAM apps (and the database): started again with
+  # the restart count up is a crash the restart policy caught; started
+  # again without it is a deploy or a manual restart (Docker's uptime does
+  # not tell them apart); a new image is named.
+  defp container_news(prev, nodes, first) do
+    now =
+      # the report may be unreadable while the container restarts: that is
+      # when this matters, so it is any node with a report at all
+      for n <- nodes, n["inside"] != nil or n["kind"] == "db", c = n["container"], is_map(c), into: %{} do
+        image = Enum.find_value(n["facts"] || [], fn %{"label" => "image", "value" => v} -> v; _ -> nil end)
+        {n["id"], %{label: n["label"], up: c["uptime_s"], restarts: c["restarts"] || 0, image: image}}
+      end
+
+    changed = fn c, p -> is_number(c.up) and is_number(p.up) and (c.up < p.up or c.image != p.image) end
+
+    items =
+      if first do
+        []
+      else
+        for {id, c} <- now, p = prev[id], p != nil, changed.(c, p) do
+          who = %{app: id, label: c.label, key: nil}
+
+          cond do
+            c.image != p.image and p.image != nil -> item(who, "deploy", "info", "deployed #{c.image}", "image #{p.image} → #{c.image}")
+            c.restarts > p.restarts -> item(who, "crash", "alert", "container crashed and restarted", "restart #{c.restarts}: the restart policy brought it back after #{dur(p.up)} up")
+            # uptime back to zero, not by the restart policy: a deploy or a
+            # manual restart look the same from here, so it says both
+            true -> item(who, "deploy", "info", "container started again", "after #{dur(p.up)} up, not by the restart policy: a deploy, or a manual restart")
+          end
+        end
+      end
+
+    # a node off the snapshot this tick keeps its last container
+    {items, Map.merge(prev, now)}
+  end
+
   # ---- items ------------------------------------------------------------------
 
   defp item(who, kind, sev, head, text),
@@ -452,7 +637,10 @@ defmodule ObsFactor.Wire do
     said = Map.reject(said, fn {_, at} -> now - at > @quiet_ms end)
 
     Enum.reduce(items, {[], said}, fn i, {out, said} ->
-      k = {i.app, i.member, i.kind, if(i.kind in ~w(error warning failing leader partition connected), do: i.head)}
+      # the headline, numbers blanked, is part of the key: two outliers in one
+      # tick (memory and binary memory) are two pieces of news, and an edge
+      # said once must not be swallowed by another of its kind
+      k = {i.app, i.member, i.kind, Regex.replace(~r/\d[\d,.]*/, i.head, "#")}
       if Map.has_key?(said, k), do: {out, said}, else: {[i | out], Map.put(said, k, now)}
     end)
     |> then(fn {out, said} -> {Enum.reverse(out), said} end)

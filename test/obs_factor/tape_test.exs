@@ -151,6 +151,8 @@ defmodule ObsFactor.TapeTest do
     {:ok, w} = Tape.wire(@t0 - 1, @t0 + 1, 500, db)
     assert [%{head: _, app: "marginalia", sev: "warn", at: @t0}, _] = w
     assert w |> Enum.map(& &1.head) |> Enum.sort() == ["one", "two"]
+    assert {:ok, [_, _]} = Tape.wire(@t0 - 1, @t0 + 1, 500, db, ["restart"])
+    assert {:ok, []} = Tape.wire(@t0 - 1, @t0 + 1, 500, db, ["deploy"])
   end
 
   test "a frame comes back as it was recorded: the last at or before, or the first after", %{db: db, tape: tape} do

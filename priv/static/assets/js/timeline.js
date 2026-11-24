@@ -39,6 +39,12 @@ const KIND = { seen: "fire", "came back": "fire", reopened: "fire", pinned: "pin
 const WORD = { fire: "fire", pin: "flagged", look: "looking", out: "put out", puff: "burned out" };
 const MIN_REQ_MS = 90; // at most ~11 frames a second while playing fast
 const LANES_SHOWN = 8, LANE_H = 13, GUTTER = 110;
+// the BEAM rows (expanded): one per node, each cell its number against the
+// node's own median over the view; click the header to change the number
+const HEAT_ROWS = 10, HEAT_H = 9;
+const HEAT_METRICS = [["reds", "reductions/s"], ["rq", "run queue on schedulers"], ["mem", "memory"], ["mbox", "biggest mailbox"], ["procs", "processes"]];
+// what of the BEAM wire goes on the marks row, and how it is drawn
+const WIRE_MARK = { deploy: "deploy", crash: "crash", restart: "restart", joined: "restart", left: "crash", leader: "leader", partition: "crash", outlier: "odd", anomaly: "odd" };
 const HELP = [
   ["click", "go to that moment"], ["drag", "select a stretch"], ["drag an edge", "trim the selection"], ["drag the playhead", "scrub"],
   ["scroll", "zoom around the pointer"], ["shift-scroll", "pan"], ["Space", "play / pause; live: instant replay"],
@@ -82,6 +88,9 @@ export class Timeline {
     this.marks = [];
     this.lanes = []; // [{node, alert_ms, warn_ms, spans: [{sev, a, b, text}]}], worst first
     this.windows = [];
+    this.heatSeries = []; // [[at, {"beam:node": {...}}]] over the view
+    this.heatMetric = store.get("obs.tl.heat") ?? "reds";
+    this.wmarks = []; // BEAM wire items drawn as marks
     this.trimming = null; // the window whose edges are being dragged
     this.expanded = store.get("obs.tl.expanded") != null ? store.get("obs.tl.expanded") === "1" : window.innerHeight >= 820;
     this.inflight = false; this.pending = null; this.lastReq = 0;
@@ -304,7 +313,7 @@ export class Timeline {
   refetch() {
     this.indexAt = performance.now();
     clearTimeout(this.rt);
-    this.rt = setTimeout(() => { this.fetchIndex(); this.fetchMarks(); this.fetchLanes(); }, 120);
+    this.rt = setTimeout(() => { this.fetchIndex(); this.fetchMarks(); this.fetchLanes(); this.fetchBeam(); }, 120);
   }
 
   fetchIndex() {
@@ -319,7 +328,7 @@ export class Timeline {
   fetchMarks() {
     if (!this.ok) return;
     const v = this.view();
-    bus.push("tape", "marks", { from: Math.round(v.from), to: Math.round(v.to + 60_000) })
+    bus.push("tape", "marks", this.readWindow())
       .then((r) => {
         this.marks = r.marks.map(([at, kind, id, node, severity, title, by]) => ({ at, kind: KIND[kind] ?? "fire", raw: kind, id, node, severity, title, by }));
         this.draw();
@@ -327,10 +336,47 @@ export class Timeline {
       .catch((e) => console.error(`obs_factor timeline: marks: ${e.message}`));
   }
 
+  // [from, to] for a read: the view and a minute past it, never over the
+  // server's 31 days (at full zoom-out the extra minute went over, every
+  // read was refused, and the rows quietly stayed as they were)
+  readWindow() {
+    const v = this.view();
+    const to = Math.round(v.to + 60_000);
+    return { from: Math.max(Math.round(v.from), to - MAX_SPAN), to };
+  }
+
+  // the BEAM rows' numbers and the wire's marks for the view
+  fetchBeam() {
+    if (!this.ok) return;
+    const { from, to } = this.readWindow();
+    if (this.expanded)
+      bus.push("tape", "series", { from, to, points: Math.max(60, Math.min(600, Math.floor(this.plotW() / 4))), prefix: "beam:" })
+        .then((r) => { this.heatSeries = r.series; this.size(); this.draw(); })
+        .catch((e) => console.error(`obs_factor timeline: beam rows: ${e.message}`));
+    // only the kinds drawn, and up to 5,000 of them: the newest 500 of the
+    // whole wire covered a few hours of a week's view
+    bus.push("tape", "wire", { from, to, kinds: Object.keys(WIRE_MARK), limit: 5000 })
+      .then((r) => { this.wmarks = r.wire; this.wmarksCut = r.wire.length >= 5000; this.draw(); })
+      .catch((e) => console.error(`obs_factor timeline: wire marks: ${e.message}`));
+  }
+
+  heatKeys() {
+    const ks = new Set();
+    for (const [, m] of this.heatSeries) for (const k of Object.keys(m)) ks.add(k);
+    return [...ks].sort().slice(0, HEAT_ROWS);
+  }
+
+  heatValue(m, metric) {
+    if (!m) return null;
+    if (metric === "rq") return typeof m.rq === "number" && m.sched ? m.rq / m.sched : null;
+    const v = m[metric];
+    return typeof v === "number" ? v : null;
+  }
+
   fetchLanes() {
     if (!this.ok) return;
     const v = this.view();
-    bus.push("tape", "lanes", { from: Math.round(v.from), to: Math.round(v.to + 60_000) })
+    bus.push("tape", "lanes", this.readWindow())
       .then((r) => {
         const by = new Map();
         for (const [node, sev, a, b, , text] of r.lanes) {
@@ -495,6 +541,7 @@ export class Timeline {
     this.expanded = on;
     store.set("obs.tl.expanded", on ? "1" : "0");
     this.size(); this.render();
+    if (on) this.refetch(); // the BEAM rows are read only while expanded
   }
 
   // ---- windows ---------------------------------------------------------------
@@ -598,7 +645,23 @@ export class Timeline {
     }
     if (!this.live && this.cursor != null && Math.abs(x - this.X(this.cursor)) < 6) return { head: true };
     if (y < L.winY + L.winH + 4) { const w = this.windowAt(x, y); if (w) return { win: w }; }
-    if (y >= L.markY - 7 && y <= L.markY + 7) { const m = this.markAt(x); if (m) return { mark: m }; }
+    if (y >= L.markY - 7 && y <= L.markY + 7) {
+      // the nearer of the two kinds of mark: an objective's flame drawn on
+      // top of a deploy must still be reachable
+      const wm = this.wmarkAt(x), m = this.markAt(x);
+      if (wm && m) return Math.abs(this.X(m.at) - x) <= Math.abs(this.X(wm.at) - x) ? { mark: m } : { wmark: wm };
+      if (wm) return { wmark: wm };
+      if (m) return { mark: m };
+    }
+    if (this.expanded && L.heatN && y >= L.heatY - 10 && y < L.heatY + L.heatN * HEAT_H) {
+      // the header is drawn in the gutter; above the rows in the plot, a
+      // click is a click on the time
+      if (y < L.heatY) { if (x < this.plotX()) return { heatHead: true }; }
+      else {
+      const key = this.heatKeys()[Math.floor((y - L.heatY) / HEAT_H)];
+      if (key) return x < this.plotX() ? { heatRow: key } : { heat: key, t: this.T(x) };
+      }
+    }
     if (this.expanded && y >= L.laneY && y < L.laneY + L.lanes * LANE_H) {
       const lane = this.lanes[Math.floor((y - L.laneY) / LANE_H)];
       if (lane) {
@@ -615,6 +678,12 @@ export class Timeline {
     if (!this.L || y > this.L.winY + this.L.winH + 4 || x < this.plotX()) return null;
     const t = this.T(x);
     return this.active().filter((w) => t >= w.from - this.pxMs(3) && t <= w.to + this.pxMs(3)).sort((p, q) => (p.to - p.from) - (q.to - q.from))[0] ?? null;
+  }
+
+  wmarkAt(x) {
+    let best = null, bd = 7;
+    for (const w of this.wmarks) { const d = Math.abs(this.X(w.at) - x); if (d < bd) { bd = d; best = w; } }
+    return best;
   }
 
   markAt(x) {
@@ -654,7 +723,7 @@ export class Timeline {
       }
     }
     const h = d ? d.h : this.hit(e.offsetX, e.offsetY);
-    this.canvas.style.cursor = h.edge ? "ew-resize" : h.head ? "grab" : h.win || h.mark || h.span || h.laneLabel ? "pointer" : "crosshair";
+    this.canvas.style.cursor = h.edge ? "ew-resize" : h.head ? "grab" : h.win || h.mark || h.wmark || h.span || h.laneLabel || h.heatHead || h.heatRow ? "pointer" : "crosshair";
     this.draw(); this.renderTip(h);
   }
 
@@ -671,6 +740,10 @@ export class Timeline {
     if (h.win) return this.openWindow(h.win, false);
     if (h.mark) { this.seek(h.mark.at - (h.mark.kind === "fire" ? 5000 : 0)); if (h.mark.node) this.api.onNode?.(h.mark.node); return; }
     if (h.span) { this.seek(h.span.a - 5000); if (h.lane.node) this.api.onNode?.(h.lane.node); return; }
+    if (h.wmark) { this.seek(h.wmark.at - 5000); if (h.wmark.app) this.api.onNode?.(h.wmark.app); return; }
+    if (h.heatHead) { const i = HEAT_METRICS.findIndex(([k]) => k === this.heatMetric); this.heatMetric = HEAT_METRICS[(i + 1) % HEAT_METRICS.length][0]; store.set("obs.tl.heat", this.heatMetric); this.draw(); return; }
+    if (h.heatRow) { const m = this.heatSeries.at(-1)?.[1]?.[h.heatRow]; if (m?.app) this.api.onNode?.(m.app); return; }
+    if (h.heat) { this.seek(h.t); const m = this.heatSeries.at(-1)?.[1]?.[h.heat]; if (m?.app) this.api.onNode?.(m.app); return; }
     if (h.laneLabel) { if (h.laneLabel.node) this.api.onNode?.(h.laneLabel.node); return; }
     if (e.offsetX < this.plotX()) return;
     this.seek(this.T(e.offsetX));
@@ -743,7 +816,8 @@ export class Timeline {
   // the strip's height: the overview, plus a row per lane when expanded
   size() {
     const n = this.expanded ? Math.min(LANES_SHOWN, Math.max(1, this.lanes.length)) : 0;
-    const strip = 48 + (this.expanded ? 6 + n * LANE_H + (this.lanes.length > LANES_SHOWN ? 10 : 0) : 0);
+    const nh = this.expanded ? this.heatKeys().length : 0;
+    const strip = 48 + (this.expanded ? 6 + n * LANE_H + (this.lanes.length > LANES_SHOWN ? 10 : 0) + (nh ? 14 + nh * HEAT_H : 0) : 0);
     this.el.style.setProperty("--strip-h", `${strip}px`);
     // a phone stacks the controls in two rows over the strip (tape.css)
     const phone = window.innerWidth <= 640;
@@ -845,7 +919,7 @@ export class Timeline {
   renderTip(h) {
     if (!this.hover || !this.ok) { this.tip.hidden = true; return; }
     const x = this.hover.x;
-    if (x < this.plotX() && !h.laneLabel) { this.tip.hidden = true; return; }
+    if (x < this.plotX() && !h.laneLabel && !h.heatRow && !h.heatHead) { this.tip.hidden = true; return; }
     const t = this.T(x);
     const lines = [`<b>${this.spanMs > 86400e3 ? dayHm(t) : hms(t)}</b>`];
     if (h.edge) lines.push(`drag to trim the ${h.edge === "a" ? "start" : "end"}`);
@@ -853,6 +927,16 @@ export class Timeline {
     else if (h.win) lines.push(`<span class="k-win">window</span> ${esc(h.win.title)} · ${span(h.win.to - h.win.from)}<br><span class="dim">click to open</span>`);
     else if (h.mark) lines.push(`<span class="k-${h.mark.kind}">${WORD[h.mark.kind]}</span>${h.mark.by ? ` by ${esc(h.mark.by)}` : ""}: ${esc(h.mark.title)}`);
     else if (h.span) lines.push(`<span class="k-${h.span.sev === "alert" ? "fire" : "warn"}">${esc(this.label(h.lane.node))} ${h.span.sev === "alert" ? "on fire" : "smoking"} ${span(h.span.b - h.span.a)}</span><br>${esc(h.span.text)}<br><span class="dim">${hms(h.span.a)}–${hms(h.span.b)} · click to replay</span>`);
+    else if (h.wmark) lines.push(`<span class="k-${h.wmark.sev === "alert" ? "fire" : h.wmark.sev === "warn" ? "warn" : "win"}">${esc(h.wmark.label ?? h.wmark.app ?? "")}</span> ${esc(h.wmark.head)}<br><span class="dim">${esc(h.wmark.text ?? "")}</span>`);
+    else if (h.heatHead) lines.push(`BEAM rows: ${esc(HEAT_METRICS.find(([k]) => k === this.heatMetric)[1])} against each node's own median in view.<br><span class="dim">click to show another number</span>`);
+    else if (h.heat || h.heatRow) {
+      const key = h.heat ?? h.heatRow;
+      const vals = this.heatSeries.map(([, m]) => this.heatValue(m[key], this.heatMetric)).filter((v) => v != null).sort((a, b) => a - b);
+      const med = vals[Math.floor(vals.length / 2)];
+      let v = null;
+      if (h.heat) { for (const [at, m] of this.heatSeries) { if (at > h.t) break; v = this.heatValue(m[key], this.heatMetric) ?? v; } }
+      lines.push(`${esc(key.slice(5))} · ${esc(HEAT_METRICS.find(([k]) => k === this.heatMetric)[1])}` + (v != null ? `<br>${fmtHeat(this.heatMetric, v)}${med ? ` · ${(v / med).toFixed(1)}x its median` : " · its median in view is 0"}` : ""));
+    }
     else if (h.laneLabel) lines.push(`${esc(this.label(h.laneLabel.node))}: ${span(h.laneLabel.alert_ms)} on fire, ${span(h.laneLabel.warn_ms)} smoking in view`);
     else {
       const b = this.bucketAt(t);
@@ -888,6 +972,9 @@ export class Timeline {
     const L = { winY: 0, winH: 9, markY: 15, ovY: 21, ovH: 15 };
     L.laneY = L.ovY + L.ovH + (this.expanded ? 4 : 0);
     L.lanes = nLanes;
+    const heatKeys = this.expanded ? this.heatKeys() : [];
+    L.heatN = heatKeys.length;
+    L.heatY = L.laneY + Math.max(nLanes, this.expanded && !nLanes ? 1 : 0) * LANE_H + (this.lanes.length > LANES_SHOWN ? 10 : 0) + 12;
     L.axisY = h - 1;
     this.L = L;
     const ovBase = L.ovY + L.ovH;
@@ -941,7 +1028,41 @@ export class Timeline {
         }
       }
     }
+    // the BEAM rows: each cell the node's number against its own median in
+    // view; dim at its normal, orange at 3x, red at 6x (run queue: per
+    // scheduler, red at 1)
+    if (L.heatN) {
+      const metric = this.heatMetric;
+      heatKeys.forEach((key, r) => {
+        const y = L.heatY + r * HEAT_H;
+        const pts = this.heatSeries.map(([t, m]) => [t, this.heatValue(m[key], metric)]);
+        const vals = pts.map(([, v]) => v).filter((v) => v != null).sort((a, b) => a - b);
+        const med = vals[Math.floor(vals.length / 2)] || 0;
+        for (let i = 0; i < pts.length; i++) {
+          const [t, v] = pts[i];
+          if (v == null) continue;
+          const x = this.X(t), x2 = i + 1 < pts.length ? this.X(pts[i + 1][0]) : x + 3;
+          // a zero median (an idle mailbox) has no multiple: the value
+          // itself, on a log scale, so 1 message is not painted like 50,000
+          const k = metric === "rq" ? v : med > 0 ? v / med : v > 0 ? 1.3 + Math.log10(v + 1) : 0;
+          ctx.fillStyle = heatColour(metric === "rq" ? k * 6 : k);
+          ctx.fillRect(x, y, Math.max(1, x2 - x), HEAT_H - 1);
+        }
+      });
+    }
     ctx.restore();
+    if (L.heatN) {
+      ctx.font = "9px system-ui, sans-serif"; ctx.fillStyle = "#c9b8ff";
+      ctx.fillText(`BEAM · ${HEAT_METRICS.find(([k]) => k === this.heatMetric)[1]} ▾`, 4, L.heatY - 3);
+      ctx.font = "9px ui-monospace, Menlo, monospace"; ctx.fillStyle = "rgba(200,190,255,0.85)";
+      heatKeys.forEach((key, r) => {
+        const name = key.slice(5).replace(/^([^@]+)@(?:\d+\.\d+\.)?(\d+\.\d+)$/, "$1@.$2");
+        let s2 = name;
+        while (s2.length > 3 && ctx.measureText(`${s2}…`).width > this.plotX() - 8) s2 = s2.slice(0, -1);
+        ctx.fillText(s2 === name ? s2 : `${s2}…`, 4, L.heatY + r * HEAT_H + HEAT_H - 1.5);
+      });
+      ctx.font = "10px ui-monospace, Menlo, monospace";
+    }
     if (this.expanded) {
       // the gutter: what each row is
       ctx.fillStyle = "rgba(160,170,190,0.55)"; ctx.font = "9px system-ui, sans-serif";
@@ -985,6 +1106,15 @@ export class Timeline {
       ctx.fillStyle = this.trimming ? "#ffd166" : "rgba(127,224,255,0.9)";
       for (const x of [a, b]) { ctx.fillRect(x - 1, 0, 2, h); ctx.fillRect(x - 3, h / 2 - 7, 6, 14); }
     }
+
+    // what happened inside the BEAMs: deploys, crashes, restarts, leaders
+    for (const wm of this.wmarks) {
+      const x = this.X(wm.at);
+      if (x < x0 - 6 || x > w + 6) continue;
+      wireGlyph(ctx, WIRE_MARK[wm.kind], x, L.markY, L.ovY, h - 11);
+    }
+    // never a silent cap: say so when the marks were cut
+    if (this.wmarksCut) { ctx.fillStyle = "rgba(201,184,255,0.8)"; ctx.font = "9px system-ui, sans-serif"; ctx.fillText("only the newest 5,000 BEAM marks", x0 + 4, L.markY + 3); ctx.font = "10px ui-monospace, Menlo, monospace"; }
 
     // what was done
     for (const m of this.marks) {
@@ -1036,5 +1166,36 @@ function glyph(ctx, kind, x, y) {
     ctx.fillStyle = "#f2c94c";
     ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(4, 0); ctx.lineTo(0, 5); ctx.lineTo(-4, 0); ctx.fill();
   }
+  ctx.restore();
+}
+
+function heatColour(k) {
+  if (k < 1.3) return `rgba(76,201,240,${Math.min(0.35, 0.12 + k * 0.12)})`;
+  if (k < 3) return `rgba(255,190,80,${0.35 + (k - 1.3) * 0.25})`;
+  if (k < 6) return `rgba(255,120,40,${0.6 + (k - 3) * 0.1})`;
+  return "rgba(255,50,30,0.95)";
+}
+
+function fmtHeat(metric, v) {
+  if (metric === "rq") return `${v.toFixed(2)} per scheduler`;
+  if (metric === "mem") return v >= 1e9 ? `${(v / 1073741824).toFixed(2)} GB` : `${Math.round(v / 1048576)} MB`;
+  if (metric === "reds") return v >= 1e6 ? `${(v / 1e6).toFixed(2)}M/s` : v >= 1e3 ? `${Math.round(v / 1e3)}k/s` : `${Math.round(v)}/s`;
+  return String(Math.round(v));
+}
+
+// a BEAM happening on the marks row; deploys and crashes also draw a thin
+// line down through the strip, so "what changed right before this" is one look
+function wireGlyph(ctx, kind, x, y, top, bottom) {
+  ctx.save();
+  if (kind === "deploy" || kind === "crash") {
+    ctx.strokeStyle = kind === "deploy" ? "rgba(127,180,255,0.55)" : "rgba(255,70,50,0.6)";
+    ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(x + 0.5, top); ctx.lineTo(x + 0.5, bottom); ctx.stroke(); ctx.setLineDash([]);
+  }
+  ctx.translate(x, y);
+  if (kind === "deploy") { ctx.fillStyle = "#7fb4ff"; ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(5, 3); ctx.lineTo(-5, 3); ctx.closePath(); ctx.fill(); }
+  else if (kind === "crash") { ctx.strokeStyle = "#ff4d3a"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-4, -4); ctx.lineTo(4, 4); ctx.moveTo(4, -4); ctx.lineTo(-4, 4); ctx.stroke(); }
+  else if (kind === "restart") { ctx.strokeStyle = "#7fe0ff"; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(0, 0, 4, 0.4, Math.PI * 1.8); ctx.stroke(); }
+  else if (kind === "leader") { ctx.fillStyle = "#f2c94c"; ctx.font = "11px system-ui"; ctx.textAlign = "center"; ctx.fillText("★", 0, 4); }
+  else { ctx.fillStyle = "#c9b8ff"; ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(4, 0); ctx.lineTo(0, 5); ctx.lineTo(-4, 0); ctx.fill(); }
   ctx.restore();
 }
