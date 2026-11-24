@@ -660,6 +660,16 @@
       "to_change_id": "e496a1e8-9043-4e37-b3dc-44d2e963d969",
       "weight": 1.0
     },
+    "c4a0dd8f077b42f89dd8": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T19:52:17.391969-05:00",
+      "edge_id": "c4a0dd8f077b42f89dd8",
+      "edge_type": "leads_to",
+      "from_change_id": "4cd7bbd7-19df-4ece-ade2-d10f90e9ab42",
+      "rationale": "all merged",
+      "to_change_id": "0194b91f-c45b-466e-a1c8-3ec35526af39",
+      "weight": 1.0
+    },
     "c4eb1bf3e2c85573fe9e": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-18T17:31:50.200729-05:00",
@@ -865,6 +875,19 @@
       "status": "pending",
       "title": "Wire: peer outliers, baselines, deploy/crash, hot+big procs, links; series prefix",
       "updated_at": "2026-11-23T19:01:02.715928-05:00"
+    },
+    "0194b91f-c45b-466e-a1c8-3ec35526af39": {
+      "author": "Bobby Grayson",
+      "change_id": "0194b91f-c45b-466e-a1c8-3ec35526af39",
+      "created_at": "2026-11-23T19:52:13.635619-05:00",
+      "metadata": {
+        "branch": "main",
+        "confidence": 90
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "Everything merged: obs_factor #24/#25, blog #225/#226 (box drift into git), gifmaker #1, marginalia #29, blinks main fast-forwarded",
+      "updated_at": "2026-11-23T19:52:13.635619-05:00"
     },
     "07d29881-537a-4b28-8ed9-b04dee7e5f0e": {
       "author": "Bobby Grayson",
