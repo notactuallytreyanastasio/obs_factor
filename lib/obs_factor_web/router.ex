@@ -22,6 +22,8 @@ defmodule ObsFactorWeb.Router do
 
   scope "/", ObsFactorWeb do
     get "/health", HealthController, :show
+    # a shared writeup: the slug is the permission (ObsFactorWeb.WriteupController)
+    get "/w/:slug", WriteupController, :shared
   end
 
   scope "/", ObsFactorWeb do
@@ -50,6 +52,7 @@ defmodule ObsFactorWeb.Router do
     get "/builds/:id", BuildsController, :show
     get "/builds/:id/log", BuildsController, :log
     get "/logs", ApiController, :logs
+    get "/writeup.md", WriteupController, :build
     get "/objectives", ObjectivesController, :index
     post "/objectives", ObjectivesController, :create
     post "/objectives/:id", ObjectivesController, :update

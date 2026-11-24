@@ -36,6 +36,12 @@ defmodule ObsFactorWeb.TapeChannel do
     * `prune_windows` `%{ids}`: marked pruned; for an hour they are still
       listed (with `pruned_at`) and their frames still kept
     * `restore_windows` `%{ids}`: undo a prune from the last hour
+    * `writeup` `%{window | from, to, set | spec, apps, sections, title}`:
+      `%{title, markdown, from, to}`, a Markdown writeup of that slice
+      (`ObsFactor.Writeup`); `save_writeup` (the same, and `by`) keeps it
+      under an unguessable link, `%{writeup: %{slug, url, ...}}`;
+      `writeups` lists them; `delete_writeup` `%{slug}` revokes one. Saves
+      and revokes push `writeups` `%{writeups}` to everyone.
     * `save_filter` `%{name, spec, by}` (with `id`: change one) and
       `delete_filter` `%{id}`: the wire's saved filter sets
       (`ObsFactor.WireFilters`), followed by a `filters` push
@@ -72,6 +78,11 @@ defmodule ObsFactorWeb.TapeChannel do
     {:noreply, socket}
   end
 
+  def handle_info({:writeups, list}, socket) do
+    push(socket, "writeups", %{writeups: Enum.map(list, &Map.put(&1, :url, ObsFactorWeb.Endpoint.url() <> "/w/" <> &1.slug <> ".md"))})
+    {:noreply, socket}
+  end
+
   def handle_info({:wire_filters, list}, socket) do
     push(socket, "filters", %{filters: list})
     {:noreply, socket}
@@ -93,6 +104,47 @@ defmodule ObsFactorWeb.TapeChannel do
 
   def handle_in("delete_filter", %{"id" => id}, socket),
     do: {:reply, filters(fn -> ObsFactor.WireFilters.delete(id) end, :deleted), socket}
+
+  # writeups (ObsFactor.Writeup): build one to preview, save one to share
+  def handle_in("writeup", params, socket) when is_map(params) do
+    reply =
+      case ObsFactor.Writeup.build(ObsFactorWeb.WriteupController.options(params) ++ [base_url: ObsFactorWeb.Endpoint.url()]) do
+        {:ok, w} -> {:ok, Map.take(w, [:title, :markdown, :from, :to])}
+        {:error, e} -> {:error, %{error: Tape.message(e)}}
+      end
+
+    {:reply, reply, socket}
+  end
+
+  def handle_in("save_writeup", params, socket) when is_map(params) do
+    opts = ObsFactorWeb.WriteupController.options(params)
+    by = if is_binary(params["by"]), do: String.slice(params["by"], 0, 60)
+
+    reply =
+      with {:ok, w} <- ObsFactor.Writeup.build(opts ++ [base_url: ObsFactorWeb.Endpoint.url()]),
+           {:ok, saved} <- ObsFactor.Writeup.save(w, Map.new(opts, fn {k, v} -> {k, v} end), by) do
+        with {:ok, list} <- ObsFactor.Writeup.list(), do: Phoenix.PubSub.broadcast(ObsFactor.PubSub, Tape.topic(), {:writeups, list})
+        {:ok, %{writeup: Map.put(saved, :url, ObsFactorWeb.Endpoint.url() <> "/w/" <> saved.slug <> ".md")}}
+      else
+        {:error, e} -> {:error, %{error: Tape.message(e)}}
+      end
+
+    {:reply, reply, socket}
+  end
+
+  def handle_in("delete_writeup", %{"slug" => slug}, socket) when is_binary(slug) do
+    reply =
+      case ObsFactor.Writeup.delete(slug) do
+        {:ok, s} ->
+          with {:ok, list} <- ObsFactor.Writeup.list(), do: Phoenix.PubSub.broadcast(ObsFactor.PubSub, Tape.topic(), {:writeups, list})
+          {:ok, %{deleted: s}}
+
+        {:error, e} ->
+          {:error, %{error: Tape.message(e)}}
+      end
+
+    {:reply, reply, socket}
+  end
 
   def handle_in("restore_windows", %{"ids" => ids}, socket) when is_list(ids),
     do: {:reply, write(fn -> Tape.restore_windows(ids) end, :restored), socket}
@@ -122,6 +174,13 @@ defmodule ObsFactorWeb.TapeChannel do
     kinds = if is_list(a["kinds"]) and Enum.all?(a["kinds"], &is_binary/1) and length(a["kinds"]) <= 40, do: a["kinds"]
     window(f, t, fn f, t -> wrap(Tape.wire(f, t, limit, Tape.db(), kinds), :wire) end)
   end
+  defp read("writeups", _) do
+    case ObsFactor.Writeup.list() do
+      {:ok, l} -> {:ok, %{writeups: Enum.map(l, &Map.put(&1, :url, ObsFactorWeb.Endpoint.url() <> "/w/" <> &1.slug <> ".md"))}}
+      {:error, e} -> {:error, %{error: Tape.message(e)}}
+    end
+  end
+
   defp read("lanes", %{"from" => f, "to" => t}), do: window(f, t, fn f, t -> wrap(Tape.lanes(f, t), :lanes) end)
   defp read("windows", _), do: wrap(Tape.windows(), :windows) |> err()
 
