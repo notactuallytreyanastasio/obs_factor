@@ -1310,3 +1310,183 @@ burn are null without requests).
 
 The board's SLO tab is `slo.js`; `ObsFactor.Writeup` has a `slos` section
 (as the targets stood at the end of the range).
+
+## Alerts that go out *(2026-11-24)*
+
+`ObsFactor.Alerts` sends a message to webhooks when something breaks, so
+nobody has to be watching the floor. It runs only with an objectives
+database (`OBJECTIVES_PG_URL`); routes live there, in `alert_routes`
+(created at runtime, `CREATE TABLE IF NOT EXISTS`).
+
+What raises one, heard by `ObsFactor.Alerts.Engine` on `ObsFactor.PubSub`
+(the ticker does not wait on it):
+
+* `{:objective, row}` on `objectives`: a `rule` row whose newest event is
+  `seen` or `came back`, written in the last 15 s (the 30 s last_seen flush
+  re-broadcasts the same event; it is not news), fires. A row whose newest
+  event is `cleared itself` or `crossed off` resolves, for the routes that
+  were told it fired. Cleared before its firing was sent: nothing is sent.
+  Pins are not sent.
+* `{:tape_frame, tick}` on `tape`: `tick.wire`, the `ObsFactor.Wire` items
+  of `sev` `alert` (crash, partition, failing, error, atoms past 80 %,
+  mailbox 10 000, pgfull), and `warn` for a route that asks.
+
+Items are held 1.5 s from the first, then each enabled route outside its
+quiet hours gets one message listing what it wants: severity (`alert`, or
+`warn` for both), apps (`node` / wire `app`), and for wire items a
+`WireFilters` spec (by `filter_id`; objectives pass it). The same key
+(`obj:<objective key>`, `wire:<app>|<kind>|<member>`) goes to a route at
+most once per its `dedup_minutes` (default `ALERT_DEDUP_MINUTES`, 15).
+Quiet hours drop, they do not defer.
+
+Delivery: a task under `ObsFactor.TaskSupervisor`, retried once after 5 s;
+the route gets `last_sent_at` and `sent_count`, or `last_error` and
+`last_error_at`; then `{:alert_routes, list}` on `alerts`.
+
+The body (Slack incoming webhooks read `text`, `*bold*` and `<url|label>`):
+
+```json
+{"text": "obs_factor: 2 firing\n*[ALERT]* Marginalia: marginalia down\n    new\n    <https://f.test/?t=2026-11-24T01:46:27Z|replay 01:46:27 UTC> · <https://f.test/?scope=marginalia|building>\n...",
+ "source": "obs_factor", "route": "ops",
+ "items": [{"state": "firing", "severity": "alert", "source": "objective", "kind": "objective",
+            "app": "marginalia", "label": "Marginalia", "title": "marginalia down", "detail": "new",
+            "at": "2026-11-24T01:46:27Z", "key": "obj:marginalia|marginalia down",
+            "replay_url": "https://f.test/?t=2026-11-24T01:46:27Z", "building_url": "https://f.test/?scope=marginalia"}]}
+```
+
+`state` is `firing`, `resolved` or `test`. The base is
+`ObsFactorWeb.Endpoint.url()` (`https://PHX_HOST` in prod).
+
+### Channel `alerts`
+
+Join reply `%{routes, filters, dedup_minutes, allow_private}` or
+`%{error}`. A route is `%{id, name, url_hint, min_severity, apps, filter_id,
+quiet_from, quiet_to, dedup_minutes, enabled, by, created_at, last_sent_at,
+last_error, last_error_at, sent_count}`: never the URL (a Slack webhook URL
+is the credential); `url_hint` is scheme, host and the path's last four
+characters. Pushes: `routes`; `save_route` `%{name, url, min_severity,
+apps, filter_id, quiet_from, quiet_to, dedup_minutes, enabled, by}` (with
+`id` to change one, a blank `url` keeps it) -> `%{route}`; `delete_route`
+`%{id}`; `test_route` `%{id}` -> `%{sent: true}` or the error, sent once
+whatever the filters, and recorded. Changes push `routes` `%{routes}` to
+everyone.
+
+### `ObsFactor.WebhookGuard`
+
+Every webhook the observer POSTs to (alert routes, writeup schedules) is
+checked when saved and when sent: http(s) only; no loopback, RFC 1918,
+fc00::/7, link-local, CGNAT, 0/8, benchmarking, multicast or reserved
+address, also inside ::ffff:0:0/96 and 64:ff9b::/96; not `localhost`. A
+name is resolved: at save a name that does not resolve is accepted, at
+send it is refused. Redirects are not followed (a 3xx is an error).
+`ALERT_ALLOW_PRIVATE_HOSTS=true` turns the address check off.
+
+## Evidence: what a flagged BEAM was doing at that moment *(2026-11-23)*
+
+`ObsFactor.Evidence`. When the ticker's wire items (`ObsFactor.Wire`) include
+an `outlier`, `anomaly`, `crash`, `restart`, `mailbox` or `runq`, a `failing`
+item about a `db.query` stream (head `db.query ...`) or a `surge` of Repo
+queries (head `Repo queries ...`), the ticker casts them to the evidence
+taker (`notice/1`; never a wait) and a task asks the observer engine of that
+BEAM, through `ObsFactor.ObserverProxy` with `member=<address>`:
+
+- `procs?sort=memory&limit=10`, `procs?sort=message_queue_len&limit=10` and
+  `ets` side by side, then `procs?sort=reductions&limit=10&interval_ms=500`
+  alone (beside it, the other reads appear in its own top 10);
+- each process kept as `{pid, registered_name, initial_call,
+  current_function, status, memory, message_queue_len, reductions,
+  reductions_per_s, reductions_delta}`; ETS the 10 biggest as the engine
+  answers them.
+
+The BEAM: an item's `member` (an Erlang node name) is the member of
+`inside.members` whose `cluster.node` it is; an item about the whole app (no
+member, or a scaled service that is not distributed) is every member that
+answered, at most 4; a single node is asked without `member`. From the
+snapshot of that tick: the member's (else the node's) `tables` and
+`liveviews`, and the node's last 20 `events`. A node with `inside: null` has
+no engine: only the snapshot part is kept.
+
+At most one capture per BEAM (`{app, address}`) per 60 s. An item inside
+that minute is linked to the capture already taken, not captured again.
+What could not be read is in `errors`, by name (`"procs by reductions:
+172.18.0.99:9568: connection refused"`), and the capture is stored anyway.
+
+Stored in the objectives database: `wire_evidence (id, at, app, member,
+address, body jsonb)` and `wire_evidence_links (evidence_id, wire_id, at,
+app, member, kind, head)`, `wire_id` the `tape_wire` id (set when the tape
+has written the row; links written before it are resolved by time, app,
+member, kind and head, at once and again 5 s later). Kept 7 days.
+
+```json
+{"app": "marginalia", "member": "marginalia@172.18.0.10", "address": "172.18.0.10", "took_ms": 508,
+ "procs": {"reductions": [{"pid": "0.317.0", "registered_name": null, "initial_call": ":erlang.apply/2",
+                           "current_function": "FactoryReport.Observer.summary/2", "status": "running",
+                           "memory": 142800, "message_queue_len": 0, "reductions": 50326,
+                           "reductions_delta": 1514, "reductions_per_s": 3028}],
+           "memory": [], "message_queue_len": []},
+ "ets": [{"name": ":code_server", "memory_bytes": 753912, "size": 751, "owner_name": ":code_server"}],
+ "tables": [], "liveviews": null, "events": [], "errors": []}
+```
+
+Channel `evidence` (`ObsFactorWeb.EvidenceChannel`): join → `{}` or
+`{error}` (no tape, no taker; the join succeeds either way). Push `captured`
+`{id, at, app, member, address, hot: {name, reductions_per_s}, links: [{wire_id,
+at, app, member, kind, head, captured_before_ms}]}` per capture stored and
+per item linked to one later (`{:evidence, entry}` on PubSub topic
+`evidence`). Reads: `index` `{from, to}` → `{evidence: [entry]}` (captures
+linked to items in the range, newest first, at most 500, no bodies); `get`
+`{id}` or `{wire_id}` → `{evidence: entry + body}`, `{error: "no evidence for
+that"}` when none.
+
+The board (`evidence.js`): on the Wire and Errors tabs an item with a
+capture has an `evidence` expander (the hottest process and its rate on the
+button), matched by `wire_id`, or by time, app, member and kind for a live
+item with no id yet. The writeup's BEAM section lists an item with evidence
+under "Out of the ordinary" whatever its kind, with the three hottest
+processes, the biggest by memory and the biggest mailbox under it.
+
+Configuration: `config :obs_factor, :evidence, kinds: [...], every_ms: 60_000`
+(kinds as above, `"failing:db.query"` and `"surge:db.query"` for the Repo
+cases). Started with the collectors; does nothing without a tape.
+
+## Heartbeat and `/health` *(2026-11-24)*
+
+`GET /health` is still public and unauthenticated, and is now JSON. This
+replaces the `answers ok` line under Auth.
+
+| status | body |
+|---|---|
+| 200 | `{"ok":true,"snapshot_age_s":3,"sources_ok":8,"sources_total":9}` |
+| 503 | `{"ok":false,"reason":"snapshot_stale","snapshot_age_s":94,"sources_ok":2,"sources_total":9}` |
+
+- `ok` (`ObsFactor.Health.check/1`): the last good snapshot was stored under
+  30 s ago (`config :obs_factor, :health_max_age_ms`), measured on the
+  monotonic clock, and a process is registered as `ObsFactor.Ticker`.
+- `reason`, only when not ok: `ticker_down`, `no_snapshot_yet`,
+  `snapshot_stale` (no tick finished), `snapshot_failing` (the latest build
+  raised).
+- Source failures never make it 503. The counts are the only thing said
+  about them: no source names, errors, URLs or hosts.
+- `cache-control: no-store`. On `OBS_ROLE=builder` it is `{"ok":true}`.
+- `deploy.sh` wants 200 and `"ok":true`.
+
+`ObsFactor.Heartbeat` (started with the collectors, only when
+`HEARTBEAT_URL` is set) runs `Health.check/0` every 60 s, the first 20 s
+after boot:
+
+| env | default | |
+|---|---|---|
+| `HEARTBEAT_URL` | unset: no heartbeat | pinged while ok |
+| `HEARTBEAT_FAIL` | off | `1`: when not ok, POST `<url>/fail` (path only; query kept) |
+| `HEARTBEAT_METHOD` | `post` | `get`: no body, for push URLs that only take GET |
+
+A POST carries `text/plain` `ok snapshot_age=3s sources=8/9` (or
+`fail <reason> ...` to `/fail`). 2xx is delivered; anything else is logged
+as `heartbeat.undelivered` and tried again next minute. Log events:
+`heartbeat.started`, `heartbeat.pinging`, `heartbeat.skipped`,
+`heartbeat.failed`, `heartbeat.undelivered`, `heartbeat.error`, each once
+per change of state except the last two.
+
+`deploy/watchdog.sh` (another machine, once a minute) reads the same
+`/health`: 200 with `"ok":true` is healthy, anything else a failure. See
+`deploy/WATCHDOG.md`.

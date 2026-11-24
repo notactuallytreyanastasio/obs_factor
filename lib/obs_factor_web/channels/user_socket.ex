@@ -19,6 +19,9 @@ defmodule ObsFactorWeb.UserSocket do
   channel "tape", ObsFactorWeb.TapeChannel
   # error budgets per app (ObsFactor.SLOs), the board's SLO tab
   channel "slo", ObsFactorWeb.SLOChannel
+  channel "alerts", ObsFactorWeb.AlertsChannel # alerts that go out (ObsFactor.Alerts)
+  # what a flagged BEAM was doing at the moment (ObsFactor.Evidence)
+  channel "evidence", ObsFactorWeb.EvidenceChannel
   channel "observer:*", ObsFactorWeb.FeedChannel
   channel "history:*", ObsFactorWeb.FeedChannel
   channel "builds:*", ObsFactorWeb.FeedChannel

@@ -29,6 +29,7 @@ import * as bus from "./bus.js";
 import { esc, num, bytes } from "./fmt.js";
 // the SLO tab: error budgets per app (ObsFactor.SLOs), its own topic and module
 import { SLOs } from "./slo.js";
+import { Evidence } from "./evidence.js"; // the "evidence" expander on wire items
 
 const WINDOW = 15 * 60e3; // what the sparklines and moves look back over
 const MOVE = 5 * 60e3; // a move is against this long ago
@@ -84,6 +85,8 @@ export class Board {
     this.setId = null; // the saved set the filter was loaded from
     this.air = store.get(AIR_KEY); // the set on air: the chyron and crawl follow it (this viewer only)
     this.el = document.getElementById("board");
+    // evidence (evidence.js): a capture arriving or opening redraws the list
+    this.ev = new Evidence(() => { if (this.open && (this.tab === "wire" || this.tab === "errors")) this.renderMonitor(this.tab === "errors"); });
     this.btn = document.getElementById("boardbtn");
     this.index = document.getElementById("indexrow");
     this.news = document.getElementById("news");
@@ -137,6 +140,7 @@ export class Board {
   }
 
   onClick(e) {
+    if (this.ev.click(e)) return; // an evidence expander, or a click inside one: not a replay
     if (e.target.closest("[data-a=close]")) return this.toggle(false);
     const tab = e.target.closest("[data-tab]");
     if (tab) { this.tab = tab.dataset.tab; return this.renderMonitor(); }
@@ -210,6 +214,7 @@ export class Board {
     this.fetching = end;
     const from = Math.round(end - 4 * WINDOW), to = Math.round(end);
     const from6h = Math.round(end - 6 * 3600e3);
+    this.ev.load(from6h, to + 1000); // which items of the window have evidence
     Promise.all([
       bus.push("tape", "series", { from, to, points: 360 }),
       bus.push("tape", "wire", { from: from6h, to: to + 1000 }),
@@ -603,7 +608,7 @@ export class Board {
     const items = all.filter((w) => matches(this.filter, w)).slice(0, 300);
     ol.innerHTML = items.map((w) => `<li class="${esc(w.sev)}" data-wire="${esc(String(w.id ?? w.key))}" title="Replay this moment">
           <span class="t">${hms(w.at)}</span><span class="k">${esc(w.kind)}</span>
-          <div><b>${esc(w.label ?? w.app ?? "")}</b> ${esc(w.head)}${w.member ? ` <span class="m">${esc(shortNode(w.member))}</span>` : ""}<div class="x">${esc(w.text ?? "")}</div></div></li>`).join("");
+          <div><b>${esc(w.label ?? w.app ?? "")}</b> ${esc(w.head)}${w.member ? ` <span class="m">${esc(shortNode(w.member))}</span>` : ""}<div class="x">${esc(w.text ?? "")}</div>${this.ev.tag(w, "wire")}</div></li>`).join("");
     const n = this.el.querySelector(".bd-n");
     if (n) n.textContent = `${items.length} of ${all.length}`;
     const empty = this.el.querySelector(".bd-empty");
@@ -639,7 +644,7 @@ export class Board {
       return `<li class="${esc(g.sev)}" data-fp="${esc(g.k)}" data-wire="${esc(String(last.id ?? last.key))}" title="Replay the last one">
         <span class="n">×${g.items.length}</span>
         <div><b>${esc(g.label ?? g.app ?? "")}</b> ${esc(last.head)}<div class="x">${esc(last.text ?? "")}</div>
-        <div class="m">${esc(g.kind)} · first ${hms(first.at)} · last ${hms(last.at)} (${ago(end - last.at)} ago)</div></div>${bars(g.items)}</li>`;
+        <div class="m">${esc(g.kind)} · first ${hms(first.at)} · last ${hms(last.at)} (${ago(end - last.at)} ago)</div>${this.ev.tag(g.items.find((w) => this.ev.find(w)), "errors")}</div>${bars(g.items)}</li>`;
     }).join("")}</ol><p class="bd-foot">Grouped by app, kind and headline with numbers, pids and hex blanked. Bars: the last 6 hours${this.errorsCut ? ", but only the newest 3,000 errors of them: older groups may be missing or undercounted" : ""}.</p>`;
   }
 

@@ -63,6 +63,8 @@ defmodule ObsFactor.Application do
         ObsFactor.Objectives.child_specs(Application.get_env(:obs_factor, :objectives_pg_url)) ++
         # error budgets per app, read off the tape in the same database (ObsFactor.SLOs)
         ObsFactor.SLOs.child_specs(Application.get_env(:obs_factor, :objectives_pg_url)) ++
+        # alerts that go out (ObsFactor.Alerts): routes live in the objectives database
+        ObsFactor.Alerts.child_specs(Application.get_env(:obs_factor, :objectives_pg_url)) ++
         collectors(topology) ++ [ObsFactorWeb.Endpoint]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: ObsFactor.Supervisor)
@@ -96,7 +98,11 @@ defmodule ObsFactor.Application do
           {ObsFactor.Collector,
            {ObsFactor.Reports, interval_ms: tick, targets: reports, token: src[:report_token]}},
           ObsFactor.Wire.Mailboxes,
-          {ObsFactor.Ticker, tick_ms: tick}
+          # evidence taken when the wire flags a BEAM (does nothing without a tape)
+          ObsFactor.Evidence,
+          {ObsFactor.Ticker, tick_ms: tick},
+          # heartbeat: pings HEARTBEAT_URL while healthy; nil when unset
+          ObsFactor.Heartbeat.configured_child()
         ],
         &is_nil/1
       )

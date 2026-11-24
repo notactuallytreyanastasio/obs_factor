@@ -127,10 +127,15 @@ defmodule ObsFactorWeb.ChannelsTest do
     end
 
     test "history:<node>:<res> is a feed of the node's series; an unknown node is an error on it" do
-      {:ok, _, _} =
+      {:ok, reply, _} =
         subscribe_and_join(authed_socket(), ObsFactorWeb.FeedChannel, "history:nope:5s")
 
-      assert_push "feed", %{error: "the observer has no history for nope"}, 2_000
+      # the feed's first fetch can land before the join: then the join reply
+      # carries it (the latest payload), and no push follows until the next
+      case reply do
+        %{error: e} -> assert e == "the observer has no history for nope"
+        _ -> assert_push "feed", %{error: "the observer has no history for nope"}, 2_000
+      end
     end
   end
 end
