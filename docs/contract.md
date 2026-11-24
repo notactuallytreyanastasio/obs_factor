@@ -1253,3 +1253,98 @@ mailbox 100/1000, memory 50/200 MiB, reductions 500k/2M per second).
 
 The jump list (`jump.js`, Cmd/Ctrl+K) joins `objectives` while it is open.
 
+
+## Identities and roles *(2026-11-23)*
+
+Who is on the page is a GitHub login, not a typed name
+(`ObsFactorWeb.Identity`, `ObsFactorWeb.GitHubAuthController`,
+`ObsFactor.GitHubOAuth`). The password stays, as the break glass.
+
+### Environment
+
+| var | what | default |
+|---|---|---|
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | the GitHub OAuth app; both set turns "Sign in with GitHub" on | off |
+| `GITHUB_ALLOWED_LOGINS` | comma list of logins that may sign in, as viewers | nobody |
+| `OBS_FACTOR_OPERATORS` | comma list of logins that are operators (and may sign in) | nobody |
+| `GITHUB_CALLBACK_URL` | the callback registered on the OAuth app | `https://PHX_HOST/auth/github/callback` |
+| `OBS_FACTOR_PASSWORD_LOGIN` | `off` turns the password login off | on |
+| `OBS_FACTOR_PASSWORD_ROLE` | `operator` or `viewer` for a password login | `operator` |
+
+Logins compare case-insensitively. Prod refuses to boot when there is no
+way in: no password (or the password login off) and no GitHub.
+
+### Signing in
+
+    GET /auth/github            -> 302 github.com/login/oauth/authorize?client_id&redirect_uri&state&scope=
+    GET /auth/github/callback?code&state
+                                -> 302 /                       allowed: a new session
+                                -> 302 /login?error=github&why=<reason>
+    POST /login password=...    -> 302 /  |  /login?error=1 (wrong)  |  /login?error=off
+
+`state` is 24 random bytes kept in the session and compared in constant
+time; it is spent by the callback whether or not it matches. The access
+token is used for one `GET https://api.github.com/user` and dropped. The
+login page shows only the ways in that are on.
+
+The session holds `identity`:
+
+    {"login": "bobbby", "role": "operator", "via": "github"}
+    {"login": null,     "role": "operator", "via": "password"}
+
+A GitHub identity's role is worked out again from the environment on every
+request and every socket connect: a login taken off both lists is signed
+out at its next request. A session from before identities (`authed` only)
+counts as a password login, and ends when the password login is off.
+
+### `GET /api/me`
+
+    {"login": "bobbby", "role": "operator", "via": "github", "operator": true,
+     "operator_only": ["observer_action", "create_token", "revoke_token",
+                       "save_schedule", "delete_schedule", "run_schedule"]}
+
+The socket token (`GET /api/socket_token`) carries the same identity in its
+claims (`ObsFactorWeb.UserSocket.claims/1`); a token without one connects a
+socket that may watch and may not act.
+
+### Roles
+
+A **viewer** may look, replay and write up: every read, `save_window`,
+`prune_windows`, `restore_windows`, `save_filter`, `delete_filter`,
+`writeup`, `save_writeup`, `delete_writeup`, objectives `pin` and `act`.
+Only an **operator** may:
+
+| what | where | a viewer gets |
+|---|---|---|
+| observer actions | `observer:*` `action`; `POST /api/nodes/:id/observer/*` | `{status: 403, error}` / HTTP 403, recorded on `actions` like any refusal |
+| script tokens | `tape` `create_token`, `revoke_token` | `{:error, %{error}}` |
+| scheduled writeups | `tape` `save_schedule`, `delete_schedule`, `run_schedule` | `{:error, %{error}}` |
+
+The error says who and why: `only an operator may make a script token;
+github:vera is a viewer`.
+
+### `by`
+
+Under a GitHub login every write is signed with the login, whatever `by`
+the page sent: objectives, windows, filter sets, writeups, tokens,
+schedules, observer actions. Under the password login `by` is the typed
+name, as before. The page (`identity.js`, imported first by `main.js`)
+writes the login where the typed name is kept (`localStorage`
+`obs_factor.who`), so the panels stop asking.
+
+### Log
+
+Every sign-in, sign-out and write on the tape and observer topics is one
+line with the identity: event `identity.signed_in | signed_out | allowed |
+refused | denied`, fields `login`, `role`, `via`, `action`, and `by`,
+`reason`, `node`, `path` where there are some.
+
+What `mix phx.server` printed for a wrong password, a password login as a
+viewer (`OBS_FACTOR_PASSWORD_ROLE=viewer`) trying a GC, a forged callback
+and a logout:
+
+    [warning] nobody denied sign_in: wrong password
+    [info] password signed_in sign_in
+    [warning] password (dave) refused observer_action: only an operator may act on a process (observer action); password is a viewer
+    [warning] nobody denied sign_in: the sign-in state does not match this browser's: start again
+    [info] password signed_out sign_out
