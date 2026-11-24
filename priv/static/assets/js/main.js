@@ -23,6 +23,7 @@ import * as bus from "./bus.js";
 import { Fires } from "./fires.js";
 import { Board } from "./board.js";
 import { Writeups } from "./writeup.js";
+import { DeployMarks } from "./deploys.js"; // deploys.js
 
 const $ = (id) => document.getElementById(id);
 // scope.js: /?scope=<id>. Up here because Missions, built further down at
@@ -871,6 +872,8 @@ writeups = new Writeups({
 // the menu: the last 24 hours, written up
 $("writeupbtn")?.addEventListener("click", () => { toggleMenu(false); const to = Date.now(); writeups.open({ from: to - 86400e3, to, title: "obs_factor: the last 24 hours" }); });
 window.__obsFactorTape = { timeline, fires, board, bus, writeups };
+// deploys.js: the short sha of each deploy on the timeline
+window.__obsFactorTape.deployMarks = new DeployMarks({ timeline, label: (id) => outerSnap?.nodes.find((n) => n.id === id)?.label ?? id });
 
 connect({
   onSnapshot,
