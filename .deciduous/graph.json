@@ -241,6 +241,16 @@
       "to_change_id": "53d3622a-0085-40a1-ab81-a236f95a4677",
       "weight": 1.0
     },
+    "27a1936a7efa2c792a59": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-24T00:14:18.960833-05:00",
+      "edge_id": "27a1936a7efa2c792a59",
+      "edge_type": "leads_to",
+      "from_change_id": "3a682bfb-d268-4e69-bcb2-9afdd7908d48",
+      "rationale": "verified",
+      "to_change_id": "98bf0b11-36fb-4ec9-ae22-9898f2574d80",
+      "weight": 1.0
+    },
     "29cff61bf329603eaea1": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-23T20:47:39.388935-05:00",
@@ -512,6 +522,16 @@
       "to_change_id": "c2a5b9d1-1590-4c43-bd8c-d59df8b92f7b",
       "weight": 1.0
     },
+    "4cb60396a165da6e12b3": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-24T00:14:05.503955-05:00",
+      "edge_id": "4cb60396a165da6e12b3",
+      "edge_type": "leads_to",
+      "from_change_id": "6afa84f8-ed08-4a98-8047-10f7091bb2e4",
+      "rationale": "implementation",
+      "to_change_id": "3a682bfb-d268-4e69-bcb2-9afdd7908d48",
+      "weight": 1.0
+    },
     "4ccc572a4ee108197d01": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-23T20:58:32.672005-05:00",
@@ -560,6 +580,16 @@
       "from_change_id": "38cef362-34ae-4af8-8040-cd28a26fa238",
       "rationale": "verified",
       "to_change_id": "ade9fa05-8c42-4326-a441-1af908d615a8",
+      "weight": 1.0
+    },
+    "52204f6244f21560bb21": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T23:46:15.346484-05:00",
+      "edge_id": "52204f6244f21560bb21",
+      "edge_type": "leads_to",
+      "from_change_id": "5fcc99f5-7a76-40c3-a9cb-d284894fd0a1",
+      "rationale": "chosen: keeps live-data stops and no build step",
+      "to_change_id": "6afa84f8-ed08-4a98-8047-10f7091bb2e4",
       "weight": 1.0
     },
     "52b3d77fab1d81402e3b": {
@@ -950,6 +980,16 @@
       "from_change_id": "07d29881-537a-4b28-8ed9-b04dee7e5f0e",
       "rationale": "how to show more per subdomain",
       "to_change_id": "29758875-68e8-4a1b-bd85-21ae49a4cf64",
+      "weight": 1.0
+    },
+    "9a9894ee508b8fc880d1": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-24T00:14:05.442126-05:00",
+      "edge_id": "9a9894ee508b8fc880d1",
+      "edge_type": "leads_to",
+      "from_change_id": "1a096156-36d6-47f2-b49e-73a4643a3606",
+      "rationale": "approach",
+      "to_change_id": "5fcc99f5-7a76-40c3-a9cb-d284894fd0a1",
       "weight": 1.0
     },
     "9ba1528800a73092f696": {
@@ -1365,6 +1405,17 @@
       "to_change_id": "5bf6b46d-8f76-4b1d-9e4b-985850f09996",
       "weight": 1.0
     },
+    "f54a822fe89592628005": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T23:46:15.208210-05:00",
+      "deleted_at": "2026-11-24T00:14:05.387734-05:00",
+      "edge_id": "f54a822fe89592628005",
+      "edge_type": "leads_to",
+      "from_change_id": "33c8b078-45bd-4560-b610-20eb2282632c",
+      "rationale": "approach",
+      "to_change_id": "5fcc99f5-7a76-40c3-a9cb-d284894fd0a1",
+      "weight": 1.0
+    },
     "fadb9ed27930e147e783": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-18T17:36:30.788404-05:00",
@@ -1529,6 +1580,20 @@
       "status": "pending",
       "title": "Tape (Postgres frames) + Insights + tape channel",
       "updated_at": "2026-11-23T16:50:57.905261-05:00"
+    },
+    "1a096156-36d6-47f2-b49e-73a4643a3606": {
+      "author": "Bobby Grayson",
+      "change_id": "1a096156-36d6-47f2-b49e-73a4643a3606",
+      "created_at": "2026-11-23T23:46:15.075674-05:00",
+      "metadata": {
+        "branch": "39-tour",
+        "confidence": 90,
+        "prompt": "Now make a joyride style tour for all the major features"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "Joyride-style tour of every major feature",
+      "updated_at": "2026-11-23T23:46:15.075674-05:00"
     },
     "1b55007d-6427-497e-a610-46e8983135c5": {
       "author": "Bobby Grayson",
@@ -1764,6 +1829,20 @@
       "status": "pending",
       "title": "ObsFactor.Heartbeat pings HEARTBEAT_URL only while healthy, optional /fail",
       "updated_at": "2026-11-23T20:47:53.993684-05:00"
+    },
+    "3a682bfb-d268-4e69-bcb2-9afdd7908d48": {
+      "author": "Bobby Grayson",
+      "change_id": "3a682bfb-d268-4e69-bcb2-9afdd7908d48",
+      "created_at": "2026-11-24T00:13:59.808597-05:00",
+      "metadata": {
+        "branch": "39-tour",
+        "commit": "baebf42ba451665151d5d9148f339ef8521bbab0",
+        "confidence": 90
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Tour chapters: tour_stops.js (tape, fires, board, writeups, running it), engine with picker, beacons, arrow, progress",
+      "updated_at": "2026-11-24T00:13:59.808597-05:00"
     },
     "3c2fd9f5-3e71-4096-932a-d3682c290ae7": {
       "author": "Bobby Grayson",
@@ -2132,6 +2211,19 @@
       "title": "packages/factory_report: Elixir reporter (BEAM gauges, LiveView sessions, telemetry streams) and a lab LiveView app",
       "updated_at": "2026-11-19T02:58:16.761663-05:00"
     },
+    "5fcc99f5-7a76-40c3-a9cb-d284894fd0a1": {
+      "author": "Bobby Grayson",
+      "change_id": "5fcc99f5-7a76-40c3-a9cb-d284894fd0a1",
+      "created_at": "2026-11-23T23:46:15.145970-05:00",
+      "metadata": {
+        "branch": "39-tour",
+        "confidence": 85
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "Extend the existing tour.js engine into chapters with a picker, beacons and an arrow (no library; the page is plain ES modules)",
+      "updated_at": "2026-11-23T23:46:15.145970-05:00"
+    },
     "6a138335-1ca4-4e33-b77f-bd27cc1208a5": {
       "author": "Bobby Grayson",
       "change_id": "6a138335-1ca4-4e33-b77f-bd27cc1208a5",
@@ -2143,6 +2235,19 @@
       "status": "pending",
       "title": "Removing the orphan classifier container frees its 10 Postgres connections (96 -> 86 of 100), so no app pool needs lowering for the obs_factor role",
       "updated_at": "2026-11-19T00:22:41.063871-05:00"
+    },
+    "6afa84f8-ed08-4a98-8047-10f7091bb2e4": {
+      "author": "Bobby Grayson",
+      "change_id": "6afa84f8-ed08-4a98-8047-10f7091bb2e4",
+      "created_at": "2026-11-23T23:46:15.283773-05:00",
+      "metadata": {
+        "branch": "39-tour",
+        "confidence": 85
+      },
+      "node_type": "decision",
+      "status": "pending",
+      "title": "Build on tour.js: chapters, picker, beacons, arrow; stops for tape, fires, board tabs, writeups, alerts, SLO, PubSub, evidence, deploys, rollups, identity, connect",
+      "updated_at": "2026-11-23T23:46:15.283773-05:00"
     },
     "6b328bfe-832b-4289-8d50-7647c812a2c6": {
       "author": "Bobby Grayson",
@@ -2421,6 +2526,19 @@
       "status": "pending",
       "title": "Board: index row, chyron, crawl, monitor from per-frame tape metrics",
       "updated_at": "2026-11-23T17:14:45.177593-05:00"
+    },
+    "98bf0b11-36fb-4ec9-ae22-9898f2574d80": {
+      "author": "Bobby Grayson",
+      "change_id": "98bf0b11-36fb-4ec9-ae22-9898f2574d80",
+      "created_at": "2026-11-24T00:14:05.572919-05:00",
+      "metadata": {
+        "branch": "39-tour",
+        "confidence": 90
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "Tour verified in the lab: 48/48 stops found their target, 0 page errors, beacons and chapter menu work; phone width not checked",
+      "updated_at": "2026-11-24T00:14:05.572919-05:00"
     },
     "99ff4a75-7570-4c6b-8032-145f132c7049": {
       "author": "Bobby Grayson",
