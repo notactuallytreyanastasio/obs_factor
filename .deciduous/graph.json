@@ -522,6 +522,16 @@
       "to_change_id": "1c2d697f-1bc2-4b28-a5d6-5a6643387e75",
       "weight": 1.0
     },
+    "4d2c4ed82f8e67ea57e7": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T21:13:10.140580-05:00",
+      "edge_id": "4d2c4ed82f8e67ea57e7",
+      "edge_type": "leads_to",
+      "from_change_id": "db944595-251d-4005-a418-b912c3e57d50",
+      "rationale": "verified live",
+      "to_change_id": "c1b9f47b-fccd-41c7-a19c-ce0a6da3c8d4",
+      "weight": 1.0
+    },
     "4e4b9425070d1f77785f": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T02:58:16.511813-05:00",
@@ -1124,6 +1134,16 @@
       "to_change_id": "49a681fd-b54a-430c-b8fb-d85cdbcf1e4c",
       "weight": 1.0
     },
+    "c7f76029c5dccddbe9d7": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T21:13:10.001068-05:00",
+      "edge_id": "c7f76029c5dccddbe9d7",
+      "edge_type": "leads_to",
+      "from_change_id": "db944595-251d-4005-a418-b912c3e57d50",
+      "rationale": "result",
+      "to_change_id": "e54ca74d-f4da-4366-9c0a-6b242de03053",
+      "weight": 1.0
+    },
     "c86fbd465a64e1f883c9": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T03:28:14.177366-05:00",
@@ -1243,6 +1263,16 @@
       "from_change_id": "be6e9635-0e00-4cf2-9d57-1c3fa28023c5",
       "rationale": "chosen",
       "to_change_id": "ab6e076a-5636-48a5-ab30-6f1d771f374c",
+      "weight": 1.0
+    },
+    "dfc01b1e39befae25bac": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T21:13:09.872018-05:00",
+      "edge_id": "dfc01b1e39befae25bac",
+      "edge_type": "leads_to",
+      "from_change_id": "6db238ee-ede3-46a4-b165-96d22101b35c",
+      "rationale": "PubSub was the last of the nine to merge",
+      "to_change_id": "db944595-251d-4005-a418-b912c3e57d50",
       "weight": 1.0
     },
     "e118b3a9881ba4199db9": {
@@ -2786,6 +2816,19 @@
       "title": "Published as stacked PRs 1-3 (sites fail alone, Sites panel, production and setup docs)",
       "updated_at": "2026-11-19T00:31:42.002112-05:00"
     },
+    "c1b9f47b-fccd-41c7-a19c-ce0a6da3c8d4": {
+      "author": "Bobby Grayson",
+      "change_id": "c1b9f47b-fccd-41c7-a19c-ce0a6da3c8d4",
+      "created_at": "2026-11-23T21:13:10.072047-05:00",
+      "metadata": {
+        "branch": "main",
+        "confidence": 90
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "Deployed to factory.bobbby.online; all tabs, alerts, connect render with no page errors; PubSub tab clicked through in the lab (pattern, topic, live subscriber graph). Apps not yet on the new factory_report",
+      "updated_at": "2026-11-23T21:13:10.072047-05:00"
+    },
     "c2a5b9d1-1590-4c43-bd8c-d59df8b92f7b": {
       "author": "Bobby Grayson",
       "change_id": "c2a5b9d1-1590-4c43-bd8c-d59df8b92f7b",
@@ -3064,6 +3107,20 @@
       "title": "Deploys tied to commits: .deployed files on the wire, timeline, inspector and writeups",
       "updated_at": "2026-11-23T20:47:33.017175-05:00"
     },
+    "db944595-251d-4005-a418-b912c3e57d50": {
+      "author": "Bobby Grayson",
+      "change_id": "db944595-251d-4005-a418-b912c3e57d50",
+      "created_at": "2026-11-23T21:13:09.810252-05:00",
+      "metadata": {
+        "branch": "main",
+        "commit": "c91702dbaa0d77100bc81b490e102ce44ee123a9",
+        "confidence": 90
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Integrate the nine v1 branches into main (PRs #28-#38), fixing cross-chapter gaps",
+      "updated_at": "2026-11-23T21:13:09.810252-05:00"
+    },
     "dfc28105-b368-4cfa-9c5f-da4ff2e94a9c": {
       "author": "Bobby Grayson",
       "change_id": "dfc28105-b368-4cfa-9c5f-da4ff2e94a9c",
@@ -3143,6 +3200,19 @@
       "status": "pending",
       "title": "Four Phoenix apps report in production: BEAM gauges, routes, Ecto queries and outbound calls attributed to the route that made them, JSON logs; observer reads all four (8 sources ok). Tyler and Dave held back: local source does not match the box",
       "updated_at": "2026-11-19T03:39:19.400344-05:00"
+    },
+    "e54ca74d-f4da-4366-9c0a-6b242de03053": {
+      "author": "Bobby Grayson",
+      "change_id": "e54ca74d-f4da-4366-9c0a-6b242de03053",
+      "created_at": "2026-11-23T21:13:09.938716-05:00",
+      "metadata": {
+        "branch": "main",
+        "confidence": 95
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "Main: 534 tests 0 failures; factory_report 110/0. Merge fixes: discovered nodes got deployed/repo (#35), empty tape within 7d stays the tape's (rollups), alert routes and SLO targets are operator-only (identities)",
+      "updated_at": "2026-11-23T21:13:09.938716-05:00"
     },
     "e5e236b2-e570-4d3c-86fa-1a4d8baa9994": {
       "author": "Bobby Grayson",
