@@ -1321,3 +1321,45 @@ processes, the biggest by memory and the biggest mailbox under it.
 Configuration: `config :obs_factor, :evidence, kinds: [...], every_ms: 60_000`
 (kinds as above, `"failing:db.query"` and `"surge:db.query"` for the Repo
 cases). Started with the collectors; does nothing without a tape.
+
+## Heartbeat and `/health` *(2026-11-24)*
+
+`GET /health` is still public and unauthenticated, and is now JSON. This
+replaces the `answers ok` line under Auth.
+
+| status | body |
+|---|---|
+| 200 | `{"ok":true,"snapshot_age_s":3,"sources_ok":8,"sources_total":9}` |
+| 503 | `{"ok":false,"reason":"snapshot_stale","snapshot_age_s":94,"sources_ok":2,"sources_total":9}` |
+
+- `ok` (`ObsFactor.Health.check/1`): the last good snapshot was stored under
+  30 s ago (`config :obs_factor, :health_max_age_ms`), measured on the
+  monotonic clock, and a process is registered as `ObsFactor.Ticker`.
+- `reason`, only when not ok: `ticker_down`, `no_snapshot_yet`,
+  `snapshot_stale` (no tick finished), `snapshot_failing` (the latest build
+  raised).
+- Source failures never make it 503. The counts are the only thing said
+  about them: no source names, errors, URLs or hosts.
+- `cache-control: no-store`. On `OBS_ROLE=builder` it is `{"ok":true}`.
+- `deploy.sh` wants 200 and `"ok":true`.
+
+`ObsFactor.Heartbeat` (started with the collectors, only when
+`HEARTBEAT_URL` is set) runs `Health.check/0` every 60 s, the first 20 s
+after boot:
+
+| env | default | |
+|---|---|---|
+| `HEARTBEAT_URL` | unset: no heartbeat | pinged while ok |
+| `HEARTBEAT_FAIL` | off | `1`: when not ok, POST `<url>/fail` (path only; query kept) |
+| `HEARTBEAT_METHOD` | `post` | `get`: no body, for push URLs that only take GET |
+
+A POST carries `text/plain` `ok snapshot_age=3s sources=8/9` (or
+`fail <reason> ...` to `/fail`). 2xx is delivered; anything else is logged
+as `heartbeat.undelivered` and tried again next minute. Log events:
+`heartbeat.started`, `heartbeat.pinging`, `heartbeat.skipped`,
+`heartbeat.failed`, `heartbeat.undelivered`, `heartbeat.error`, each once
+per change of state except the last two.
+
+`deploy/watchdog.sh` (another machine, once a minute) reads the same
+`/health`: 200 with `"ok":true` is healthy, anything else a failure. See
+`deploy/WATCHDOG.md`.

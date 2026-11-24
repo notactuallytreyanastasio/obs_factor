@@ -12,7 +12,9 @@ defmodule ObsFactor.FeedsTest do
 
   setup do
     {:ok, agent} = Agent.start_link(fn -> 0 end)
-    topic = "feeds-test:#{System.unique_integer([:positive])}"
+    # ends in ":" so no test's topic is a prefix of another's: refetch_prefix
+    # of "feeds-test:8" also matched a concurrent test's "feeds-test:8453"
+    topic = "feeds-test:#{System.unique_integer([:positive])}:"
     Phoenix.PubSub.subscribe(ObsFactor.PubSub, topic)
     %{agent: agent, topic: topic}
   end
@@ -36,7 +38,10 @@ defmodule ObsFactor.FeedsTest do
     topic: topic
   } do
     spec = {Probe, {agent, :ok}, 60_000}
-    {_a, nil} = viewer(topic, spec)
+    # the first fetch can finish before subscribe/2 returns, and then the
+    # first subscriber is handed it: nil, or the first result, never another
+    {_a, first} = viewer(topic, spec)
+    assert first == nil or match?(%{data: %{n: 1}}, first)
     assert_receive {:feed, ^topic, %{at: at, data: %{n: 1}}}
     assert is_binary(at)
 
@@ -89,6 +94,9 @@ defmodule ObsFactor.FeedsTest do
   test "someone joining during the linger keeps it running", %{agent: agent, topic: topic} do
     spec = {Probe, {agent, :ok}, 60_000}
     {a, _} = viewer(topic, spec)
+    # the first fetch has landed before anyone leaves: the joiner below is
+    # handed it (under load it could still be in flight otherwise)
+    assert_receive {:feed, ^topic, %{data: %{n: 1}}}
     feed = Feeds.whereis(topic)
     send(a, :leave)
     Process.sleep(div(Feeds.linger_ms(), 3))

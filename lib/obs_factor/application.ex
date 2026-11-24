@@ -96,7 +96,9 @@ defmodule ObsFactor.Application do
           ObsFactor.Wire.Mailboxes,
           # evidence taken when the wire flags a BEAM (does nothing without a tape)
           ObsFactor.Evidence,
-          {ObsFactor.Ticker, tick_ms: tick}
+          {ObsFactor.Ticker, tick_ms: tick},
+          # heartbeat: pings HEARTBEAT_URL while healthy; nil when unset
+          ObsFactor.Heartbeat.configured_child()
         ],
         &is_nil/1
       )

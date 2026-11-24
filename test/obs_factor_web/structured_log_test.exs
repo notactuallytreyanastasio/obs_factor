@@ -46,8 +46,9 @@ defmodule ObsFactorWeb.StructuredLogTest do
 
   test "a line is one JSON object in factory_report's shape, with the fields after it" do
     Logger.put_module_level(ObsFactorWeb.Log, :debug)
+    # no ticker runs in test, so /health answers 503 (ObsFactor.Health)
     conn = get(build_conn(), "/health")
-    assert conn.status == 200
+    assert conn.status == 503
 
     {json, raw} = line("http.request", self())
     assert String.ends_with?(raw, "}\n") and not String.contains?(String.trim_trailing(raw), "\n")
@@ -59,9 +60,9 @@ defmodule ObsFactorWeb.StructuredLogTest do
     assert %{"level" => "info", "app" => "obs_factor", "module" => "ObsFactorWeb.Log", "event" => "http.request"} = json
     assert {:ok, _, 0} = DateTime.from_iso8601(json["time"])
     assert json["request_id"] == conn |> Plug.Conn.get_resp_header("x-request-id") |> hd()
-    assert %{"method" => "GET", "path" => "/health", "route" => "/health", "status" => 200} = json
+    assert %{"method" => "GET", "path" => "/health", "route" => "/health", "status" => 503} = json
     assert is_number(json["took_ms"]) and json["took_ms"] >= 0
-    assert json["msg"] =~ ~r{^GET /health 200 in [\d.]+ ms$}
+    assert json["msg"] =~ ~r{^GET /health 503 in [\d.]+ ms$}
   after
     Logger.delete_module_level(ObsFactorWeb.Log)
   end
