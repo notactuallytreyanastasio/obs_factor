@@ -540,6 +540,7 @@ defmodule ObsFactor.Snapshot do
   ## Reports
 
   @inside_streams 40
+  @inside_tables 15
 
   # What the reports collector read for this node this tick: nil when the
   # node has no `report` URL, and while the source itself gives nothing.
@@ -570,6 +571,8 @@ defmodule ObsFactor.Snapshot do
     runtime: nil,
     units: nil,
     streams: nil,
+    tables: nil,
+    liveviews: nil,
     events: nil,
     truncated: nil,
     cluster: nil,
@@ -597,6 +600,8 @@ defmodule ObsFactor.Snapshot do
           |> Enum.sort_by(&{&1.by != nil, -(&1.rate || 0), -&1.count, &1.kind, &1.name})
           |> Enum.split(@inside_streams)
 
+        {tables, cut_tables} = tables_view(report[:tables] || [])
+
         %{
           ok: true,
           error: nil,
@@ -615,15 +620,41 @@ defmodule ObsFactor.Snapshot do
                   avg_ms: round_to(s.avg_ms, 1)
               }
             end),
+          tables: tables,
+          liveviews: report[:liveviews],
           events: report.events,
           # What is not shown here is counted, whoever cut it.
-          truncated: %{report.truncated | streams: report.truncated.streams + length(cut)},
+          truncated:
+            Map.merge(report.truncated, %{
+              streams: report.truncated.streams + length(cut),
+              tables: Map.get(report.truncated, :tables, 0) + cut_tables
+            }),
           cluster: cluster_view(report[:cluster]),
           # A scaled service: one entry per node, each with its own machine
           # room and its own view of the cluster. nil for a single node.
           members: members(report[:members])
         }
     end
+  end
+
+  # The tables with the most time over the window, at most 15; before two
+  # reads exist (or after a restart) the most time since the process started.
+  defp tables_view(tables) do
+    {shown, cut} =
+      tables
+      |> Enum.sort_by(&{-(&1.total_ms || -1), -&1.duration_us, -&1.count, &1.repo, &1.table || ""})
+      |> Enum.split(@inside_tables)
+
+    {Enum.map(shown, fn t ->
+       %{
+         t
+         | window_s: round_to(t.window_s, 1),
+           rate: round_to(t.rate, 3),
+           err_rate: round_to(t.err_rate, 3),
+           avg_ms: round_to(t.avg_ms, 1),
+           total_ms: round_to(t.total_ms, 1)
+       }
+     end), length(cut)}
   end
 
   defp members(nil), do: nil
@@ -635,10 +666,12 @@ defmodule ObsFactor.Snapshot do
       if m.ok do
         Map.merge(base, %{
           runtime: %{m.runtime | rates: Map.new(m.runtime.rates, fn {k, v} -> {k, round_to(v, 3)} end)},
-          cluster: cluster_view(m[:cluster])
+          cluster: cluster_view(m[:cluster]),
+          tables: m |> Map.get(:tables, []) |> tables_view() |> elem(0),
+          liveviews: m[:liveviews]
         })
       else
-        Map.merge(base, %{runtime: nil, cluster: nil})
+        Map.merge(base, %{runtime: nil, cluster: nil, tables: nil, liveviews: nil})
       end
     end)
   end

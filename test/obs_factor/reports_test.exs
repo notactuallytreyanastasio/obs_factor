@@ -112,7 +112,7 @@ defmodule ObsFactor.ReportsTest do
              }
 
       assert reading.events == []
-      assert reading.truncated == %{units: 0, members: 0, streams: 0}
+      assert reading.truncated == %{units: 0, members: 0, streams: 0, tables: 0}
     end
 
     test "an unknown version fails with the number" do
@@ -165,7 +165,7 @@ defmodule ObsFactor.ReportsTest do
       reading = validated!(doc)
       assert reading.units == []
       assert reading.streams == []
-      assert reading.truncated == %{units: 0, members: 0, streams: 0}
+      assert reading.truncated == %{units: 0, members: 0, streams: 0, tables: 0}
       assert reading.runtime.gauges == %{}
       assert reading.runtime.counters == %{}
       assert reading.runtime.versions == %{}
@@ -231,7 +231,7 @@ defmodule ObsFactor.ReportsTest do
       refute Map.has_key?(reading.runtime.gauges, "g101")
 
       # 5 + 20 units, 1 + 100 * 10 members (of the units kept), 2 + 50 streams.
-      assert reading.truncated == %{units: 25, members: 1001, streams: 52}
+      assert reading.truncated == %{units: 25, members: 1001, streams: 52, tables: 0}
     end
 
     test "by on a stream: a breakdown row and its total are two rows" do
@@ -354,7 +354,7 @@ defmodule ObsFactor.ReportsTest do
       assert reading.runtime.counters["report.handler_errors"] == 0
       assert map_size(reading.runtime.counters) == 7
       assert length(reading.streams) == 5
-      assert reading.truncated == %{units: 0, members: 0, streams: 0}
+      assert reading.truncated == %{units: 0, members: 0, streams: 0, tables: 0}
     end
 
     test "over 300 streams: totals are kept before breakdown rows" do
