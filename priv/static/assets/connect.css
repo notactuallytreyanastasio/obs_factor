@@ -1,0 +1,34 @@
+/* Connect an app (assets/js/connect.js): the form, then what to paste and what the observer sees. */
+#connect { position: fixed; inset: 0; z-index: 45; background: rgba(4, 6, 12, 0.72); display: grid; place-items: center; padding: 20px; }
+#connect[hidden] { display: none; }
+.cn-box { width: min(1200px, 100%); height: min(88vh, 960px); display: grid; grid-template-columns: 300px 1fr; background: var(--panel-solid); border: 1px solid rgba(127, 224, 255, 0.4); border-radius: 14px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6); }
+.cn-form { padding: 14px; overflow: auto; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 9px; font-size: 12px; }
+.cn-head { display: flex; align-items: center; justify-content: space-between; }
+.cn-head h3 { margin: 0; font: 800 12px var(--sans); letter-spacing: 0.18em; text-transform: uppercase; color: var(--cyan); }
+.cn-x { border: 0; background: none; color: var(--muted); font-size: 20px; cursor: pointer; }
+.cn-lead { margin: 0; color: var(--muted); line-height: 1.45; }
+.cn-f { display: flex; flex-direction: column; gap: 4px; color: var(--muted); }
+.cn-f input { height: 28px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line); background: #0b1220; color: var(--text); font: 12px var(--mono); }
+.cn-form fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px 8px; display: flex; flex-direction: column; gap: 3px; }
+.cn-form legend { color: var(--muted); padding: 0 4px; }
+.cn-form fieldset label { display: flex; gap: 6px; align-items: center; color: var(--text); }
+.cn-err { margin: 0; color: #ffb4ad; font: 11px var(--mono); }
+.cn-out { overflow: auto; padding: 16px 22px 30px; background: #0c111c; color: #dfe4ee; font: 13px/1.5 var(--sans); }
+.cn-out h4 { margin: 0 0 8px; font: 700 10px var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.cn-check ol { list-style: none; margin: 0 0 18px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cn-check li { display: flex; gap: 10px; align-items: flex-start; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.cn-check li > span:last-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cn-detail { color: var(--muted); font: 11px var(--mono); word-break: break-word; }
+.cn-mark { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font: 700 12px var(--sans); background: rgba(255, 255, 255, 0.06); color: var(--muted); }
+.cn-ok { border-color: rgba(61, 220, 132, 0.45) !important; }
+.cn-ok .cn-mark { background: var(--working); color: #062312; }
+.cn-bad { border-color: rgba(255, 77, 77, 0.5) !important; }
+.cn-bad .cn-mark { background: var(--down); color: #2a0606; }
+.cn-steps article { border: 1px solid var(--line); border-radius: 10px; margin: 0 0 12px; overflow: hidden; }
+.cn-steps header { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid var(--line); }
+.cn-n { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: rgba(127, 224, 255, 0.15); color: var(--cyan); font: 700 11px var(--sans); flex: none; }
+.cn-file { color: #c9b8ff; font: 11px var(--mono); }
+.cn-steps header button { margin-left: auto; height: 24px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.04); color: var(--text); cursor: pointer; font: 600 11px var(--sans); }
+.cn-steps pre { margin: 0; padding: 10px 12px; overflow-x: auto; font: 12px/1.45 var(--mono); color: #e7eaf1; background: #0b1220; }
+.cn-steps p { margin: 0; padding: 7px 12px 9px; color: var(--muted); font-size: 12px; }
+@media (max-width: 800px) { .cn-box { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: 94vh; } .cn-form { border-right: 0; border-bottom: 1px solid var(--line); max-height: 40vh; } }

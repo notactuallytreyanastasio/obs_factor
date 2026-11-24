@@ -11,8 +11,12 @@
   <link rel="stylesheet" href="/assets/processes.css">
   <link rel="stylesheet" href="/assets/tape.css">
   <link rel="stylesheet" href="/assets/board.css">
+  <link rel="stylesheet" href="/assets/evidence.css"><!-- evidence.js: the board's evidence expander -->
   <link rel="stylesheet" href="/assets/writeup.css">
   <link rel="stylesheet" href="/assets/identity.css"> <!-- identities -->
+  <link rel="stylesheet" href="/assets/connect.css"><!-- connect.js -->
+  <link rel="stylesheet" href="/assets/slo.css"><!-- board.js SLO tab (slo.js) -->
+  <link rel="stylesheet" href="/assets/alerts.css"><!-- alerts.js -->
   <script type="module" src="/assets/js/main.js"></script>
 </head>
 <body class="factory">
@@ -49,6 +53,8 @@
       <button type="button" id="jumpbtn">Jump to… <kbd>⌘K</kbd></button>
       <!-- writeup.js: a stretch of the tape as a Markdown document -->
       <button type="button" id="writeupbtn">Write up the last 24 h</button>
+      <!-- connect.js: what to paste into a new app so it reports to the floor -->
+      <button type="button" id="connectbtn">Connect an app</button>
       <button type="button" id="tourbtn2">Take the tour</button>
       <form method="post" action="/logout"><button type="submit">Log out</button></form>
     </div>
@@ -86,6 +92,7 @@
     <button class="ctl" id="beambtn" aria-expanded="false" title="The observer's own BEAM: processes, tables, log">Under the hood</button>
     <button class="ctl" id="procsbtn" aria-expanded="false" aria-controls="procs" title="Every BEAM's processes: mailbox, memory, reductions">Processes</button><!-- processes.js -->
     <button class="ctl" id="boardbtn" aria-expanded="false" aria-controls="board" title="Every building's numbers, one dense row each (b)">Board</button><!-- board.js -->
+    <button class="ctl" id="alertsbtn" aria-expanded="false" aria-controls="alerts" title="Where a message goes when something breaks">Alerts</button><!-- alerts.js -->
     <button class="ctl tour" id="tourbtn">Tour</button>
     <span class="grow"></span>
     <button class="ctl sq" id="zoomout" aria-label="Zoom out">−</button>

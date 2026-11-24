@@ -1018,6 +1018,14 @@ export class Timeline {
         errPts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
         ctx.stroke();
       }
+      // before the tape's first frame the columns are hourly rollups
+      // (ObsFactor.Rollups.index): dimmed, and labelled
+      const rt = this.index.rollups_to;
+      if (rt && rt > v.from) {
+        const rx = Math.min(this.X(rt), w);
+        ctx.fillStyle = "rgba(10,14,22,0.35)"; ctx.fillRect(x0, L.ovY - 1, rx - x0, L.ovH + 1);
+        ctx.fillStyle = "rgba(160,170,190,0.7)"; if (rx - x0 > 80) ctx.fillText("hourly rollups", x0 + 4, L.ovY + 8);
+      }
     } else if (this.ok) { ctx.fillStyle = "rgba(160,170,190,0.5)"; ctx.fillText("reading the tape…", x0 + 8, ovBase - 4); }
 
     // the lanes
@@ -1120,6 +1128,8 @@ export class Timeline {
       if (x < x0 - 6 || x > w + 6) continue;
       wireGlyph(ctx, WIRE_MARK[wm.kind], x, L.markY, L.ovY, h - 11);
     }
+    // deploys.js: other modules' marks (deploy shas), drawn with the view's x
+    for (const fn of this.overlays ?? []) fn(ctx, { X: (t) => this.X(t), x0, w, h, L });
     // never a silent cap: say so when the marks were cut
     if (this.wmarksCut) { ctx.fillStyle = "rgba(201,184,255,0.8)"; ctx.font = "9px system-ui, sans-serif"; ctx.fillText("only the newest 5,000 BEAM marks", x0 + 4, L.markY + 3); ctx.font = "10px ui-monospace, Menlo, monospace"; }
 

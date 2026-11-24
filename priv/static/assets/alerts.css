@@ -1,0 +1,40 @@
+/* Alerts (assets/js/alerts.js): the routes alerts go out on. */
+#alerts {
+  position: fixed; right: 12px; top: calc(var(--top, 52px) + var(--strip, 0px) + 10px); bottom: calc(64px + var(--safe-b, 0px)); z-index: 18;
+  width: min(420px, calc(100vw - 24px)); overflow: auto; overscroll-behavior: contain;
+  background: var(--panel-solid); border: 1px solid rgba(255, 196, 0, 0.4); border-radius: 12px; padding: 12px 14px 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); font-size: 12px; color: var(--text);
+  display: flex; flex-direction: column; gap: 10px;
+}
+#alerts[hidden] { display: none; }
+.al-head { display: flex; align-items: center; justify-content: space-between; }
+.al-head h3 { margin: 0; font: 800 12px var(--sans); letter-spacing: 0.18em; text-transform: uppercase; color: #ffc400; }
+#alerts p { margin: 0; }
+.al-dim { color: var(--muted); }
+.al-err, #alerts .bad { color: #ffb4ad; }
+.al-msg { color: var(--working); font: 11px var(--mono); word-break: break-word; }
+.al-list ul { list-style: none; margin: 0; padding: 0; }
+.al-list li { display: flex; flex-direction: column; gap: 3px; padding: 8px 0; border-top: 1px solid var(--line); }
+.al-list li.off b { color: var(--muted); text-decoration: line-through; }
+.al-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.al-hint { font: 11px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-left: auto; }
+.al-sw input { margin: 0; accent-color: #ffc400; }
+.al-l, .al-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.al-l button, .al-acts button { height: 26px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.04); color: var(--text); cursor: pointer; font: 600 11px var(--sans); }
+/* the primary button is the house one (tape.css button.go, cyan, !important) */
+.al-acts button.go { color: #071018; }
+.al-l button:disabled, .al-acts button:disabled { opacity: 0.6; cursor: progress; }
+.al-form { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px 10px; }
+.al-form h4 { margin: 0; font: 700 11px var(--sans); color: #ffc400; }
+.al-f { display: flex; flex-direction: column; gap: 4px; color: var(--muted); }
+.al-f input, .al-f select { height: 28px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line); background: #0b1220; color: var(--text); font: 12px var(--sans); }
+.al-f input[type=number] { width: 70px; }
+.al-f input[type=checkbox] { height: auto; }
+.al-chk { justify-content: flex-end; }
+.al-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.al-form fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px 8px; display: flex; flex-direction: column; gap: 3px; max-height: 160px; overflow: auto; }
+.al-form legend { color: var(--muted); padding: 0 4px; }
+.al-form fieldset label { display: flex; gap: 6px; align-items: center; }
+@media (max-width: 759px) {
+  #alerts { left: 0; right: 0; width: auto; top: calc(var(--top, 52px) + var(--strip, 0px)); bottom: calc(56px + var(--safe-b, 0px)); border-radius: 0; border-width: 1px 0; z-index: 22; }
+}
