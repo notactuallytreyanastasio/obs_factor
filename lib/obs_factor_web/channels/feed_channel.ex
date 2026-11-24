@@ -56,7 +56,9 @@ defmodule ObsFactorWeb.FeedChannel do
     {:ok, node, member, _view} = ObsFactor.Feeds.ObserverViews.parse(topic)
     path = if is_map(payload), do: payload["path"]
     params = if is_map(payload), do: Map.get(payload, "params") || %{}
-    by = if is_map(payload), do: ObserverProxy.clean_by(payload["by"])
+    # identities: a GitHub login signs as itself, whatever the payload says
+    identity = socket.assigns[:identity]
+    by = if is_map(payload), do: ObserverProxy.clean_by(ObsFactorWeb.Identity.by(identity, payload["by"]))
 
     result =
       cond do
@@ -70,8 +72,12 @@ defmodule ObsFactorWeb.FeedChannel do
         not is_map(params) ->
           {400, %{"error" => "action params must be an object, got #{inspect(params, limit: 5)}"}}
 
+        # identities: only an operator acts (ObsFactorWeb.Identity), refused like a bad payload
         true ->
-          nil
+          case ObsFactorWeb.Identity.authorize(identity, "observer_action", by: by, node: node, path: path) do
+            :ok -> nil
+            {:error, why} -> {403, %{"error" => why}}
+          end
       end
 
     {status, body} =

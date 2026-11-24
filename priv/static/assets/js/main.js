@@ -1,5 +1,8 @@
 // obs_factor: the box drawn as a factory. Boot, input, render loop.
 
+// identities: first, and awaited (top-level await), so the modules below see the login
+import "./identity.js";
+
 import { Scene, clampZoom } from "./render.js";
 import { P } from "./iso.js";
 import { Chips, TopBar, renderAttention, renderLegend, renderSites } from "./overlay.js";

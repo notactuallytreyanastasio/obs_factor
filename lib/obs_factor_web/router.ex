@@ -32,6 +32,9 @@ defmodule ObsFactorWeb.Router do
     get "/login", AuthController, :show
     post "/login", AuthController, :create
     post "/logout", AuthController, :delete
+    # identities: Sign in with GitHub (ObsFactorWeb.GitHubAuthController)
+    get "/auth/github", GitHubAuthController, :request
+    get "/auth/github/callback", GitHubAuthController, :callback
   end
 
   scope "/", ObsFactorWeb do
@@ -59,6 +62,8 @@ defmodule ObsFactorWeb.Router do
     get "/beam", ApiController, :beam
     get "/stream", StreamController, :stream
     get "/socket_token", SocketTokenController, :show
+    # identities: who this session is (ObsFactorWeb.MeController)
+    get "/me", MeController, :show
     post "/builds", BuildsController, :create
     get "/builds/:id", BuildsController, :show
     get "/builds/:id/log", BuildsController, :log

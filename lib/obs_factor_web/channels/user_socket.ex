@@ -33,20 +33,41 @@ defmodule ObsFactorWeb.UserSocket do
 
   def max_age_s, do: @max_age_s
 
-  @doc "A token for the session `sid` (`opts` as `Phoenix.Token.sign/4`; tests pass `signed_at`)."
-  def token(sid, opts \\ []), do: Phoenix.Token.sign(ObsFactorWeb.Endpoint, @salt, sid, opts)
+  @doc """
+  A token for the session `sid` (`opts` as `Phoenix.Token.sign/4`; tests pass
+  `signed_at`). With `identity:` (identities: `ObsFactorWeb.Identity`) the
+  claims are `%{"sid", "identity"}`; without, the bare sid, which connects
+  a socket with no identity: it can watch, and no operator action.
+  """
+  def token(sid, opts \\ []) do
+    {identity, opts} = Keyword.pop(opts, :identity)
+    claims = if identity, do: %{"sid" => sid, "identity" => identity}, else: sid
+    Phoenix.Token.sign(ObsFactorWeb.Endpoint, @salt, claims, opts)
+  end
 
   @doc "`{:ok, sid}` or `{:error, :invalid | :expired | :missing}`."
-  def verify(token) when is_binary(token),
-    do: Phoenix.Token.verify(ObsFactorWeb.Endpoint, @salt, token, max_age: @max_age_s)
+  def verify(token) do
+    with {:ok, %{sid: sid}} <- claims(token), do: {:ok, sid}
+  end
 
-  def verify(_), do: {:error, :missing}
+  @doc "`{:ok, %{sid, identity}}` (identity nil for a bare-sid token) or `{:error, ...}` as `verify/1`."
+  def claims(token) when is_binary(token) do
+    case Phoenix.Token.verify(ObsFactorWeb.Endpoint, @salt, token, max_age: @max_age_s) do
+      {:ok, %{"sid" => sid, "identity" => id}} -> {:ok, %{sid: sid, identity: id}}
+      {:ok, sid} when is_binary(sid) -> {:ok, %{sid: sid, identity: nil}}
+      {:ok, _} -> {:error, :invalid}
+      e -> e
+    end
+  end
+
+  def claims(_), do: {:error, :missing}
 
   @impl true
   def connect(params, socket, _connect_info) do
-    case verify(params["token"]) do
-      {:ok, sid} ->
-        {:ok, assign(socket, :sid, sid)}
+    case claims(params["token"]) do
+      # identities: the identity as of now (its role worked out again)
+      {:ok, %{sid: sid, identity: identity}} ->
+        {:ok, socket |> assign(:sid, sid) |> assign(:identity, identity && ObsFactorWeb.Identity.current(identity))}
 
       # logged as socket.refused, reason "token invalid" etc. (ObsFactorWeb.Log)
       {:error, reason} ->

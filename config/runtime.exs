@@ -74,11 +74,35 @@ end
 
 password = blank_to_nil.(System.get_env("OBS_FACTOR_PASSWORD"))
 
+# Identities (ObsFactorWeb.Identity): Sign in with GitHub when both
+# GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET are set. GITHUB_ALLOWED_LOGINS
+# and OBS_FACTOR_OPERATORS are comma lists of GitHub logins; operators may
+# sign in too, everyone else allowed is a viewer. The password stays as the
+# break glass unless OBS_FACTOR_PASSWORD_LOGIN=off; its role is
+# OBS_FACTOR_PASSWORD_ROLE (operator, or viewer).
+comma_list = fn v -> (blank_to_nil.(v) || "") |> String.split(",", trim: true) |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == "")) end
+github_on = blank_to_nil.(System.get_env("GITHUB_CLIENT_ID")) != nil and blank_to_nil.(System.get_env("GITHUB_CLIENT_SECRET")) != nil
+password_login = String.downcase(String.trim(System.get_env("OBS_FACTOR_PASSWORD_LOGIN", "on"))) not in ~w(off false 0 no)
+
+if config_env() != :test do
+  config :obs_factor, :identity,
+    github_client_id: blank_to_nil.(System.get_env("GITHUB_CLIENT_ID")),
+    github_client_secret: blank_to_nil.(System.get_env("GITHUB_CLIENT_SECRET")),
+    github_callback_url: blank_to_nil.(System.get_env("GITHUB_CALLBACK_URL")),
+    allowed_logins: comma_list.(System.get_env("GITHUB_ALLOWED_LOGINS")),
+    operators: comma_list.(System.get_env("OBS_FACTOR_OPERATORS")),
+    password_login: password_login,
+    password_role: if(System.get_env("OBS_FACTOR_PASSWORD_ROLE") == "viewer", do: "viewer", else: "operator")
+end
+
 cond do
-  config_env() == :prod and password == nil ->
+  # without a password and without GitHub nobody could sign in: refuse to boot
+  config_env() == :prod and (password == nil or not password_login) and not github_on ->
     raise """
-    environment variable OBS_FACTOR_PASSWORD is missing or empty.
-    The observer refuses to boot without its password.
+    environment variable OBS_FACTOR_PASSWORD is missing or empty (or
+    OBS_FACTOR_PASSWORD_LOGIN=off), and GitHub sign-in is not configured
+    (GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET). The observer refuses to boot
+    with no way to sign in.
     """
 
   config_env() == :test ->
