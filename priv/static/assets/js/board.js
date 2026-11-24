@@ -312,6 +312,10 @@ export class Board {
 
   label(id) { return this.shown?.nodes.find((n) => n.id === id)?.label ?? id; }
 
+  // what each app's report says inside, on the snapshot on screen (live
+  // or replayed): its busiest tables and its LiveViews alive
+  insides() { return (this.shown?.nodes ?? []).filter((n) => n.inside?.ok && n.inside?.runtime?.kind === "beam"); }
+
   // a member's name: node@.c.d for a cluster member, the app's label for
   // an app on one undistributed node (its key is just the app's id)
   nodeName(key, app) { const k = key.slice(5); return k.includes("@") ? shortNode(k) : this.label(app); }
@@ -347,6 +351,10 @@ export class Board {
       tile("DIST", "dist_out", dist, "distribution traffic out, all nodes", beams) +
       tile("REPO", "rate", q, "Repo queries per second", repos) +
       tile("PG CONN", "conns", conns, "connections to the apps' own databases", pgs) +
+      (() => {
+        const lv = this.insides().map((n) => n.inside.liveviews?.total).filter(isNum);
+        return lv.length ? `<span class="ix" title="LiveView processes alive now, all apps that report them"><b>LIVEVIEWS</b><i></i><em>${num(lv.reduce((a, b) => a + b, 0))}</em><i class="bd-d flat">alive</i></span>` : "";
+      })() +
       `<span class="ix${errors ? " hot" : ""}"><b>ERRORS</b><em>${errors}</em><i class="bd-d ${errors ? "dn" : "flat"}">5m</i></span>` +
       `<span class="ix calm${calm?.burning ? " burning" : ""}"><b>${calm?.burning ? "BURNING" : "CALM"}</b><em>${calm ? ago(calm.ms) + (calm.atLeast ? "+" : "") : "–"}</em></span>`;
   }
@@ -668,7 +676,13 @@ export class Board {
     for (const k of keys) { const m = this.latest(k); if (!byApp.has(m.app)) byApp.set(m.app, []); byApp.get(m.app).push([k, m]); }
     const maps = [...byApp].filter(([, l]) => l.length > 1).map(([app, l]) => `<figure data-node="${esc(app)}">${this.clusterMap(app, l)}<figcaption>${esc(this.label(app))}</figcaption></figure>`).join("");
     const movers = mv.length ? `<div class="bd-movers"><h4>Movers, 5 min</h4>${mv.map((x) => `<span data-node="${esc(x.app)}"><b>${esc(x.name)}</b> ${esc(x.f.replace("_out", ""))} ${FMT[x.f](x.b)} → ${FMT[x.f](x.a)} ${this.delta(x.f, x.a, x.b)}</span>`).join("")}</div>` : "";
-    const rows = [...byApp].map(([app, list]) => `<tr class="grp" data-node="${esc(app)}"><td colspan="9">${esc(this.label(app))} <span class="dim">${list.length} node${list.length === 1 ? "" : "s"}</span></td></tr>` +
+    const lvOf = (app) => {
+      const lv = this.shown.nodes.find((n) => n.id === app)?.inside?.liveviews;
+      if (!lv || !isNum(lv.total)) return "";
+      const top = (lv.views ?? []).slice(0, 4).map((v) => `${esc(shortName(v.view).split(".").slice(-2).join("."))} ${num(v.alive)}`).join(", ");
+      return ` <span class="lv" title="LiveView processes alive, by view${lv.walked < lv.processes ? ` (walked ${num(lv.walked)} of ${num(lv.processes)} processes: a lower bound)` : ""}">· ${num(lv.total)} LiveView${lv.total === 1 ? "" : "s"}${top ? `: ${top}` : ""}</span>`;
+    };
+    const rows = [...byApp].map(([app, list]) => `<tr class="grp" data-node="${esc(app)}"><td colspan="9">${esc(this.label(app))} <span class="dim">${list.length} node${list.length === 1 ? "" : "s"}</span>${lvOf(app)}</td></tr>` +
       list.map(([k, m]) => {
         const [p, p0] = this.move(k, "procs");
         const hot = isNum(m.rq) && isNum(m.sched) && m.rq > m.sched;
@@ -686,7 +700,7 @@ export class Board {
 
   dbTab() {
     const repos = this.keys("repo:"), pgs = this.keys("pg:");
-    if (!repos.length && !pgs.length) return `<p class="bd-empty">No Repo stream or app database on the tape at this moment.</p>`;
+    if (!repos.length && !pgs.length && !this.insides().some((n) => (n.inside.tables ?? []).length)) return `<p class="bd-empty">No Repo stream, table or app database on the tape at this moment.</p>`;
     const r = repos.map((k) => {
       const m = this.latest(k); const [v, v0] = this.move(k, "rate");
       return `<tr data-node="${esc(m.app)}"><td class="nm">${esc(this.label(m.app))} <span class="dim">${esc(shortName(m.name ?? ""))}</span></td><td class="r">${FMT.rate(v)} ${this.delta("rate", v, v0)}</td><td>${this.spark(k, "rate")}</td><td class="r">${isNum(m.ms) ? `${num(m.ms)} ms` : "–"}</td><td class="r${m.err ? " bad" : ""}">${isNum(m.err) ? `${Math.round(m.err * 100)}%` : "–"}</td></tr>`;
@@ -695,7 +709,12 @@ export class Board {
       const m = this.latest(k); const [c, c0] = this.move(k, "conns"); const [x, x0] = this.move(k, "commits");
       return `<tr data-node="db"><td class="nm">${esc(k.slice(3))} <span class="dim">${esc(this.label(m.app))}</span></td><td class="r">${num(c)} ${this.delta("conns", c, c0)}</td><td>${this.spark(k, "conns")}</td><td class="r">${num(x)}/s ${this.delta("commits", x, x0)}</td><td>${this.spark(k, "commits")}</td></tr>`;
     }).join("");
-    return `${repos.length ? `<h4>Repo, as each app reports it</h4><table><thead><tr><th>app</th><th class="r">queries</th><th>15m</th><th class="r">avg</th><th class="r">errors</th></tr></thead><tbody>${r}</tbody></table>` : ""}
+    const tables = this.insides().filter((n) => (n.inside.tables ?? []).length).map((n) => {
+      const rows2 = n.inside.tables.map((t) => `<tr data-node="${esc(n.id)}"><td class="nm">${esc(t.table ?? "(no table: raw SQL, transactions)")} <span class="dim">${esc(shortName(t.repo))}</span></td>
+        <td class="r">${isNum(t.rate) ? `${num(t.rate)}/s` : "–"}</td><td class="r">${isNum(t.avg_ms) ? `${num(t.avg_ms)} ms` : "–"}</td><td class="r">${isNum(t.total_ms) ? `${num(t.total_ms)} ms` : `${num(t.duration_us / 1000)} ms*`}</td><td class="r${t.err_rate ? " bad" : ""}">${isNum(t.err_rate) ? `${Math.round(t.err_rate * 100)}%` : "–"}</td></tr>`).join("");
+      return `<h4>${esc(n.label)}: tables by query time${isNum(n.inside.tables[0]?.window_s) ? `, last ${Math.round(n.inside.tables[0].window_s)} s` : ""}</h4><table><thead><tr><th>table</th><th class="r">queries</th><th class="r">avg</th><th class="r">total</th><th class="r">errors</th></tr></thead><tbody>${rows2}</tbody></table>`;
+    }).join("");
+    return `${tables}${tables ? `<p class="bd-foot">Time is Ecto's total_time, which includes waiting for a pool connection. A join counts under its FROM table. * since the app started, before a window exists.</p>` : ""}${repos.length ? `<h4>Repo, as each app reports it</h4><table><thead><tr><th>app</th><th class="r">queries</th><th>15m</th><th class="r">avg</th><th class="r">errors</th></tr></thead><tbody>${r}</tbody></table>` : ""}
       ${pgs.length ? `<h4>Each app's Postgres database</h4><table><thead><tr><th>database</th><th class="r">conns</th><th>15m</th><th class="r">commits</th><th>15m</th></tr></thead><tbody>${p}</tbody></table>` : ""}`;
   }
 }

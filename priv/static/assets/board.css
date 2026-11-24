@@ -180,3 +180,4 @@ ol.bd-errs .m { font: 10px var(--mono); color: var(--dim); }
 .eb { width: 110px; height: 14px; }
 .eb rect { fill: #ff7a3a; }
 ol.bd-errs li.warn .eb rect { fill: #ffb347; }
+#board tr.grp .lv { color: #9fdcf0; font: 400 11px var(--mono); letter-spacing: 0; }
