@@ -7,7 +7,7 @@ defmodule ObsFactor.DiscoveryTest do
   defp node(id, kind, extra) do
     Map.merge(
       %{id: id, label: id, kind: kind, style: nil, service: nil, container: nil, site: nil, platform: "main",
-        pos: {0, 0}, hosts: [], via: [], probe: nil, report: nil, databases: []},
+        pos: {0, 0}, hosts: [], via: [], probe: nil, report: nil, databases: [], deployed: nil, repo: nil},
       extra
     )
   end
