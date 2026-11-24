@@ -883,4 +883,11 @@ defmodule FactoryReportTest do
       assert :ets.whereis(:factory_report_streams) == :undefined
     end
   end
+
+  test "first_pids takes the first n processes without listing them all on OTP 28" do
+    pids = FactoryReport.LiveViews.first_pids(5)
+    assert length(pids) == 5 and Enum.all?(pids, &is_pid/1)
+    # all of them when n is past the count (processes come and go: roughly)
+    assert length(FactoryReport.LiveViews.first_pids(10_000_000)) > 5
+  end
 end
