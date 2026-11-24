@@ -61,8 +61,13 @@ export class Writeups {
     const apps = [...f.querySelectorAll("[name=app]:checked")].map((x) => x.value);
     const set = f.querySelector("[name=set]").value;
     const title = f.querySelector("[name=title]").value.trim();
-    const o = this.slice.window ? { window: this.slice.window } : { from: Math.round(this.slice.from), to: Math.round(this.slice.to) };
-    return { ...o, sections, apps, ...(set ? { set: +set } : {}), ...(title ? { title } : {}) };
+    let o = this.slice.window ? { window: this.slice.window } : { from: Math.round(this.slice.from), to: Math.round(this.slice.to) };
+    // the last N days instead of the stretch it was opened on (up to 92:
+    // past the tape's 7, from hourly rollups), and a comparison (Rollups)
+    const days = +(f.querySelector("[name=days]")?.value || 0);
+    if (days) { const to = Date.now(); o = { from: to - days * 86400e3, to }; }
+    const compare = f.querySelector("[name=compare]")?.value;
+    return { ...o, sections, apps, ...(set ? { set: +set } : {}), ...(title ? { title } : {}), ...(compare ? { compare } : {}) };
   }
 
   render() {
@@ -74,6 +79,10 @@ export class Writeups {
         <div class="wu-head"><h3>Write up</h3><button type="button" class="fi-x" data-a="close" aria-label="Close">×</button></div>
         <label class="wu-f">Title <input name="title" maxlength="120" value="${esc(s.title ?? "")}" placeholder="obs_factor: the stretch, in UTC"></label>
         <p class="wu-range">${s.window ? `window <b>${esc(s.title ?? `#${s.window}`)}</b><br>` : ""}${stamp(s.from)} – ${stamp(s.to)} UTC</p>
+        <div class="wu-grid wu-rollups">
+          <label class="wu-f">Stretch <select name="days"><option value="">as opened</option><option value="7">the last 7 days</option><option value="30">the last 30 days</option><option value="92">the last 92 days</option></select></label>
+          <label class="wu-f">Compare with <select name="compare"><option value="">nothing</option><option value="week">the same period last week</option><option value="month">the same period last month</option></select></label>
+        </div>
         <fieldset><legend>Sections</legend>${SECTIONS.map(([k, l]) => `<label><input type="checkbox" name="section" value="${k}" checked> ${l}</label>`).join("")}</fieldset>
         <label class="wu-f">Wire filter <select name="set"><option value="">the whole wire</option>${sets.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select></label>
         <fieldset><legend>Only these apps <span class="dim">(none: the whole floor)</span></legend>${apps.map((a) => `<label><input type="checkbox" name="app" value="${esc(a.id)}"> ${esc(a.label)}</label>`).join("") || `<span class="dim">no app on the floor</span>`}</fieldset>

@@ -31,11 +31,15 @@ defmodule ObsFactor.Labelled do
   summary by node id (to attach to whichever node carries that id).
   """
   def merge(topology, containers, jobs) do
+    # obs_factor.report containers connect themselves first (ObsFactor.Discovery);
+    # their obs_factor.id, if any, is theirs, not a second node here.
+    {topology, discovered} = ObsFactor.Discovery.merge(topology, containers)
     platforms = MapSet.new(topology.platforms, & &1.id)
 
     {nodes, problems} =
       containers
       |> Enum.filter(&(Map.get(&1, :labels, %{}) |> Map.has_key?("id")))
+      |> Enum.reject(&(Map.get(&1, :labels, %{}) |> Map.has_key?("report")))
       |> Enum.sort_by(& &1.name)
       |> Enum.reduce({topology.nodes, []}, fn c, {nodes, problems} ->
         case labelled_node(c, nodes, platforms) do
@@ -44,6 +48,7 @@ defmodule ObsFactor.Labelled do
         end
       end)
 
+    problems = discovered ++ problems
     latest = latest_jobs(jobs)
     listed = MapSet.new(topology.nodes, & &1.id)
     ids = MapSet.new(nodes, & &1.id)

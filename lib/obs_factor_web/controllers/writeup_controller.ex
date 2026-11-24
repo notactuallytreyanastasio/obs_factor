@@ -55,6 +55,8 @@ defmodule ObsFactorWeb.WriteupController do
       spec: set_spec(int(p["set"])) || (is_map(p["spec"]) && p["spec"]) || nil,
       apps: list(p["apps"]),
       sections: case list(p["sections"]) do [] -> nil; s -> s end,
+      # "week" | "month": compare with the same period then (ObsFactor.Rollups)
+      compare: if(p["compare"] in ["week", "month"], do: p["compare"]),
       title: (is_binary(p["title"]) and String.trim(p["title"]) != "" && String.slice(String.trim(p["title"]), 0, 120)) || nil
     ]
     |> Enum.reject(fn {_, v} -> v in [nil, false] end)

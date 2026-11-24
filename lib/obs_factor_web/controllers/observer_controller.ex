@@ -23,8 +23,19 @@ defmodule ObsFactorWeb.ObserverController do
         _ -> if is_binary(body["by"]), do: body["by"]
       end
 
-    by = ObserverProxy.clean_by(by)
-    answer(conn, ObserverProxy.call("POST", id, path(params), Map.delete(body, "by"), member: member(conn), by: by))
+    # identities: a GitHub login signs as itself; only an operator acts
+    identity = conn.assigns[:identity]
+    by = ObserverProxy.clean_by(ObsFactorWeb.Identity.by(identity, by))
+
+    case ObsFactorWeb.Identity.authorize(identity, "observer_action", by: by, node: id, path: Enum.join(path(params), "/")) do
+      :ok ->
+        answer(conn, ObserverProxy.call("POST", id, path(params), Map.delete(body, "by"), member: member(conn), by: by))
+
+      {:error, why} ->
+        refused = {403, %{"error" => why}}
+        ObserverProxy.record_action(id, path(params), body, [member: member(conn), by: by], refused)
+        answer(conn, refused)
+    end
   end
 
   defp path(params), do: Map.get(params, "path", [])

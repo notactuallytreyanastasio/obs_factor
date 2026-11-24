@@ -50,6 +50,26 @@
       "to_change_id": "9f57e789-4465-4655-84ac-ef144f53d491",
       "weight": 1.0
     },
+    "0689171c7a0826b6d53a": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:48:30.696474-05:00",
+      "edge_id": "0689171c7a0826b6d53a",
+      "edge_type": "leads_to",
+      "from_change_id": "a2983ade-9bb7-47f7-88ec-051e8e3d94e0",
+      "rationale": "result",
+      "to_change_id": "3ff62650-4ee7-4963-8f39-44b570518053",
+      "weight": 1.0
+    },
+    "0872496e486f34ab3c30": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:38.900249-05:00",
+      "edge_id": "0872496e486f34ab3c30",
+      "edge_type": "leads_to",
+      "from_change_id": "db83f9f6-b60e-46cd-83ad-39a1d8228b70",
+      "rationale": "approach",
+      "to_change_id": "be6e9635-0e00-4cf2-9d57-1c3fa28023c5",
+      "weight": 1.0
+    },
     "0a9193ce1c209b31cce4": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T03:39:19.436203-05:00",
@@ -58,6 +78,16 @@
       "from_change_id": "d025ec0b-4481-4ed2-a9b8-3e8c6d700eca",
       "rationale": "rollout",
       "to_change_id": "1190c87e-b14c-4370-9f5f-0a4b00a2b943",
+      "weight": 1.0
+    },
+    "0c01f00d7f33c4fa73d6": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:35:43.846745-05:00",
+      "edge_id": "0c01f00d7f33c4fa73d6",
+      "edge_type": "leads_to",
+      "from_change_id": "bd86b5d0-4322-4922-96f6-8ec54434f6dc",
+      "rationale": "approach",
+      "to_change_id": "d129d9e9-cbdb-4122-b821-f188ad9fd5a8",
       "weight": 1.0
     },
     "0d44b5669874d7adaa19": {
@@ -90,6 +120,17 @@
       "to_change_id": "a0b3e89d-a862-4c46-851c-1443f4a3ac3e",
       "weight": 1.0
     },
+    "15f741ca4be2c21d66ea": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:50:04.836474-05:00",
+      "deleted_at": "2026-11-23T20:50:10.422695-05:00",
+      "edge_id": "15f741ca4be2c21d66ea",
+      "edge_type": "leads_to",
+      "from_change_id": "38883825-4447-4253-a11d-64d96ca18180",
+      "rationale": "finding",
+      "to_change_id": "c9eff799-36cc-4923-ac7e-4124b6a3fef1",
+      "weight": 1.0
+    },
     "160654b2f2c41883b336": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-23T12:47:57.466850-05:00",
@@ -108,6 +149,16 @@
       "from_change_id": "4b66b967-2680-4bab-828a-18a3f3eeb36a",
       "rationale": "cleanup",
       "to_change_id": "4307693b-b453-45f6-96e2-8f5f6023f2f1",
+      "weight": 1.0
+    },
+    "187c406e2c5b891457aa": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:38.751340-05:00",
+      "edge_id": "187c406e2c5b891457aa",
+      "edge_type": "leads_to",
+      "from_change_id": "db83f9f6-b60e-46cd-83ad-39a1d8228b70",
+      "rationale": "approach",
+      "to_change_id": "43448873-9976-46da-bc9e-416af7dce176",
       "weight": 1.0
     },
     "195674a6129ed2fc970d": {
@@ -150,6 +201,26 @@
       "to_change_id": "cb00f216-c214-494c-99e8-a1d4ab2de147",
       "weight": 1.0
     },
+    "1fdf860587b5178c72ab": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:54.349611-05:00",
+      "edge_id": "1fdf860587b5178c72ab",
+      "edge_type": "leads_to",
+      "from_change_id": "30dcbde7-02b9-49b4-8b66-fa0063a74926",
+      "rationale": "verified",
+      "to_change_id": "ade9fa05-8c42-4326-a441-1af908d615a8",
+      "weight": 1.0
+    },
+    "21e2a7baa5b026485950": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:50:04.710359-05:00",
+      "edge_id": "21e2a7baa5b026485950",
+      "edge_type": "leads_to",
+      "from_change_id": "6d7845fb-4495-421f-89e6-57446e90823b",
+      "rationale": "rejected",
+      "to_change_id": "481fdbca-bf53-48e6-936e-fb4295fa4beb",
+      "weight": 1.0
+    },
     "275dfc9502ec055663c6": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T00:22:41.175239-05:00",
@@ -170,6 +241,16 @@
       "to_change_id": "53d3622a-0085-40a1-ab81-a236f95a4677",
       "weight": 1.0
     },
+    "29cff61bf329603eaea1": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:39.388935-05:00",
+      "edge_id": "29cff61bf329603eaea1",
+      "edge_type": "leads_to",
+      "from_change_id": "ab6e076a-5636-48a5-ab30-6f1d771f374c",
+      "rationale": "finding",
+      "to_change_id": "78810910-f875-4f4f-b2bd-049ed61bcc29",
+      "weight": 1.0
+    },
     "2e721ff68f5134aae1dd": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T02:00:19.511078-05:00",
@@ -188,6 +269,16 @@
       "from_change_id": "f6088f08-d7df-485b-b46c-ca7a747f5ce9",
       "rationale": "implementation",
       "to_change_id": "2a1f7026-4c25-48f4-b8a4-9dd01d399e65",
+      "weight": 1.0
+    },
+    "3087eacc2bed9fb9af6e": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:53.903157-05:00",
+      "edge_id": "3087eacc2bed9fb9af6e",
+      "edge_type": "leads_to",
+      "from_change_id": "386a4b37-986e-4bdb-81bf-cbdc872fbf7d",
+      "rationale": "implementation",
+      "to_change_id": "30dcbde7-02b9-49b4-8b66-fa0063a74926",
       "weight": 1.0
     },
     "30af992c1152ee1e1447": {
@@ -268,6 +359,16 @@
       "from_change_id": "ecab76ce-52bf-4a79-a2f8-844f41fe77a5",
       "rationale": "workstream",
       "to_change_id": "4c935585-288c-48d7-8f65-2adf215edf48",
+      "weight": 1.0
+    },
+    "36c1eeb831e488b974fb": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:48:30.267017-05:00",
+      "edge_id": "36c1eeb831e488b974fb",
+      "edge_type": "leads_to",
+      "from_change_id": "ab6e076a-5636-48a5-ab30-6f1d771f374c",
+      "rationale": "implementation",
+      "to_change_id": "d1ce37d0-5437-4068-85c3-0c1a6f9338d5",
       "weight": 1.0
     },
     "3776a8bf2d7970c6042b": {
@@ -390,6 +491,27 @@
       "to_change_id": "cb00f216-c214-494c-99e8-a1d4ab2de147",
       "weight": 1.0
     },
+    "46d815caf2ed7fb5d9f5": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:48:30.114978-05:00",
+      "edge_id": "46d815caf2ed7fb5d9f5",
+      "edge_type": "leads_to",
+      "from_change_id": "ab6e076a-5636-48a5-ab30-6f1d771f374c",
+      "rationale": "implementation",
+      "to_change_id": "d7a280ed-e69d-4082-8ed3-b7b1b4e8eef6",
+      "weight": 1.0
+    },
+    "47d3f666e5d55f398275": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:50:04.400758-05:00",
+      "deleted_at": "2026-11-23T20:50:10.294324-05:00",
+      "edge_id": "47d3f666e5d55f398275",
+      "edge_type": "leads_to",
+      "from_change_id": "38883825-4447-4253-a11d-64d96ca18180",
+      "rationale": "measurement approach",
+      "to_change_id": "c2a5b9d1-1590-4c43-bd8c-d59df8b92f7b",
+      "weight": 1.0
+    },
     "4ccc572a4ee108197d01": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-23T20:58:32.672005-05:00",
@@ -420,6 +542,16 @@
       "to_change_id": "be220f49-cc86-4b3e-a498-c1d8dd6ebc21",
       "weight": 1.0
     },
+    "5105432c586e666d69f8": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:54.416514-05:00",
+      "edge_id": "5105432c586e666d69f8",
+      "edge_type": "leads_to",
+      "from_change_id": "38cef362-34ae-4af8-8040-cd28a26fa238",
+      "rationale": "verified",
+      "to_change_id": "ade9fa05-8c42-4326-a441-1af908d615a8",
+      "weight": 1.0
+    },
     "52b3d77fab1d81402e3b": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-23T21:02:20.176709-05:00",
@@ -448,6 +580,26 @@
       "from_change_id": "1c2d697f-1bc2-4b28-a5d6-5a6643387e75",
       "rationale": "result",
       "to_change_id": "c64ef650-cbe5-4ebe-91eb-de2e6e4cf031",
+      "weight": 1.0
+    },
+    "5464cd07feebc5c8fede": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:54.483651-05:00",
+      "edge_id": "5464cd07feebc5c8fede",
+      "edge_type": "leads_to",
+      "from_change_id": "49949275-9b17-4156-93bf-a9e7bd4be645",
+      "rationale": "verified",
+      "to_change_id": "ade9fa05-8c42-4326-a441-1af908d615a8",
+      "weight": 1.0
+    },
+    "5905539a3cc22943904d": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:48:30.566422-05:00",
+      "edge_id": "5905539a3cc22943904d",
+      "edge_type": "leads_to",
+      "from_change_id": "d7a280ed-e69d-4082-8ed3-b7b1b4e8eef6",
+      "rationale": "result",
+      "to_change_id": "3ff62650-4ee7-4963-8f39-44b570518053",
       "weight": 1.0
     },
     "5aefe27ef9dd8b975a1f": {
@@ -488,6 +640,16 @@
       "from_change_id": "83ff9921-6146-4837-be4b-0f44e1d1b897",
       "rationale": "found on the box",
       "to_change_id": "ac44ccc9-8489-452c-816b-b65695f73975",
+      "weight": 1.0
+    },
+    "6209c091d54f2400a5d8": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:35:44.387764-05:00",
+      "edge_id": "6209c091d54f2400a5d8",
+      "edge_type": "leads_to",
+      "from_change_id": "b7fb95ed-11b3-4302-b04a-07e3489fcc96",
+      "rationale": "rejected: two endpoints that can disagree",
+      "to_change_id": "386a4b37-986e-4bdb-81bf-cbdc872fbf7d",
       "weight": 1.0
     },
     "636e0bbc2f20145d37ea": {
@@ -540,6 +702,16 @@
       "to_change_id": "475f8786-395c-4adf-812b-a7d8ac24453b",
       "weight": 1.0
     },
+    "695a6918b3dcf6c97fc0": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:50:04.651-05:00",
+      "edge_id": "695a6918b3dcf6c97fc0",
+      "edge_type": "leads_to",
+      "from_change_id": "c2a5b9d1-1590-4c43-bd8c-d59df8b92f7b",
+      "rationale": "chosen",
+      "to_change_id": "481fdbca-bf53-48e6-936e-fb4295fa4beb",
+      "weight": 1.0
+    },
     "6af86d064e657227a433": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-18T17:31:49.993919-05:00",
@@ -548,6 +720,16 @@
       "from_change_id": "83ff9921-6146-4837-be4b-0f44e1d1b897",
       "rationale": "found on the box",
       "to_change_id": "ba1720ab-a2d8-4f83-9159-50c1432e174f",
+      "weight": 1.0
+    },
+    "6cd934a1a04263d4dbf6": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:50:40.642128-05:00",
+      "edge_id": "6cd934a1a04263d4dbf6",
+      "edge_type": "leads_to",
+      "from_change_id": "c0345030-d9a3-4176-bf11-a70c2f199d3b",
+      "rationale": "result",
+      "to_change_id": "4a41640b-3636-4fa9-b4aa-2aa3b297fecb",
       "weight": 1.0
     },
     "6ce4fc6345e717df1c87": {
@@ -610,6 +792,26 @@
       "to_change_id": "d81e1fd1-3513-4c73-9bea-68a4e4e4449a",
       "weight": 1.0
     },
+    "76520596d3ade4eab3f2": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:39.248285-05:00",
+      "edge_id": "76520596d3ade4eab3f2",
+      "edge_type": "leads_to",
+      "from_change_id": "43448873-9976-46da-bc9e-416af7dce176",
+      "rationale": "rejected: exposes .env",
+      "to_change_id": "ab6e076a-5636-48a5-ab30-6f1d771f374c",
+      "weight": 1.0
+    },
+    "7d93650d8aa2ac07f4ab": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:54.062344-05:00",
+      "edge_id": "7d93650d8aa2ac07f4ab",
+      "edge_type": "leads_to",
+      "from_change_id": "386a4b37-986e-4bdb-81bf-cbdc872fbf7d",
+      "rationale": "implementation",
+      "to_change_id": "38cef362-34ae-4af8-8040-cd28a26fa238",
+      "weight": 1.0
+    },
     "821f31026f2c0abba1a4": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-18T17:33:58.154340-05:00",
@@ -660,6 +862,16 @@
       "to_change_id": "ac50d3e7-13e9-447c-8766-de62a11e4e62",
       "weight": 1.0
     },
+    "890d88d6fe260bf4b0ea": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:50:04.964614-05:00",
+      "edge_id": "890d88d6fe260bf4b0ea",
+      "edge_type": "leads_to",
+      "from_change_id": "481fdbca-bf53-48e6-936e-fb4295fa4beb",
+      "rationale": "implementation",
+      "to_change_id": "c0345030-d9a3-4176-bf11-a70c2f199d3b",
+      "weight": 1.0
+    },
     "8a5de29ce6e704fbddbe": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T02:06:02.954230-05:00",
@@ -678,6 +890,16 @@
       "from_change_id": "d5c5558f-78e8-4957-9c6f-df0d7afecac1",
       "rationale": "requested in the same session",
       "to_change_id": "509ea063-c74a-410f-a435-2457c3f994c0",
+      "weight": 1.0
+    },
+    "904c9e67632024794a89": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:48:30.631903-05:00",
+      "edge_id": "904c9e67632024794a89",
+      "edge_type": "leads_to",
+      "from_change_id": "d1ce37d0-5437-4068-85c3-0c1a6f9338d5",
+      "rationale": "result",
+      "to_change_id": "3ff62650-4ee7-4963-8f39-44b570518053",
       "weight": 1.0
     },
     "9146af65e1bda4379b1b": {
@@ -720,6 +942,17 @@
       "to_change_id": "29758875-68e8-4a1b-bd85-21ae49a4cf64",
       "weight": 1.0
     },
+    "9ba1528800a73092f696": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:50:04.527052-05:00",
+      "deleted_at": "2026-11-23T20:50:10.362264-05:00",
+      "edge_id": "9ba1528800a73092f696",
+      "edge_type": "leads_to",
+      "from_change_id": "38883825-4447-4253-a11d-64d96ca18180",
+      "rationale": "alternative",
+      "to_change_id": "6d7845fb-4495-421f-89e6-57446e90823b",
+      "weight": 1.0
+    },
     "9c1c681260e0c678bb7b": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T01:49:19.901784-05:00",
@@ -748,6 +981,26 @@
       "from_change_id": "49a681fd-b54a-430c-b8fb-d85cdbcf1e4c",
       "rationale": "workstream",
       "to_change_id": "11c167ae-4f87-4a39-abb7-904be8199d5b",
+      "weight": 1.0
+    },
+    "a7aedec4ed8b78ad2b31": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:54.625864-05:00",
+      "edge_id": "a7aedec4ed8b78ad2b31",
+      "edge_type": "leads_to",
+      "from_change_id": "49949275-9b17-4156-93bf-a9e7bd4be645",
+      "rationale": "found while running against prod",
+      "to_change_id": "bc232a48-6cf1-4992-8573-428cc017a9f0",
+      "weight": 1.0
+    },
+    "a8dee8d8e43058a16183": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:54.209500-05:00",
+      "edge_id": "a8dee8d8e43058a16183",
+      "edge_type": "leads_to",
+      "from_change_id": "386a4b37-986e-4bdb-81bf-cbdc872fbf7d",
+      "rationale": "implementation",
+      "to_change_id": "49949275-9b17-4156-93bf-a9e7bd4be645",
       "weight": 1.0
     },
     "ad291b5c279faa6e7a80": {
@@ -791,6 +1044,16 @@
       "to_change_id": "475f8786-395c-4adf-812b-a7d8ac24453b",
       "weight": 1.0
     },
+    "b5bb59be37ce41b3b401": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:50:10.597161-05:00",
+      "edge_id": "b5bb59be37ce41b3b401",
+      "edge_type": "leads_to",
+      "from_change_id": "e5e236b2-e570-4d3c-86fa-1a4d8baa9994",
+      "rationale": "finding",
+      "to_change_id": "c9eff799-36cc-4923-ac7e-4124b6a3fef1",
+      "weight": 1.0
+    },
     "c34e85c4b7a4243be61f": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T01:35:44.548522-05:00",
@@ -809,6 +1072,16 @@
       "from_change_id": "1190c87e-b14c-4370-9f5f-0a4b00a2b943",
       "rationale": "result",
       "to_change_id": "e496a1e8-9043-4e37-b3dc-44d2e963d969",
+      "weight": 1.0
+    },
+    "c46b2db093fe6e894173": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:50:10.478155-05:00",
+      "edge_id": "c46b2db093fe6e894173",
+      "edge_type": "leads_to",
+      "from_change_id": "e5e236b2-e570-4d3c-86fa-1a4d8baa9994",
+      "rationale": "measurement approach",
+      "to_change_id": "c2a5b9d1-1590-4c43-bd8c-d59df8b92f7b",
       "weight": 1.0
     },
     "c4a0dd8f077b42f89dd8": {
@@ -831,6 +1104,16 @@
       "to_change_id": "a8aff016-9314-430c-a931-8fc4b8efca78",
       "weight": 1.0
     },
+    "c5486d6c41062602967e": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:39.536433-05:00",
+      "edge_id": "c5486d6c41062602967e",
+      "edge_type": "leads_to",
+      "from_change_id": "db83f9f6-b60e-46cd-83ad-39a1d8228b70",
+      "rationale": "finding",
+      "to_change_id": "6b5ecd06-2b71-45cc-8484-28551d85e91e",
+      "weight": 1.0
+    },
     "c684451ae3465d659c66": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T02:58:16.673906-05:00",
@@ -849,6 +1132,16 @@
       "from_change_id": "5bf6b46d-8f76-4b1d-9e4b-985850f09996",
       "rationale": "result",
       "to_change_id": "9f57e789-4465-4655-84ac-ef144f53d491",
+      "weight": 1.0
+    },
+    "cb4810ce2972835f6ec0": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:50:10.538285-05:00",
+      "edge_id": "cb4810ce2972835f6ec0",
+      "edge_type": "leads_to",
+      "from_change_id": "e5e236b2-e570-4d3c-86fa-1a4d8baa9994",
+      "rationale": "alternative",
+      "to_change_id": "6d7845fb-4495-421f-89e6-57446e90823b",
       "weight": 1.0
     },
     "ce247af3fd7aec11f21c": {
@@ -870,6 +1163,16 @@
       "from_change_id": "1190c87e-b14c-4370-9f5f-0a4b00a2b943",
       "rationale": "option",
       "to_change_id": "6eb43045-d930-4404-9d7f-b69121febf2c",
+      "weight": 1.0
+    },
+    "cf38be40c30adf24101e": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:39.041897-05:00",
+      "edge_id": "cf38be40c30adf24101e",
+      "edge_type": "leads_to",
+      "from_change_id": "db83f9f6-b60e-46cd-83ad-39a1d8228b70",
+      "rationale": "finding",
+      "to_change_id": "c40fc8dd-2e95-4b18-a0a7-c0c9c8fe59ec",
       "weight": 1.0
     },
     "d19ce0583a2bcac388d2": {
@@ -902,6 +1205,16 @@
       "to_change_id": "49a681fd-b54a-430c-b8fb-d85cdbcf1e4c",
       "weight": 1.0
     },
+    "d6dd4e98831cea1611ce": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:48:30.420240-05:00",
+      "edge_id": "d6dd4e98831cea1611ce",
+      "edge_type": "leads_to",
+      "from_change_id": "ab6e076a-5636-48a5-ab30-6f1d771f374c",
+      "rationale": "implementation",
+      "to_change_id": "a2983ade-9bb7-47f7-88ec-051e8e3d94e0",
+      "weight": 1.0
+    },
     "dc14b880a1625a44968d": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-23T12:47:57.835678-05:00",
@@ -910,6 +1223,26 @@
       "from_change_id": "e1b18d08-4d6a-4ca3-ad71-a1bde2591769",
       "rationale": "Implementation",
       "to_change_id": "0d86cb3a-c047-4c8a-90df-b36a369c7105",
+      "weight": 1.0
+    },
+    "dde7643b609f422bb812": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:35:44.036906-05:00",
+      "edge_id": "dde7643b609f422bb812",
+      "edge_type": "leads_to",
+      "from_change_id": "bd86b5d0-4322-4922-96f6-8ec54434f6dc",
+      "rationale": "approach",
+      "to_change_id": "b7fb95ed-11b3-4302-b04a-07e3489fcc96",
+      "weight": 1.0
+    },
+    "de56010a81f324b9710c": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:39.181309-05:00",
+      "edge_id": "de56010a81f324b9710c",
+      "edge_type": "leads_to",
+      "from_change_id": "be6e9635-0e00-4cf2-9d57-1c3fa28023c5",
+      "rationale": "chosen",
+      "to_change_id": "ab6e076a-5636-48a5-ab30-6f1d771f374c",
       "weight": 1.0
     },
     "e118b3a9881ba4199db9": {
@@ -940,6 +1273,16 @@
       "from_change_id": "918a1fa2-d319-44bc-8899-9e0cb2ac0b50",
       "rationale": "implements",
       "to_change_id": "1ba91856-c571-4d6d-8885-8ed4ddbe8a2e",
+      "weight": 1.0
+    },
+    "e30eacd6144ec7db0c98": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:35:44.274584-05:00",
+      "edge_id": "e30eacd6144ec7db0c98",
+      "edge_type": "leads_to",
+      "from_change_id": "d129d9e9-cbdb-4122-b821-f188ad9fd5a8",
+      "rationale": "chosen: one URL for deploy, watchdog and humans; status code is what every checker reads",
+      "to_change_id": "386a4b37-986e-4bdb-81bf-cbdc872fbf7d",
       "weight": 1.0
     },
     "e56ed32cc3201e086fde": {
@@ -1291,6 +1634,24 @@
       "title": "Disk 87% -> 13% (125G -> 18G used): 33.9 GB dangling images + 74.2 GB build cache freed; all 18 containers still up; tagged images, volumes and /opt/backups untouched",
       "updated_at": "2026-11-19T02:00:19.416217-05:00"
     },
+    "30dcbde7-02b9-49b4-8b66-fa0063a74926": {
+      "author": "Bobby Grayson",
+      "change_id": "30dcbde7-02b9-49b4-8b66-fa0063a74926",
+      "created_at": "2026-11-23T20:47:53.831603-05:00",
+      "metadata": {
+        "branch": "31-heartbeat",
+        "commit": "16b6b0f299445431a2e3e565c73bbb8037ca0d63",
+        "confidence": 90,
+        "files": [
+          "lib/obs_factor/health.ex",
+          "lib/obs_factor_web/controllers/health_controller.ex"
+        ]
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "/health: JSON, 503 when snapshot older than 30 s or ticker gone",
+      "updated_at": "2026-11-23T20:47:53.831603-05:00"
+    },
     "324ade2e-8cba-4d81-b1d8-429e68782f2d": {
       "author": "Bobby Grayson",
       "change_id": "324ade2e-8cba-4d81-b1d8-429e68782f2d",
@@ -1331,6 +1692,19 @@
       "title": "Writeups: Markdown reports generated from any slice (window, selection, filter set, apps) for external consumption",
       "updated_at": "2026-11-23T19:54:35.815001-05:00"
     },
+    "386a4b37-986e-4bdb-81bf-cbdc872fbf7d": {
+      "author": "Bobby Grayson",
+      "change_id": "386a4b37-986e-4bdb-81bf-cbdc872fbf7d",
+      "created_at": "2026-11-23T20:35:44.154749-05:00",
+      "metadata": {
+        "branch": "31-heartbeat",
+        "confidence": 85
+      },
+      "node_type": "decision",
+      "status": "pending",
+      "title": "One /health: JSON, 200 only when last snapshot < 30 s and ticker alive; deploy.sh checks status+ok:true",
+      "updated_at": "2026-11-23T20:35:44.154749-05:00"
+    },
     "38883825-4447-4253-a11d-64d96ca18180": {
       "author": "Bobby Grayson",
       "change_id": "38883825-4447-4253-a11d-64d96ca18180",
@@ -1344,6 +1718,23 @@
       "title": "Access-log collector, snapshot fields (routes, latency, via rates, clients), inspector sections, Caddy snippet, lab and deploy wiring",
       "updated_at": "2026-11-19T02:06:03.085086-05:00"
     },
+    "38cef362-34ae-4af8-8040-cd28a26fa238": {
+      "author": "Bobby Grayson",
+      "change_id": "38cef362-34ae-4af8-8040-cd28a26fa238",
+      "created_at": "2026-11-23T20:47:53.993684-05:00",
+      "metadata": {
+        "branch": "31-heartbeat",
+        "commit": "cd536702f1bb9b1ae65a3e15f59a2f7fdc4dfe71",
+        "confidence": 90,
+        "files": [
+          "lib/obs_factor/heartbeat.ex"
+        ]
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "ObsFactor.Heartbeat pings HEARTBEAT_URL only while healthy, optional /fail",
+      "updated_at": "2026-11-23T20:47:53.993684-05:00"
+    },
     "3c2fd9f5-3e71-4096-932a-d3682c290ae7": {
       "author": "Bobby Grayson",
       "change_id": "3c2fd9f5-3e71-4096-932a-d3682c290ae7",
@@ -1356,6 +1747,19 @@
       "status": "pending",
       "title": "tools/traffic CLI built: GET/HEAD only, 20 req/s cap, avoid patterns, back-off; 37 tests pass; one 10 s lab run at 5 req/s clean",
       "updated_at": "2026-11-19T01:49:19.859383-05:00"
+    },
+    "3ff62650-4ee7-4963-8f39-44b570518053": {
+      "author": "Bobby Grayson",
+      "change_id": "3ff62650-4ee7-4963-8f39-44b570518053",
+      "created_at": "2026-11-23T20:48:30.499130-05:00",
+      "metadata": {
+        "branch": "33-deploy-commits",
+        "confidence": 85
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "416 tests pass; real GitHub subjects for marginalia, tyler, obs_factor; box mounts await a human",
+      "updated_at": "2026-11-23T20:48:30.499130-05:00"
     },
     "4012b0cb-2f11-4e92-9059-3f81a39c4b33": {
       "author": "Bobby Grayson",
@@ -1382,6 +1786,19 @@
       "status": "pending",
       "title": "Prune 604 dangling images and all build cache, remove the classifier and icecast images, vacuum the journal",
       "updated_at": "2026-11-19T02:00:19.364022-05:00"
+    },
+    "43448873-9976-46da-bc9e-416af7dce176": {
+      "author": "Bobby Grayson",
+      "change_id": "43448873-9976-46da-bc9e-416af7dce176",
+      "created_at": "2026-11-23T20:47:38.683731-05:00",
+      "metadata": {
+        "branch": "33-deploy-commits",
+        "confidence": 40
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "Mount /opt read-only at /host-opt",
+      "updated_at": "2026-11-23T20:47:38.683731-05:00"
     },
     "46b25cde-850a-4ccf-b7fe-fd62dafde78d": {
       "author": "Bobby Grayson",
@@ -1437,6 +1854,38 @@
       "title": "One observer service in the stack: polls Docker, Caddy, Postgres, /proc itself",
       "updated_at": "2026-11-18T17:31:49.776841-05:00"
     },
+    "481fdbca-bf53-48e6-936e-fb4295fa4beb": {
+      "author": "Bobby Grayson",
+      "change_id": "481fdbca-bf53-48e6-936e-fb4295fa4beb",
+      "created_at": "2026-11-23T20:50:04.592259-05:00",
+      "metadata": {
+        "branch": "32-slos",
+        "confidence": 85
+      },
+      "node_type": "decision",
+      "status": "pending",
+      "title": "Request-weighted by frame duration: minute frames and 5 s frames stand for what they cover",
+      "updated_at": "2026-11-23T20:50:04.592259-05:00"
+    },
+    "49949275-9b17-4156-93bf-a9e7bd4be645": {
+      "author": "Bobby Grayson",
+      "change_id": "49949275-9b17-4156-93bf-a9e7bd4be645",
+      "created_at": "2026-11-23T20:47:54.141393-05:00",
+      "metadata": {
+        "branch": "31-heartbeat",
+        "commit": "33d5bbbc6dfcf651708e99691e90a4f4f44a8acc",
+        "confidence": 90,
+        "files": [
+          "deploy/watchdog.sh",
+          "deploy/watchdog.launchd.plist",
+          "deploy/WATCHDOG.md"
+        ]
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "deploy/watchdog.sh + launchd plist: alert after 3 failures, once on recovery",
+      "updated_at": "2026-11-23T20:47:54.141393-05:00"
+    },
     "49a681fd-b54a-430c-b8fb-d85cdbcf1e4c": {
       "author": "Bobby Grayson",
       "change_id": "49a681fd-b54a-430c-b8fb-d85cdbcf1e4c",
@@ -1449,6 +1898,20 @@
       "status": "pending",
       "title": "Pull a small generic report from each sub-app, over Erlang distribution and over OpenTelemetry",
       "updated_at": "2026-11-19T02:58:16.466572-05:00"
+    },
+    "4a41640b-3636-4fa9-b4aa-2aa3b297fecb": {
+      "author": "Bobby Grayson",
+      "change_id": "4a41640b-3636-4fa9-b4aa-2aa3b297fecb",
+      "created_at": "2026-11-23T20:50:36.975136-05:00",
+      "metadata": {
+        "branch": "32-slos",
+        "commit": "1e000b9cd1949feb60103858f436c12ba3db0b34",
+        "confidence": 85
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "SLOs: 8 tests pass; 10 targets over 7 days of tape in 437 ms; board tab checked in headless Chrome",
+      "updated_at": "2026-11-23T20:50:36.975136-05:00"
     },
     "4b66b967-2680-4bab-828a-18a3f3eeb36a": {
       "author": "Bobby Grayson",
@@ -1664,6 +2127,19 @@
       "title": "OpenTelemetry in every app plus a collector",
       "updated_at": "2026-11-19T02:58:16.409375-05:00"
     },
+    "6b5ecd06-2b71-45cc-8484-28551d85e91e": {
+      "author": "Bobby Grayson",
+      "change_id": "6b5ecd06-2b71-45cc-8484-28551d85e91e",
+      "created_at": "2026-11-23T20:47:39.469473-05:00",
+      "metadata": {
+        "branch": "33-deploy-commits",
+        "confidence": 95
+      },
+      "node_type": "observation",
+      "status": "pending",
+      "title": "GitHub has no commit for blog 9047a85 or dave 514d449 (422): deployed from unpushed commits",
+      "updated_at": "2026-11-23T20:47:39.469473-05:00"
+    },
     "6bbb05ec-564c-40f8-88a9-b1e37936bd94": {
       "author": "Bobby Grayson",
       "change_id": "6bbb05ec-564c-40f8-88a9-b1e37936bd94",
@@ -1677,6 +2153,19 @@
       "status": "pending",
       "title": "Write up panel: preview, download, copy, share/revoke; entry points",
       "updated_at": "2026-11-23T20:00:19.365058-05:00"
+    },
+    "6d7845fb-4495-421f-89e6-57446e90823b": {
+      "author": "Bobby Grayson",
+      "change_id": "6d7845fb-4495-421f-89e6-57446e90823b",
+      "created_at": "2026-11-23T20:50:04.467460-05:00",
+      "metadata": {
+        "branch": "32-slos",
+        "confidence": 30
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "Count frames, not requests (every frame equal)",
+      "updated_at": "2026-11-23T20:50:04.467460-05:00"
     },
     "6db238ee-ede3-46a4-b165-96d22101b35c": {
       "author": "Bobby Grayson",
@@ -1718,6 +2207,19 @@
       "status": "pending",
       "title": "BEAM wire + BEAM-only board (index, chyron, crawl, Wire/BEAM/DB tabs)",
       "updated_at": "2026-11-23T18:38:08.143114-05:00"
+    },
+    "78810910-f875-4f4f-b2bd-049ed61bcc29": {
+      "author": "Bobby Grayson",
+      "change_id": "78810910-f875-4f4f-b2bd-049ed61bcc29",
+      "created_at": "2026-11-23T20:47:39.322241-05:00",
+      "metadata": {
+        "branch": "33-deploy-commits",
+        "confidence": 90
+      },
+      "node_type": "observation",
+      "status": "pending",
+      "title": "Every deploy script writes .deployed after the restart, so restart and .deployed change are ticks apart; wire pairs them within 10 min",
+      "updated_at": "2026-11-23T20:47:39.322241-05:00"
     },
     "7bae7abc-6f35-41b7-b9f6-e60fb8defb6b": {
       "author": "Bobby Grayson",
@@ -1944,6 +2446,24 @@
       "title": "Postgres is at 96 of 100 connections on the box",
       "updated_at": "2026-11-18T17:31:49.448131-05:00"
     },
+    "a2983ade-9bb7-47f7-88ec-051e8e3d94e0": {
+      "author": "Bobby Grayson",
+      "change_id": "a2983ade-9bb7-47f7-88ec-051e8e3d94e0",
+      "created_at": "2026-11-23T20:48:30.353468-05:00",
+      "metadata": {
+        "branch": "33-deploy-commits",
+        "commit": "c318feb6a308d706725df3f63f91f6cfdcbbd7be",
+        "confidence": 85,
+        "files": [
+          "deploy/compose.obs-factor.yml",
+          "deploy.sh"
+        ]
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Per-file .deployed mounts and token in compose additions; deploy.sh warns",
+      "updated_at": "2026-11-23T20:48:30.353468-05:00"
+    },
     "a299a523-e932-46a8-89ee-a0c47a1e19ff": {
       "author": "Bobby Grayson",
       "change_id": "a299a523-e932-46a8-89ee-a0c47a1e19ff",
@@ -1983,6 +2503,19 @@
       "status": "pending",
       "title": "Build it into the blog's Phoenix app",
       "updated_at": "2026-11-18T17:31:49.836351-05:00"
+    },
+    "ab6e076a-5636-48a5-ab30-6f1d771f374c": {
+      "author": "Bobby Grayson",
+      "change_id": "ab6e076a-5636-48a5-ab30-6f1d771f374c",
+      "created_at": "2026-11-23T20:47:39.115134-05:00",
+      "metadata": {
+        "branch": "33-deploy-commits",
+        "confidence": 85
+      },
+      "node_type": "decision",
+      "status": "pending",
+      "title": "Per-file read-only mounts of .deployed, not /opt",
+      "updated_at": "2026-11-23T20:47:39.115134-05:00"
     },
     "ab825f29-c907-4ca2-88ff-a56bb86b2135": {
       "author": "Bobby Grayson",
@@ -2035,6 +2568,19 @@
       "status": "pending",
       "title": "factory_report's JSON shape on stdout in prod; ObsFactorWeb.Log replaces Phoenix.Logger",
       "updated_at": "2026-11-23T12:25:51.841750-05:00"
+    },
+    "ade9fa05-8c42-4326-a441-1af908d615a8": {
+      "author": "Bobby Grayson",
+      "change_id": "ade9fa05-8c42-4326-a441-1af908d615a8",
+      "created_at": "2026-11-23T20:47:54.282702-05:00",
+      "metadata": {
+        "branch": "31-heartbeat",
+        "confidence": 95
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "Suspended ticker: /health 503 snapshot_stale, heartbeat posted /fail, resumed pings; watchdog alerted and recovered under sh and dash; 424 tests pass",
+      "updated_at": "2026-11-23T20:47:54.282702-05:00"
     },
     "ae14850f-d771-48dd-8791-f5559c17f16b": {
       "author": "Bobby Grayson",
@@ -2101,6 +2647,19 @@
       "title": "Floor redrawn: 13 buildings by style, rails coloured per destination, items by status class, memory gauges, in-flight crates, Postgres container yard, inspector host breakdown; checked in headless Chrome on both fixtures and on the lab observer",
       "updated_at": "2026-11-19T01:49:19.753107-05:00"
     },
+    "b7fb95ed-11b3-4302-b04a-07e3489fcc96": {
+      "author": "Bobby Grayson",
+      "change_id": "b7fb95ed-11b3-4302-b04a-07e3489fcc96",
+      "created_at": "2026-11-23T20:35:43.944682-05:00",
+      "metadata": {
+        "branch": "31-heartbeat",
+        "confidence": 50
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "Keep /health as plain ok and add a separate /health/deep",
+      "updated_at": "2026-11-23T20:35:43.944682-05:00"
+    },
     "b936e77d-3937-4a18-bdf9-20bc063ac7ed": {
       "author": "Bobby Grayson",
       "change_id": "b936e77d-3937-4a18-bdf9-20bc063ac7ed",
@@ -2127,6 +2686,19 @@
       "title": "Only 2 of 18 containers have a Docker healthcheck; Caddy 2.10.2 exposes no HTTP metrics yet",
       "updated_at": "2026-11-18T17:31:49.594659-05:00"
     },
+    "bc232a48-6cf1-4992-8573-428cc017a9f0": {
+      "author": "Bobby Grayson",
+      "change_id": "bc232a48-6cf1-4992-8573-428cc017a9f0",
+      "created_at": "2026-11-23T20:47:54.558642-05:00",
+      "metadata": {
+        "branch": "31-heartbeat",
+        "confidence": 90
+      },
+      "node_type": "observation",
+      "status": "pending",
+      "title": "Production /health still plain ok: watchdog must be installed after deploy, or it alerts at once",
+      "updated_at": "2026-11-23T20:47:54.558642-05:00"
+    },
     "bd17096e-0fba-4399-98ab-2cf13a3d4e5e": {
       "author": "Bobby Grayson",
       "change_id": "bd17096e-0fba-4399-98ab-2cf13a3d4e5e",
@@ -2140,6 +2712,20 @@
       "status": "pending",
       "title": "Deploy the per-subdomain floor, access log and reports to production",
       "updated_at": "2026-11-19T03:14:13.576502-05:00"
+    },
+    "bd86b5d0-4322-4922-96f6-8ec54434f6dc": {
+      "author": "Bobby Grayson",
+      "change_id": "bd86b5d0-4322-4922-96f6-8ec54434f6dc",
+      "created_at": "2026-11-23T20:35:39.355334-05:00",
+      "metadata": {
+        "branch": "31-heartbeat",
+        "confidence": 90,
+        "prompt": "Do all that"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "Something outside the box notices if the observer dies (heartbeat + watchdog)",
+      "updated_at": "2026-11-23T20:35:39.355334-05:00"
     },
     "be220f49-cc86-4b3e-a498-c1d8dd6ebc21": {
       "author": "Bobby Grayson",
@@ -2155,6 +2741,37 @@
       "title": "JSON formatter in prod; http/socket/channel events from telemetry",
       "updated_at": "2026-11-23T12:25:56.163988-05:00"
     },
+    "be6e9635-0e00-4cf2-9d57-1c3fa28023c5": {
+      "author": "Bobby Grayson",
+      "change_id": "be6e9635-0e00-4cf2-9d57-1c3fa28023c5",
+      "created_at": "2026-11-23T20:47:38.831826-05:00",
+      "metadata": {
+        "branch": "33-deploy-commits",
+        "confidence": 85
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "Mount each /opt/<app>/.deployed file read-only, one bind per file",
+      "updated_at": "2026-11-23T20:47:38.831826-05:00"
+    },
+    "c0345030-d9a3-4176-bf11-a70c2f199d3b": {
+      "author": "Bobby Grayson",
+      "change_id": "c0345030-d9a3-4176-bf11-a70c2f199d3b",
+      "created_at": "2026-11-23T20:50:04.902037-05:00",
+      "metadata": {
+        "branch": "32-slos",
+        "confidence": 85,
+        "files": [
+          "lib/obs_factor/slos.ex",
+          "lib/obs_factor_web/channels/slo_channel.ex",
+          "priv/static/assets/js/slo.js"
+        ]
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "ObsFactor.SLOs, slo channel, board SLO tab, writeup section, slo_burn wire items via Ticker drain",
+      "updated_at": "2026-11-23T20:50:04.902037-05:00"
+    },
     "c19be70a-eabf-4266-ae27-f5bd48f6c1c0": {
       "author": "Bobby Grayson",
       "change_id": "c19be70a-eabf-4266-ae27-f5bd48f6c1c0",
@@ -2169,6 +2786,19 @@
       "title": "Published as stacked PRs 1-3 (sites fail alone, Sites panel, production and setup docs)",
       "updated_at": "2026-11-19T00:31:42.002112-05:00"
     },
+    "c2a5b9d1-1590-4c43-bd8c-d59df8b92f7b": {
+      "author": "Bobby Grayson",
+      "change_id": "c2a5b9d1-1590-4c43-bd8c-d59df8b92f7b",
+      "created_at": "2026-11-23T20:50:04.337291-05:00",
+      "metadata": {
+        "branch": "32-slos",
+        "confidence": 85
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "Weight each tape frame by seconds to the next frame (cap 2 min); requests = rps*s",
+      "updated_at": "2026-11-23T20:50:04.337291-05:00"
+    },
     "c2c281ce-9eaa-4234-8b26-43162e0a0521": {
       "author": "Bobby Grayson",
       "change_id": "c2c281ce-9eaa-4234-8b26-43162e0a0521",
@@ -2182,6 +2812,19 @@
       "status": "pending",
       "title": "ApiTokens + TokenOrSession plug; Writeup schedules + scheduler; channel events",
       "updated_at": "2026-11-23T20:18:17.519118-05:00"
+    },
+    "c40fc8dd-2e95-4b18-a0a7-c0c9c8fe59ec": {
+      "author": "Bobby Grayson",
+      "change_id": "c40fc8dd-2e95-4b18-a0a7-c0c9c8fe59ec",
+      "created_at": "2026-11-23T20:47:38.974486-05:00",
+      "metadata": {
+        "branch": "33-deploy-commits",
+        "confidence": 90
+      },
+      "node_type": "observation",
+      "status": "pending",
+      "title": "/opt/blog/.env holds every secret; deploy scripts rewrite .deployed in place (echo >), so single-file binds stay live; a rename would go stale",
+      "updated_at": "2026-11-23T20:47:38.974486-05:00"
     },
     "c64ef650-cbe5-4ebe-91eb-de2e6e4cf031": {
       "author": "Bobby Grayson",
@@ -2209,6 +2852,19 @@
       "title": "Caddy 2.10.2 access log, checked live: filter strips query strings, headers and client addresses; mode 0644 needed for the observer (nobody) to read it; 5xx lines are level error",
       "updated_at": "2026-11-19T02:06:02.999350-05:00"
     },
+    "c9eff799-36cc-4923-ac7e-4124b6a3fef1": {
+      "author": "Bobby Grayson",
+      "change_id": "c9eff799-36cc-4923-ac7e-4124b6a3fef1",
+      "created_at": "2026-11-23T20:50:04.777691-05:00",
+      "metadata": {
+        "branch": "32-slos",
+        "confidence": 90
+      },
+      "node_type": "observation",
+      "status": "pending",
+      "title": "Production tape: only proxy-routed nodes have err_rps; path-routed nodes (deciduous-mcp, lumines, soldat...) have rps alone; p95_ms only in frames with requests",
+      "updated_at": "2026-11-23T20:50:04.777691-05:00"
+    },
     "cb00f216-c214-494c-99e8-a1d4ab2de147": {
       "author": "Bobby Grayson",
       "change_id": "cb00f216-c214-494c-99e8-a1d4ab2de147",
@@ -2235,6 +2891,36 @@
       "status": "pending",
       "title": "Phoenix-level insight into the BEAM and every running LiveView, as a first user of a generic event model for any sub-app",
       "updated_at": "2026-11-19T02:58:05.867736-05:00"
+    },
+    "d129d9e9-cbdb-4122-b821-f188ad9fd5a8": {
+      "author": "Bobby Grayson",
+      "change_id": "d129d9e9-cbdb-4122-b821-f188ad9fd5a8",
+      "created_at": "2026-11-23T20:35:43.760124-05:00",
+      "metadata": {
+        "branch": "31-heartbeat",
+        "confidence": 85
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "/health turns JSON with 503 when stale, push heartbeat only when healthy",
+      "updated_at": "2026-11-23T20:35:43.760124-05:00"
+    },
+    "d1ce37d0-5437-4068-85c3-0c1a6f9338d5": {
+      "author": "Bobby Grayson",
+      "change_id": "d1ce37d0-5437-4068-85c3-0c1a6f9338d5",
+      "created_at": "2026-11-23T20:48:30.199460-05:00",
+      "metadata": {
+        "branch": "33-deploy-commits",
+        "commit": "7c7b615b8a14a7dfdf94ee3bd20cea1d025ae997",
+        "confidence": 85,
+        "files": [
+          "priv/static/assets/js/deploys.js"
+        ]
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "deploys channel and timeline sha marks (deploys.js)",
+      "updated_at": "2026-11-23T20:48:30.199460-05:00"
     },
     "d243b111-a926-42e7-82e5-11afe447dcb1": {
       "author": "Bobby Grayson",
@@ -2317,6 +3003,24 @@
       "title": "Ship the observer moonshot and clustered marginalia's factory_report to production, and watch it live",
       "updated_at": "2026-11-23T12:47:56.910242-05:00"
     },
+    "d7a280ed-e69d-4082-8ed3-b7b1b4e8eef6": {
+      "author": "Bobby Grayson",
+      "change_id": "d7a280ed-e69d-4082-8ed3-b7b1b4e8eef6",
+      "created_at": "2026-11-23T20:48:30.047129-05:00",
+      "metadata": {
+        "branch": "33-deploy-commits",
+        "commit": "3afd7f50cb77d42f3119cc1121ea623ed15be5d4",
+        "confidence": 90,
+        "files": [
+          "lib/obs_factor/deploys.ex",
+          "lib/obs_factor/wire.ex"
+        ]
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Deploys source, wire pairing, snapshot fact, writeup rows",
+      "updated_at": "2026-11-23T20:48:30.047129-05:00"
+    },
     "d81e1fd1-3513-4c73-9bea-68a4e4e4449a": {
       "author": "Bobby Grayson",
       "change_id": "d81e1fd1-3513-4c73-9bea-68a4e4e4449a",
@@ -2345,6 +3049,20 @@
       "status": "pending",
       "title": "Deployed: factory.bobbby.online live behind Cloudflare, six sources ok, 45 nodes; classifier and icecast removed (86 connections); caddy pinned 2.10.2; Sites panel added; one unreadable site no longer fails the sites source",
       "updated_at": "2026-11-19T00:31:06.956772-05:00"
+    },
+    "db83f9f6-b60e-46cd-83ad-39a1d8228b70": {
+      "author": "Bobby Grayson",
+      "change_id": "db83f9f6-b60e-46cd-83ad-39a1d8228b70",
+      "created_at": "2026-11-23T20:47:33.017175-05:00",
+      "metadata": {
+        "branch": "33-deploy-commits",
+        "confidence": 90,
+        "prompt": "Do all that"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "Deploys tied to commits: .deployed files on the wire, timeline, inspector and writeups",
+      "updated_at": "2026-11-23T20:47:33.017175-05:00"
     },
     "dfc28105-b368-4cfa-9c5f-da4ff2e94a9c": {
       "author": "Bobby Grayson",
@@ -2425,6 +3143,20 @@
       "status": "pending",
       "title": "Four Phoenix apps report in production: BEAM gauges, routes, Ecto queries and outbound calls attributed to the route that made them, JSON logs; observer reads all four (8 sources ok). Tyler and Dave held back: local source does not match the box",
       "updated_at": "2026-11-19T03:39:19.400344-05:00"
+    },
+    "e5e236b2-e570-4d3c-86fa-1a4d8baa9994": {
+      "author": "Bobby Grayson",
+      "change_id": "e5e236b2-e570-4d3c-86fa-1a4d8baa9994",
+      "created_at": "2026-11-23T20:50:04.264700-05:00",
+      "metadata": {
+        "branch": "32-slos",
+        "confidence": 85,
+        "prompt": "Do all that"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "Error budgets per app (SLOs) from the tape",
+      "updated_at": "2026-11-23T20:50:04.264700-05:00"
     },
     "ecab76ce-52bf-4a79-a2f8-844f41fe77a5": {
       "author": "Bobby Grayson",

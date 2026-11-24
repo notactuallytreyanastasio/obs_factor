@@ -73,6 +73,8 @@ defmodule ObsFactor.Snapshot do
     all = Enum.map(listed ++ resources ++ [internet] ++ extra, &with_access(&1, env))
 
     all = Enum.map(all, &attach_build(&1, builds[&1.id]))
+    # deploys (ObsFactor.Deploys): `deployed` on every node, and its fact
+    all = ObsFactor.Deploys.attach(all, Map.get(sources, :deploys), now_ms)
     nodes = Enum.map(all, &Map.delete(&1, :attention))
 
     attention =
@@ -556,6 +558,11 @@ defmodule ObsFactor.Snapshot do
         case env.reports do
           %{^id => report} ->
             report
+
+          # A report URL that came from a container's labels this tick
+          # (ObsFactor.Discovery) is read from the next round on.
+          _ when is_map_key(t, :labelled_report) ->
+            %{ok: false, error: "not read yet: connected by its labels since the last read", at: nil}
 
           _ ->
             raise ArgumentError,

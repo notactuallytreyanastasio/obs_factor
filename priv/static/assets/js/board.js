@@ -29,6 +29,9 @@
 
 import * as bus from "./bus.js";
 import { esc, num, bytes } from "./fmt.js";
+// the SLO tab: error budgets per app (ObsFactor.SLOs), its own topic and module
+import { SLOs } from "./slo.js";
+import { Evidence } from "./evidence.js"; // the "evidence" expander on wire items
 import { PubSubTab } from "./board_pubsub.js"; // the PubSub tab
 
 const WINDOW = 15 * 60e3; // what the sparklines and moves look back over
@@ -86,10 +89,13 @@ export class Board {
     this.air = store.get(AIR_KEY); // the set on air: the chyron and crawl follow it (this viewer only)
     this.pubsub = new PubSubTab(this); // the PubSub tab (board_pubsub.js)
     this.el = document.getElementById("board");
+    // evidence (evidence.js): a capture arriving or opening redraws the list
+    this.ev = new Evidence(() => { if (this.open && (this.tab === "wire" || this.tab === "errors")) this.renderMonitor(this.tab === "errors"); });
     this.btn = document.getElementById("boardbtn");
     this.index = document.getElementById("indexrow");
     this.news = document.getElementById("news");
     this.news.innerHTML = `<div class="nw-chyron"><span class="nw-bug">LIVE</span><span class="nw-tag">BEAM</span><span class="nw-head"></span><span class="nw-clock"></span></div><div class="nw-crawl"><div class="nw-track"></div></div>`;
+    this.slo = new SLOs(this); // the SLO tab (slo.js)
     this.btn.textContent = "Board";
     this.btn.addEventListener("click", () => this.toggle());
     this.el.addEventListener("click", (e) => this.onClick(e));
@@ -139,6 +145,7 @@ export class Board {
   }
 
   onClick(e) {
+    if (this.ev.click(e)) return; // an evidence expander, or a click inside one: not a replay
     if (e.target.closest("[data-a=close]")) return this.toggle(false);
     if (this.tab === "pubsub" && this.pubsub.onClick(e)) return; // the PubSub tab's own clicks
     const tab = e.target.closest("[data-tab]");
@@ -213,6 +220,7 @@ export class Board {
     this.fetching = end;
     const from = Math.round(end - 4 * WINDOW), to = Math.round(end);
     const from6h = Math.round(end - 6 * 3600e3);
+    this.ev.load(from6h, to + 1000); // which items of the window have evidence
     Promise.all([
       bus.push("tape", "series", { from, to, points: 360 }),
       bus.push("tape", "wire", { from: from6h, to: to + 1000 }),
@@ -538,7 +546,9 @@ export class Board {
   renderMonitor(force = true) {
     if (!this.shown) { this.el.innerHTML = ""; return; }
     const at = this.shownAt ? hms(this.shownAt) : "";
-    const tabs = [["wire", `Wire <b>${this.wireUpTo().length}</b>`], ["errors", `Errors <b>${this.fingerprints().length}</b>`], ["beam", `BEAM <b>${this.keys("beam:").length}</b>`], ["db", "DB"], ["pubsub", `PubSub <b>${this.pubsub.count()}</b>`]];
+    const tabs = [["wire", `Wire <b>${this.wireUpTo().length}</b>`], ["errors", `Errors <b>${this.fingerprints().length}</b>`], ["beam", `BEAM <b>${this.keys("beam:").length}</b>`], ["db", "DB"]];
+    tabs.push(["slo", `SLO <b>${this.slo.count()}${this.slo.burning() ? "!" : ""}</b>`]); // slo.js: "!" while a burn flag is up
+    tabs.push(["pubsub", `PubSub <b>${this.pubsub.count()}</b>`]);
     const head = `<div class="bd-head"><h3>Board</h3><div class="bd-tabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${this.tab === k}">${l}</button>`).join("")}</div>
       <span class="bd-at">${this.api.timeline.replaying ? "REPLAY" : "LIVE"} ${at}</span><button type="button" class="fi-x" data-a="close" aria-label="Close">×</button></div>`;
     const active = this.el.contains(document.activeElement) && typing(document.activeElement) ? document.activeElement : null;
@@ -548,7 +558,7 @@ export class Board {
     // else's set arrives) keeps its text, focus and cursor across a redraw
     const keep = active && (active.name === "wq" || active.name === "name") ? { name: active.name, value: active.value, sel: [active.selectionStart, active.selectionEnd] } : null;
     if (this.tab !== "pubsub") this.pubsub.idle(); // its feeds only while it shows
-    const body = this.tab === "wire" ? this.wireTab() : this.tab === "errors" ? this.errorsTab() : this.tab === "beam" ? this.beamTab() : this.tab === "pubsub" ? this.pubsub.tab() : this.dbTab();
+    const body = this.tab === "slo" ? this.slo.tab() : this.tab === "wire" ? this.wireTab() : this.tab === "errors" ? this.errorsTab() : this.tab === "beam" ? this.beamTab() : this.tab === "pubsub" ? this.pubsub.tab() : this.dbTab();
     this.el.innerHTML = head + body;
     if (this.tab === "wire") this.renderWireList();
     if (keep) { const i = this.el.querySelector(`input[name=${keep.name}]`); if (i) { i.value = keep.value; i.focus(); i.setSelectionRange(...keep.sel); } }
@@ -606,7 +616,7 @@ export class Board {
     const items = all.filter((w) => matches(this.filter, w)).slice(0, 300);
     ol.innerHTML = items.map((w) => `<li class="${esc(w.sev)}" data-wire="${esc(String(w.id ?? w.key))}" title="Replay this moment">
           <span class="t">${hms(w.at)}</span><span class="k">${esc(w.kind)}</span>
-          <div><b>${esc(w.label ?? w.app ?? "")}</b> ${esc(w.head)}${w.member ? ` <span class="m">${esc(shortNode(w.member))}</span>` : ""}<div class="x">${esc(w.text ?? "")}</div></div></li>`).join("");
+          <div><b>${esc(w.label ?? w.app ?? "")}</b> ${esc(w.head)}${w.member ? ` <span class="m">${esc(shortNode(w.member))}</span>` : ""}<div class="x">${esc(w.text ?? "")}</div>${this.ev.tag(w, "wire")}</div></li>`).join("");
     const n = this.el.querySelector(".bd-n");
     if (n) n.textContent = `${items.length} of ${all.length}`;
     const empty = this.el.querySelector(".bd-empty");
@@ -642,7 +652,7 @@ export class Board {
       return `<li class="${esc(g.sev)}" data-fp="${esc(g.k)}" data-wire="${esc(String(last.id ?? last.key))}" title="Replay the last one">
         <span class="n">×${g.items.length}</span>
         <div><b>${esc(g.label ?? g.app ?? "")}</b> ${esc(last.head)}<div class="x">${esc(last.text ?? "")}</div>
-        <div class="m">${esc(g.kind)} · first ${hms(first.at)} · last ${hms(last.at)} (${ago(end - last.at)} ago)</div></div>${bars(g.items)}</li>`;
+        <div class="m">${esc(g.kind)} · first ${hms(first.at)} · last ${hms(last.at)} (${ago(end - last.at)} ago)</div>${this.ev.tag(g.items.find((w) => this.ev.find(w)), "errors")}</div>${bars(g.items)}</li>`;
     }).join("")}</ol><p class="bd-foot">Grouped by app, kind and headline with numbers, pids and hex blanked. Bars: the last 6 hours${this.errorsCut ? ", but only the newest 3,000 errors of them: older groups may be missing or undercounted" : ""}.</p>`;
   }
 

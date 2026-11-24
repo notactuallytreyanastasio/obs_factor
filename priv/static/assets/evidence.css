@@ -1,0 +1,23 @@
+/* Evidence (assets/js/evidence.js): the expander under a wire item on the
+   board's Wire and Errors tabs, and what was captured at that moment. */
+
+.ev-btn { display: inline-block; margin-top: 4px; padding: 1px 7px; border: 1px solid rgba(255, 179, 71, 0.45); border-radius: 3px;
+  background: rgba(255, 179, 71, 0.08); color: #ffcf8a; font: 700 10px var(--mono); letter-spacing: 0.04em; cursor: pointer;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ev-btn::before { content: "▸ "; }
+.ev-btn[aria-expanded="true"]::before { content: "▾ "; }
+.ev-btn:hover, .ev-btn:focus-visible { background: rgba(255, 179, 71, 0.18); }
+
+.ev-body { margin-top: 6px; padding: 6px 8px; border-left: 2px solid rgba(255, 179, 71, 0.5); background: rgba(0, 0, 0, 0.25); cursor: default;
+  font: 11px var(--mono); color: var(--text); overflow-x: auto; }
+.ev-body h5 { margin: 6px 0 2px; font: 700 9px var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+.ev-body table { width: 100%; border-collapse: collapse; }
+.ev-body td { padding: 1px 4px 1px 0; vertical-align: top; }
+.ev-body td.r { text-align: right; white-space: nowrap; }
+.ev-n { color: #ffcf8a; word-break: break-all; }
+.ev-f { color: var(--muted); word-break: break-all; }
+.ev-dim { color: var(--muted); margin: 2px 0; }
+.ev-err { color: #ff8a70; margin: 4px 0; padding-left: 14px; }
+.ev-log { margin: 0; padding-left: 14px; color: #9aa3b8; }
+.ev-log b { color: #ff8a70; font-weight: 700; }
+.ev-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); column-gap: 12px; }

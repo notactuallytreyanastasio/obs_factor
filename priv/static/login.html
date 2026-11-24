@@ -6,17 +6,26 @@
   <meta name="theme-color" content="#0b0e17">
   <title>obs_factor · sign in</title>
   <link rel="stylesheet" href="/assets/app.css">
+  <link rel="stylesheet" href="/assets/identity.css">
 </head>
 <body class="login">
-  <form class="login-card" method="post" action="/login">
+  <div class="login-card">
     <div class="brand"><span class="mark" aria-hidden="true"></span>obs_factor</div>
     <p>The factory floor of bobbby.online</p>
     <div class="error" id="error" role="alert" hidden>Wrong password.</div>
-    <input type="text" name="username" value="obs_factor" autocomplete="username" hidden aria-hidden="true">
-    <label for="password">Password</label>
-    <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
-    <button type="submit">Enter</button>
-  </form>
+    <!-- identities: AuthController.show cuts out each block whose way in is off (ObsFactorWeb.Identity) -->
+    <!--github-->
+    <a class="login-github" href="/auth/github">Sign in with GitHub</a>
+    <!--/github-->
+    <!--password-->
+    <form method="post" action="/login" class="login-password">
+      <input type="text" name="username" value="obs_factor" autocomplete="username" hidden aria-hidden="true">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+      <button type="submit">Enter</button>
+    </form>
+    <!--/password-->
+  </div>
   <script type="module" src="/assets/js/login.js"></script>
 </body>
 </html>

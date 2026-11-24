@@ -253,6 +253,8 @@ defmodule ObsFactor.SnapshotTest do
       assert Map.keys(n) |> Enum.sort() ==
                Enum.sort(
                  ~w(build container facts headline holds hosts id inside kind label latency platform pos probe reason routes status style via) ++
+                   # deploys (ObsFactor.Deploys)
+                   ~w(deployed) ++
                    extra
                )
 

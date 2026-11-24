@@ -15,7 +15,8 @@ defmodule ObsFactorWeb.StaticPage do
 
   import Plug.Conn
 
-  def send_page(conn, file) do
+  # `transform` (identities: the login page) rewrites the HTML before it is stamped
+  def send_page(conn, file, transform \\ & &1) do
     dir =
       Application.get_env(:obs_factor, :pages_dir) ||
         Application.app_dir(:obs_factor, "priv/static")
@@ -24,7 +25,7 @@ defmodule ObsFactorWeb.StaticPage do
 
     case File.read(path) do
       {:ok, html} ->
-        html = stamp(html, Path.join(dir, "assets"))
+        html = stamp(transform.(html), Path.join(dir, "assets"))
 
         conn
         |> put_resp_content_type("text/html")

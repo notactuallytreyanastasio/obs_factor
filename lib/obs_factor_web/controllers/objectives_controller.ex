@@ -6,8 +6,9 @@ defmodule ObsFactorWeb.ObjectivesController do
     POST /api/objectives        a pin: {node, title, note, by}
     POST /api/objectives/:id    {action: look | done | reopen, note, by}
 
-  `by` is whatever name the person on the floor gave: there is one
-  password, not accounts, so it is a label and not an identity.
+  `by` is the GitHub login under a GitHub sign-in (ObsFactorWeb.Identity),
+  whatever was sent; under the password login it is whatever name the
+  person on the floor gave, a label and not an identity.
   503 when this observer has no objectives store (OBJECTIVES_PG_URL unset)
   or it cannot reach Postgres, with the reason.
   """
@@ -20,10 +21,14 @@ defmodule ObsFactorWeb.ObjectivesController do
   end
 
   def create(conn, params) do
+    # identities: `by` is the GitHub login when there is one
+    params = ObsFactorWeb.Identity.sign(params, conn.assigns[:identity])
     with_store(conn, fn -> Objectives.pin(params) end, fn o -> conn |> put_status(201) |> json(o) end)
   end
 
   def update(conn, %{"id" => id} = params) do
+    params = ObsFactorWeb.Identity.sign(params, conn.assigns[:identity])
+
     case {Integer.parse(id), params["action"]} do
       {{n, ""}, action} when action in ~w(look done reopen) ->
         with_store(conn, fn -> Objectives.act(n, action, params) end, &json(conn, &1))

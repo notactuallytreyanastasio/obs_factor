@@ -82,8 +82,10 @@ defmodule ObsFactor.Reports do
   end
 
   @impl true
-  def collect(%{targets: targets, token: token} = state) do
+  def collect(%{targets: static, token: token} = state) do
     started = System.system_time(:millisecond)
+    # plus every report an obs_factor.report label adds (ObsFactor.Discovery)
+    targets = static ++ ObsFactor.Discovery.report_targets()
 
     # {id, address or nil, url}: one per replica of a scaled service
     reads = Enum.flat_map(targets, fn {id, url} -> Enum.map(expand(url), fn {addr, u} -> {id, addr, u} end) end)

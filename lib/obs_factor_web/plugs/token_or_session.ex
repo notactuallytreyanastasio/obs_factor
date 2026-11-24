@@ -19,7 +19,11 @@ defmodule ObsFactorWeb.Plugs.TokenOrSession do
         end
 
       _ ->
-        if get_session(conn, :authed) == true, do: conn, else: deny(conn, "unauthorized: log in, or send Authorization: Bearer <token>")
+        # identities: the session's identity, as RequireSession checks it
+        case ObsFactorWeb.Identity.of_session(conn) do
+          nil -> deny(conn, "unauthorized: log in, or send Authorization: Bearer <token>")
+          identity -> assign(conn, :identity, identity)
+        end
     end
   end
 

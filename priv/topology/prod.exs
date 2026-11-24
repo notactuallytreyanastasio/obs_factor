@@ -33,6 +33,13 @@
 # Dave do not yet: their source here does not match what the box runs.
 #
 # Unverified items are marked UNVERIFIED with what exactly is not known.
+#
+# `deployed` and `repo` (docs/contract.md, Deploys): the .deployed file each
+# app's deploy script writes in /opt/<dir>, seen in the container at
+# /host-opt/<dir>/.deployed, and the GitHub repo its sha is in. Without
+# `deployed`, /host-opt/<service>/.deployed is tried (marginalia, tyler,
+# dave). On 2026-11-23 /opt held five: blog, dave, marginalia, obs_factor,
+# tyler. Repos are the origin remotes of the checkouts under ~/code.
 
 %{
   platforms: [
@@ -65,7 +72,9 @@
       hosts: ["old.bobbby.online"],
       via: ["bobbby.online/hotel-carbon*", "bobbby.online/static/hotel-carbon/*",
             "bobbby.online/tennis-potatoes*", "bobbby.online/static/tennis-potatoes/*"],
-      probe: "http://app:4000/", report: "http://app:9568/report", databases: ["blog_prod"]},
+      probe: "http://app:4000/", report: "http://app:9568/report", databases: ["blog_prod"],
+      # compose builds `app` from /opt/blog (build: .), which blog/deploy.sh writes
+      deployed: "/host-opt/blog/.deployed", repo: "notactuallytreyanastasio/blog"},
 
     # bobbbys.link is host-routed inside the blinks app (Caddyfile comment).
     %{id: "blinks", label: "Blinks", kind: :app, style: "switchyard", service: "blinks",
@@ -81,19 +90,23 @@
     %{id: "marginalia", label: "Marginalia", kind: :app, style: "library", service: "marginalia",
       platform: "main", pos: {2, 4},
       hosts: ["marginalia.bobbby.online"],
-      probe: "http://marginalia:4000/", report: "http://marginalia:9568/report", databases: ["marginalia_prod"]},
+      probe: "http://marginalia:4000/", report: "http://marginalia:9568/report", databases: ["marginalia_prod"],
+      repo: "notactuallytreyanastasio/marginalia"},
 
     %{id: "tyler", label: "Tyler", kind: :app, service: "tyler",
       platform: "main", pos: {2, 5},
       hosts: ["tyler.bobbby.online"],
-      probe: "http://tyler:4000/", databases: ["tyler_prod"]},
+      probe: "http://tyler:4000/", databases: ["tyler_prod"],
+      # built from /opt/tyler/app; tyler/deploy.sh writes /opt/tyler/.deployed
+      repo: "notactuallytreyanastasio/tyler"},
 
     # UNVERIFIED: no router.ex was found in ~/code/dave, so "/" is assumed to
     # answer below 500 like the other Phoenix apps.
     %{id: "dave", label: "Dave", kind: :app, style: "conservatory", service: "dave",
       platform: "main", pos: {2, 6},
       hosts: ["dave.bobbby.online"],
-      probe: "http://dave:4000/", databases: ["dave_prod"]},
+      probe: "http://dave:4000/", databases: ["dave_prod"],
+      repo: "notactuallytreyanastasio/dave"},
 
     # No database: reads a snapshot mounted at /data.
     %{id: "skyfeed", label: "Skyfeed", kind: :app, style: "observatory", service: "skyfeed",
@@ -105,7 +118,8 @@
     %{id: "obs-factor", label: "Factory (this)", kind: :app, style: "control", service: "obs-factor",
       platform: "main", pos: {2, 8},
       hosts: ["factory.bobbby.online"],
-      probe: "http://obs-factor:4000/health"},
+      probe: "http://obs-factor:4000/health",
+      deployed: "/host-opt/obs_factor/.deployed", repo: "notactuallytreyanastasio/obs_factor"},
 
     # ---------------------------------------------------------------- col 3
     # The live Claude Arena watcher (:8901) and 1v1 game server (:8902), both
