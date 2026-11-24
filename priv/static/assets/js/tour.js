@@ -5,11 +5,17 @@
 // from the live snapshot or the beam feed at that step. A stop whose subject is
 // not on this box (no failing source, no built app) is skipped, not faked.
 //
-// Start: the Tour button, or ?tour in the URL. Keys: → / Enter next,
-// ← back, Esc ends.
+// Chapters (tour_stops.js): the tour is told in parts, each one a short
+// tour of its own, picked from a menu (the Tour button) or run in order. A
+// chapter not yet seen on this browser has a pulsing beacon on the control
+// it is about; clicking one starts that chapter.
+//
+// Start: the Tour button, ?tour (the menu) or ?tour=<chapter> in the URL.
+// Keys: → / Enter next, ← back, Esc ends.
 
 import { num, esc, utc, duration } from "./fmt.js";
 import { headlineText } from "./overlay.js";
+import { chapters } from "./tour_stops.js";
 
 const $ = (id) => document.getElementById(id);
 const q = (sel) => document.querySelector(sel);
@@ -304,38 +310,116 @@ function steps(api) {
   ];
 }
 
+const SEEN_KEY = "obs.tour.seen";
+const BEACONS_KEY = "obs.tour.beacons";
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch { /* no storage: the beacons come back next visit */ } },
+};
+
 export class Tour {
   constructor(api) {
     this.api = api;
-    this.steps = steps(api);
+    const old = steps(api);
+    this.finale = old[old.length - 1];
+    this.chapters = chapters(api, new Map(old.map((s) => [s.title, s])));
+    for (const c of this.chapters) for (const st of c.steps) st.chapter = c;
+    this.steps = [];
     this.i = -1;
+    this.seen = new Set((() => { try { return JSON.parse(store.get(SEEN_KEY) ?? "[]"); } catch { return []; } })());
     this.root = document.createElement("div");
     this.root.id = "tour";
     this.root.hidden = true;
     this.root.innerHTML = `<div class="tour-spot"></div><div class="tour-card" role="dialog" aria-live="polite" aria-labelledby="tour-title">
-      <div class="tour-meta"><span class="tour-n"></span><button type="button" class="tour-end">End tour</button></div>
+      <i class="tour-arrow" hidden></i><div class="tour-progress"><span></span></div>
+      <div class="tour-meta"><span class="tour-n"></span><span class="tour-links"><button type="button" class="tour-skip">Skip chapter</button><button type="button" class="tour-menu">Chapters</button><button type="button" class="tour-end">End tour</button></span></div>
       <h3 id="tour-title"></h3><div class="tour-body"></div>
-      <div class="tour-nav"><button type="button" class="tour-back">Back</button><span class="tour-dots"></span><button type="button" class="tour-next">Next</button></div></div>`;
+      <div class="tour-nav"><button type="button" class="tour-back">Back</button><span class="tour-dots"></span><button type="button" class="tour-next">Next</button></div></div>
+      <div class="tour-picker" role="dialog" aria-labelledby="tour-pick-title" hidden></div>`;
     document.body.appendChild(this.root);
     this.spot = this.root.querySelector(".tour-spot");
     this.card = this.root.querySelector(".tour-card");
+    this.arrow = this.root.querySelector(".tour-arrow");
+    this.picker = this.root.querySelector(".tour-picker");
     this.root.querySelector(".tour-end").addEventListener("click", () => this.stop());
+    this.root.querySelector(".tour-menu").addEventListener("click", () => this.menu());
+    this.root.querySelector(".tour-skip").addEventListener("click", () => this.skipChapter());
     this.root.querySelector(".tour-back").addEventListener("click", () => this.move(-1));
     this.root.querySelector(".tour-next").addEventListener("click", () => this.move(1));
+    this.picker.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-ch]");
+      if (b) return this.run(b.dataset.ch === "*" ? null : b.dataset.ch);
+      if (e.target.closest("[data-a=beacons]")) { store.set(BEACONS_KEY, this.beaconsOn() ? "off" : "on"); this.renderPicker(); this.beacons(); }
+      if (e.target.closest("[data-a=close]")) this.stop();
+    });
     window.addEventListener("keydown", (e) => {
-      if (this.i < 0) return;
+      if (this.root.hidden) return;
+      if (!this.picker.hidden) { if (e.key === "Escape") this.stop(); return; }
       if (e.key === "ArrowRight" || (e.key === "Enter" && !e.target.closest("input, select, textarea"))) { e.preventDefault(); this.move(1); }
       else if (e.key === "ArrowLeft") { e.preventDefault(); this.move(-1); }
       else if (e.key === "Escape") this.stop();
     });
+    // beacons: one per chapter not yet seen, on the control it is about
+    this.beaconEl = document.createElement("div");
+    this.beaconEl.id = "tour-beacons";
+    document.body.appendChild(this.beaconEl);
+    this.beaconEl.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-ch]");
+      if (b) this.run(b.dataset.ch);
+    });
+    setInterval(() => this.beacons(), 700);
     this.raf = null;
     this.busy = false;
   }
 
-  get active() { return this.i >= 0; }
+  get active() { return this.i >= 0 || !this.root.hidden; }
 
-  start() {
+  beaconsOn() { return store.get(BEACONS_KEY) !== "off"; }
+
+  // ---- the chapter menu --------------------------------------------------------
+
+  /** The menu of chapters; `start()` is the same, for the Tour button. */
+  menu() {
     if (!this.api.snap()) return;
+    this.halt();
+    this.root.hidden = false;
+    document.body.classList.add("touring");
+    this.card.hidden = true;
+    this.spot.classList.add("none");
+    this.picker.hidden = false;
+    this.renderPicker();
+    this.beacons();
+    this.picker.querySelector("[data-ch]")?.focus({ preventScroll: true });
+  }
+
+  start(chapter) {
+    if (chapter) return this.run(chapter);
+    this.menu();
+  }
+
+  renderPicker() {
+    const s = this.api.snap();
+    const count = (c) => c.steps.filter((x) => !x.skip?.(s)).length;
+    const total = this.chapters.reduce((n, c) => n + count(c), 0) + 1;
+    this.picker.innerHTML = `<div class="tp-head"><h3 id="tour-pick-title">Take the tour</h3><button type="button" class="tp-x" data-a="close" aria-label="Close">×</button></div>
+      <p class="tp-lead">It drives the real page and quotes live numbers. Take it all, or one part.</p>
+      <button type="button" class="tp-all" data-ch="*"><b>The whole tour</b><span>${total} stops, about ${Math.max(5, Math.round(total * 0.4))} minutes</span></button>
+      <ol class="tp-list">${this.chapters.map((c, k) => `<li><button type="button" data-ch="${c.id}" class="${this.seen.has(c.id) ? "seen" : ""}">
+        <span class="tp-n">${k + 1}</span><span class="tp-t"><b>${esc(c.title)}</b><span>${esc(c.blurb)}</span></span><span class="tp-c">${this.seen.has(c.id) ? "✓ " : ""}${count(c)}</span></button></li>`).join("")}</ol>
+      <label class="tp-beacons"><input type="checkbox" data-a="beacons"${this.beaconsOn() ? " checked" : ""}> Pulse a beacon on parts not yet seen</label>`;
+  }
+
+  // ---- running -----------------------------------------------------------------
+
+  run(chapterId) {
+    if (!this.api.snap()) return;
+    const chs = chapterId ? this.chapters.filter((c) => c.id === chapterId) : this.chapters;
+    if (!chs.length) return this.menu();
+    this.whole = !chapterId;
+    this.steps = chs.flatMap((c) => c.steps);
+    if (this.whole) this.steps.push(this.finale);
+    this.picker.hidden = true;
+    this.card.hidden = false;
     this.root.hidden = false;
     document.body.classList.add("touring");
     this.i = -1;
@@ -347,28 +431,58 @@ export class Tour {
     this.raf = requestAnimationFrame(loop);
   }
 
-  stop() {
-    if (this.i < 0) return;
-    this.i = -1;
-    this.root.hidden = true;
-    document.body.classList.remove("touring");
+  // the tour leaves the page as it found it: live, panels shut
+  halt() {
     cancelAnimationFrame(this.raf);
+    if (this.i >= 0) { try { this.api.closeAll(); } catch { /* a panel that isn't there */ } }
+    this.i = -1;
+  }
+
+  stop() {
+    if (this.root.hidden) return;
+    this.halt();
+    this.root.hidden = true;
+    this.picker.hidden = true;
+    document.body.classList.remove("touring");
+    this.beacons();
+  }
+
+  skipChapter() {
+    const c = this.steps[this.i]?.chapter;
+    if (!c) return this.move(1);
+    let j = this.i;
+    while (j + 1 < this.steps.length && this.steps[j + 1].chapter === c) j++;
+    this.i = j;
+    this.move(1);
+  }
+
+  markSeen(c) {
+    if (!c || this.seen.has(c.id)) return;
+    this.seen.add(c.id);
+    store.set(SEEN_KEY, JSON.stringify([...this.seen]));
   }
 
   // Skips forward or back over stops whose subject isn't on this box.
   async move(dir) {
-    if (this.busy) return;
+    // the chapter menu is up: Next/Back belong to no chapter
+    if (this.busy || this.card.hidden || this.root.hidden) return;
     this.busy = true;
     try {
       let j = this.i + dir;
       while (j >= 0 && j < this.steps.length && this.steps[j].skip?.(this.api.snap())) j += dir;
-      if (j >= this.steps.length) return this.stop();
+      if (j >= this.steps.length) {
+        this.markSeen(this.steps[this.i]?.chapter);
+        return this.whole ? this.stop() : this.menu();
+      }
       if (j < 0) return;
       const st = this.steps[j];
       this.card.classList.add("moving");
-      await st.enter?.(this.api.snap());
+      try { await st.enter?.(this.api.snap()); } catch (x) { console.warn("tour: a stop's enter failed", st.title, x); }
       // a stop can depend on the page the enter step produced: re-check
-      if (st.skip?.(this.api.snap())) { this.i = j; this.busy = false; return this.move(dir); }
+      if (st.skip?.(this.api.snap()) || st.skipAfter?.()) { this.i = j; this.busy = false; return this.move(dir); }
+      // leaving a chapter forwards counts as seeing it
+      const was = this.steps[this.i]?.chapter;
+      if (dir > 0 && was && was !== st.chapter) this.markSeen(was);
       this.i = j;
       this.render();
     } finally {
@@ -381,22 +495,29 @@ export class Tour {
     const st = this.steps[this.i];
     const s = this.api.snap();
     const shown = this.shown.includes(st) ? this.shown : this.steps.filter((x) => !x.skip?.(s));
-    const k = shown.indexOf(st);
-    this.root.querySelector(".tour-n").textContent = `${k + 1} of ${shown.length}`;
+    const k = Math.max(0, shown.indexOf(st));
+    const c = st.chapter;
+    const inCh = c ? shown.filter((x) => x.chapter === c) : [];
+    this.root.querySelector(".tour-n").innerHTML = c
+      ? `<b>${esc(c.title)}</b> · ${inCh.indexOf(st) + 1} of ${inCh.length}${this.whole ? ` <span class="dim">(${k + 1}/${shown.length})</span>` : ""}`
+      : `${k + 1} of ${shown.length}`;
+    this.root.querySelector(".tour-skip").hidden = !(this.whole && c);
+    this.root.querySelector(".tour-progress span").style.width = `${Math.round(((k + 1) / shown.length) * 100)}%`;
     this.root.querySelector("#tour-title").textContent = st.title;
     let body;
     try { body = st.body(s); } catch (x) { body = `<p class="note err">This stop couldn't read what it needed: ${esc(x.message)}</p>`; }
     this.root.querySelector(".tour-body").innerHTML = body;
     this.root.querySelector(".tour-back").disabled = k <= 0;
-    this.root.querySelector(".tour-next").textContent = k === shown.length - 1 ? "Finish" : "Next";
-    this.root.querySelector(".tour-dots").innerHTML = shown.map((_, n) => `<i class="${n === k ? "on" : n < k ? "past" : ""}"></i>`).join("");
+    this.root.querySelector(".tour-next").textContent = k === shown.length - 1 ? (this.whole ? "Finish" : "Done") : "Next";
+    const dots = this.whole ? inCh : shown;
+    this.root.querySelector(".tour-dots").innerHTML = dots.map((x) => { const n = dots.indexOf(x), at = dots.indexOf(st); return `<i class="${n === at ? "on" : n < at ? "past" : ""}"></i>`; }).join("");
     this.place();
     this.card.querySelector(".tour-next").focus({ preventScroll: true });
   }
 
   // Every frame: targets move (the camera flies, panels scroll, data re-renders).
   place() {
-    if (this.i < 0) return;
+    if (this.i < 0 || this.card.hidden) return;
     const st = this.steps[this.i];
     let r = null;
     try { r = st.target?.(this.api.snap()) ?? null; } catch { r = null; }
@@ -413,17 +534,50 @@ export class Tour {
       this.spot.classList.add("none");
       r = null;
     }
-    const cw = this.card.offsetWidth, ch = this.card.offsetHeight, gap = 14;
-    let cx, cy;
+    const cw = this.card.offsetWidth, ch = this.card.offsetHeight, gap = 18;
+    let cx, cy, side = null;
     if (!r) { cx = (W - cw) / 2; cy = (H - ch) / 2; }
-    else if (W < 600) { cx = (W - cw) / 2; cy = r.bottom + gap + ch < H ? r.bottom + gap : r.top - gap - ch >= 0 ? r.top - gap - ch : H - ch - 10; }
-    else if (r.right + gap + cw < W) { cx = r.right + gap; cy = r.top + r.height / 2 - ch / 2; }
-    else if (r.left - gap - cw > 0) { cx = r.left - gap - cw; cy = r.top + r.height / 2 - ch / 2; }
-    else if (r.bottom + gap + ch < H) { cx = r.left + r.width / 2 - cw / 2; cy = r.bottom + gap; }
-    else if (r.top - gap - ch > 0) { cx = r.left + r.width / 2 - cw / 2; cy = r.top - gap - ch; }
+    else if (W < 600) {
+      if (r.bottom + gap + ch < H) { cy = r.bottom + gap; side = "top"; } else if (r.top - gap - ch >= 0) { cy = r.top - gap - ch; side = "bottom"; } else cy = H - ch - 10;
+      cx = (W - cw) / 2;
+    }
+    // a target along the bottom (the timeline, the chyron) reads best with the card above it
+    else if (r.top > H * 0.55 && r.top - gap - ch > 0) { cx = r.left + r.width / 2 - cw / 2; cy = r.top - gap - ch; side = "bottom"; }
+    else if (r.right + gap + cw < W) { cx = r.right + gap; cy = r.top + r.height / 2 - ch / 2; side = "left"; }
+    else if (r.left - gap - cw > 0) { cx = r.left - gap - cw; cy = r.top + r.height / 2 - ch / 2; side = "right"; }
+    else if (r.bottom + gap + ch < H) { cx = r.left + r.width / 2 - cw / 2; cy = r.bottom + gap; side = "top"; }
+    else if (r.top - gap - ch > 0) { cx = r.left + r.width / 2 - cw / 2; cy = r.top - gap - ch; side = "bottom"; }
     else { cx = (W - cw) / 2; cy = H - ch - 10; }
     cx = Math.max(10, Math.min(W - cw - 10, cx));
     cy = Math.max(10, Math.min(H - ch - 10, cy));
     this.card.style.transform = `translate3d(${Math.round(cx)}px, ${Math.round(cy)}px, 0)`;
+    // the arrow: on the card's edge that faces the target, aimed at its middle
+    if (side) {
+      const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+      const ax = side === "left" ? -7 : side === "right" ? cw - 7 : clamp(r.left + r.width / 2 - cx - 7, 14, cw - 28);
+      const ay = side === "top" ? -7 : side === "bottom" ? ch - 7 : clamp(r.top + r.height / 2 - cy - 7, 14, ch - 28);
+      this.arrow.hidden = false;
+      const turn = { top: 45, left: -45, right: 135, bottom: 225 }[side];
+      this.arrow.style.transform = `translate(${Math.round(ax)}px, ${Math.round(ay)}px) rotate(${turn}deg)`;
+    } else this.arrow.hidden = true;
+  }
+
+  // ---- beacons -------------------------------------------------------------------
+
+  beacons() {
+    const show = this.beaconsOn() && this.root.hidden && !!this.api.snap();
+    const out = [];
+    if (show) {
+      for (const c of this.chapters) {
+        if (this.seen.has(c.id)) continue;
+        const a = c.anchor?.();
+        if (!a || !a.isConnected || a.closest("[hidden]") || !a.getClientRects().length) continue;
+        const r = a.getBoundingClientRect();
+        if (r.width === 0 || r.right < 0 || r.bottom < 0 || r.left > window.innerWidth || r.top > window.innerHeight) continue;
+        out.push(`<button type="button" class="tour-beacon" data-ch="${c.id}" style="left:${Math.round(r.right - 6)}px;top:${Math.round(r.top - 6)}px" title="Tour: ${esc(c.title)}" aria-label="Tour: ${esc(c.title)}"><i></i></button>`);
+      }
+    }
+    const html = out.join("");
+    if (html !== this.lastBeacons) { this.beaconEl.innerHTML = html; this.lastBeacons = html; }
   }
 }

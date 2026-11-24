@@ -647,7 +647,13 @@ const tour = new Tour({
   select: (id, flyTo = false) => select(id, flyTo),
   centreOn: (id) => centreOn(id),
   closeInspector: () => inspector.close(),
-  closeAll: () => { toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); missions.toggle(false); procs.toggle(false); fires?.toggle(false); jump.close(); inspector.close(); logs.close(); if (insideOf) leave(); },
+  closeAll: () => {
+    toggleLegend(false); toggleSites(false); toggleBuilder(false); beam.toggle(false); missions.toggle(false); procs.toggle(false); fires?.toggle(false); jump.close(); inspector.close(); logs.close(); if (insideOf) leave();
+    // the chapters added with the tape, the board and v1 (tour_stops.js)
+    board?.toggle(false); writeups?.close(); toggleMenu(false);
+    window.__obsFactorAlerts?.toggle(false); window.__obsFactorConnect?.close();
+    if (timeline) { timeline.toggleWins(false); if (timeline.sel) { timeline.sel = null; timeline.render(); } if (timeline.replaying) timeline.goLive(); }
+  },
   panel: (name, open) => ({ legend: toggleLegend, sites: toggleSites })[name](open),
   fitAll: () => fitAll(true),
   nodeRect,
@@ -656,11 +662,21 @@ const tour = new Tour({
   missions,
   apps: { enterObserver: () => enterObserver(), get apps() { return apps; } },
   get procs() { return procs; },
+  get timeline() { return timeline; },
+  get fires() { return fires; },
+  get board() { return board; },
+  get writeups() { return writeups; },
+  get alerts() { return window.__obsFactorAlerts; },
+  get connect() { return window.__obsFactorConnect; },
+  get deploys() { return window.__obsFactorTape?.deployMarks; },
+  menu: (open) => toggleMenu(open),
+  label: (id) => outerSnap?.nodes.find((n) => n.id === id)?.label ?? id,
 });
 $("tourbtn").addEventListener("click", () => tour.start());
 $("beambtn2").addEventListener("click", () => { toggleMenu(false); beam.toggle(true); });
 $("tourbtn2").addEventListener("click", () => { toggleMenu(false); tour.start(); });
 let tourAsked = new URLSearchParams(window.location.search).has("tour");
+const tourChapter = new URLSearchParams(window.location.search).get("tour") || null; // ?tour=board
 
 function toggleMenu(open) {
   const m = $("menu");
@@ -708,7 +724,7 @@ function display(raw) {
   $("buildbtn").hidden = !s.builder;
   if (s.builder) $("build-domain").textContent = `.${s.builder.domain}`;
   if (pendingSelect && s.nodes.some((n) => n.id === pendingSelect)) { const id = pendingSelect; pendingSelect = null; select(id, true); }
-  if (tourAsked) { tourAsked = false; setTimeout(() => tour.start(), 400); }
+  if (tourAsked) { tourAsked = false; setTimeout(() => tour.start(tourChapter), 400); }
   logs.onSnapshot();
   fires?.onShown(s);
   board?.onShown(s, Date.parse(s.at));
