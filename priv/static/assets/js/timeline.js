@@ -1018,6 +1018,14 @@ export class Timeline {
         errPts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
         ctx.stroke();
       }
+      // before the tape's first frame the columns are hourly rollups
+      // (ObsFactor.Rollups.index): dimmed, and labelled
+      const rt = this.index.rollups_to;
+      if (rt && rt > v.from) {
+        const rx = Math.min(this.X(rt), w);
+        ctx.fillStyle = "rgba(10,14,22,0.35)"; ctx.fillRect(x0, L.ovY - 1, rx - x0, L.ovH + 1);
+        ctx.fillStyle = "rgba(160,170,190,0.7)"; if (rx - x0 > 80) ctx.fillText("hourly rollups", x0 + 4, L.ovY + 8);
+      }
     } else if (this.ok) { ctx.fillStyle = "rgba(160,170,190,0.5)"; ctx.fillText("reading the tape…", x0 + 8, ovBase - 4); }
 
     // the lanes
