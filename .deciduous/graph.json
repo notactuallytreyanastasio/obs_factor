@@ -60,6 +60,16 @@
       "to_change_id": "1190c87e-b14c-4370-9f5f-0a4b00a2b943",
       "weight": 1.0
     },
+    "0c01f00d7f33c4fa73d6": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:35:43.846745-05:00",
+      "edge_id": "0c01f00d7f33c4fa73d6",
+      "edge_type": "leads_to",
+      "from_change_id": "bd86b5d0-4322-4922-96f6-8ec54434f6dc",
+      "rationale": "approach",
+      "to_change_id": "d129d9e9-cbdb-4122-b821-f188ad9fd5a8",
+      "weight": 1.0
+    },
     "0d44b5669874d7adaa19": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-23T12:48:02.815277-05:00",
@@ -140,6 +150,16 @@
       "to_change_id": "a299a523-e932-46a8-89ee-a0c47a1e19ff",
       "weight": 1.0
     },
+    "1fdf860587b5178c72ab": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:54.349611-05:00",
+      "edge_id": "1fdf860587b5178c72ab",
+      "edge_type": "leads_to",
+      "from_change_id": "30dcbde7-02b9-49b4-8b66-fa0063a74926",
+      "rationale": "verified",
+      "to_change_id": "ade9fa05-8c42-4326-a441-1af908d615a8",
+      "weight": 1.0
+    },
     "275dfc9502ec055663c6": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T00:22:41.175239-05:00",
@@ -178,6 +198,16 @@
       "from_change_id": "f6088f08-d7df-485b-b46c-ca7a747f5ce9",
       "rationale": "implementation",
       "to_change_id": "2a1f7026-4c25-48f4-b8a4-9dd01d399e65",
+      "weight": 1.0
+    },
+    "3087eacc2bed9fb9af6e": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:53.903157-05:00",
+      "edge_id": "3087eacc2bed9fb9af6e",
+      "edge_type": "leads_to",
+      "from_change_id": "386a4b37-986e-4bdb-81bf-cbdc872fbf7d",
+      "rationale": "implementation",
+      "to_change_id": "30dcbde7-02b9-49b4-8b66-fa0063a74926",
       "weight": 1.0
     },
     "30af992c1152ee1e1447": {
@@ -370,6 +400,16 @@
       "to_change_id": "be220f49-cc86-4b3e-a498-c1d8dd6ebc21",
       "weight": 1.0
     },
+    "5105432c586e666d69f8": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:54.416514-05:00",
+      "edge_id": "5105432c586e666d69f8",
+      "edge_type": "leads_to",
+      "from_change_id": "38cef362-34ae-4af8-8040-cd28a26fa238",
+      "rationale": "verified",
+      "to_change_id": "ade9fa05-8c42-4326-a441-1af908d615a8",
+      "weight": 1.0
+    },
     "53d3e4118cded4958b0a": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-18T17:31:50.049838-05:00",
@@ -378,6 +418,16 @@
       "from_change_id": "83ff9921-6146-4837-be4b-0f44e1d1b897",
       "rationale": "found on the box",
       "to_change_id": "4012b0cb-2f11-4e92-9059-3f81a39c4b33",
+      "weight": 1.0
+    },
+    "5464cd07feebc5c8fede": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:54.483651-05:00",
+      "edge_id": "5464cd07feebc5c8fede",
+      "edge_type": "leads_to",
+      "from_change_id": "49949275-9b17-4156-93bf-a9e7bd4be645",
+      "rationale": "verified",
+      "to_change_id": "ade9fa05-8c42-4326-a441-1af908d615a8",
       "weight": 1.0
     },
     "5aefe27ef9dd8b975a1f": {
@@ -418,6 +468,16 @@
       "from_change_id": "83ff9921-6146-4837-be4b-0f44e1d1b897",
       "rationale": "found on the box",
       "to_change_id": "ac44ccc9-8489-452c-816b-b65695f73975",
+      "weight": 1.0
+    },
+    "6209c091d54f2400a5d8": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:35:44.387764-05:00",
+      "edge_id": "6209c091d54f2400a5d8",
+      "edge_type": "leads_to",
+      "from_change_id": "b7fb95ed-11b3-4302-b04a-07e3489fcc96",
+      "rationale": "rejected: two endpoints that can disagree",
+      "to_change_id": "386a4b37-986e-4bdb-81bf-cbdc872fbf7d",
       "weight": 1.0
     },
     "636e0bbc2f20145d37ea": {
@@ -518,6 +578,16 @@
       "from_change_id": "d5babe13-4a38-4d79-96df-8663d2d9b298",
       "rationale": "option",
       "to_change_id": "e14fd550-b542-4ebb-8388-78911ce3b42b",
+      "weight": 1.0
+    },
+    "7d93650d8aa2ac07f4ab": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:54.062344-05:00",
+      "edge_id": "7d93650d8aa2ac07f4ab",
+      "edge_type": "leads_to",
+      "from_change_id": "386a4b37-986e-4bdb-81bf-cbdc872fbf7d",
+      "rationale": "implementation",
+      "to_change_id": "38cef362-34ae-4af8-8040-cd28a26fa238",
       "weight": 1.0
     },
     "821f31026f2c0abba1a4": {
@@ -648,6 +718,26 @@
       "from_change_id": "49a681fd-b54a-430c-b8fb-d85cdbcf1e4c",
       "rationale": "workstream",
       "to_change_id": "11c167ae-4f87-4a39-abb7-904be8199d5b",
+      "weight": 1.0
+    },
+    "a7aedec4ed8b78ad2b31": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:54.625864-05:00",
+      "edge_id": "a7aedec4ed8b78ad2b31",
+      "edge_type": "leads_to",
+      "from_change_id": "49949275-9b17-4156-93bf-a9e7bd4be645",
+      "rationale": "found while running against prod",
+      "to_change_id": "bc232a48-6cf1-4992-8573-428cc017a9f0",
+      "weight": 1.0
+    },
+    "a8dee8d8e43058a16183": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:47:54.209500-05:00",
+      "edge_id": "a8dee8d8e43058a16183",
+      "edge_type": "leads_to",
+      "from_change_id": "386a4b37-986e-4bdb-81bf-cbdc872fbf7d",
+      "rationale": "implementation",
+      "to_change_id": "49949275-9b17-4156-93bf-a9e7bd4be645",
       "weight": 1.0
     },
     "ad291b5c279faa6e7a80": {
@@ -790,6 +880,16 @@
       "to_change_id": "0d86cb3a-c047-4c8a-90df-b36a369c7105",
       "weight": 1.0
     },
+    "dde7643b609f422bb812": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:35:44.036906-05:00",
+      "edge_id": "dde7643b609f422bb812",
+      "edge_type": "leads_to",
+      "from_change_id": "bd86b5d0-4322-4922-96f6-8ec54434f6dc",
+      "rationale": "approach",
+      "to_change_id": "b7fb95ed-11b3-4302-b04a-07e3489fcc96",
+      "weight": 1.0
+    },
     "e118b3a9881ba4199db9": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T02:06:02.826177-05:00",
@@ -818,6 +918,16 @@
       "from_change_id": "918a1fa2-d319-44bc-8899-9e0cb2ac0b50",
       "rationale": "implements",
       "to_change_id": "1ba91856-c571-4d6d-8885-8ed4ddbe8a2e",
+      "weight": 1.0
+    },
+    "e30eacd6144ec7db0c98": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:35:44.274584-05:00",
+      "edge_id": "e30eacd6144ec7db0c98",
+      "edge_type": "leads_to",
+      "from_change_id": "d129d9e9-cbdb-4122-b821-f188ad9fd5a8",
+      "rationale": "chosen: one URL for deploy, watchdog and humans; status code is what every checker reads",
+      "to_change_id": "386a4b37-986e-4bdb-81bf-cbdc872fbf7d",
       "weight": 1.0
     },
     "e56ed32cc3201e086fde": {
@@ -1155,6 +1265,24 @@
       "title": "Disk 87% -> 13% (125G -> 18G used): 33.9 GB dangling images + 74.2 GB build cache freed; all 18 containers still up; tagged images, volumes and /opt/backups untouched",
       "updated_at": "2026-11-19T02:00:19.416217-05:00"
     },
+    "30dcbde7-02b9-49b4-8b66-fa0063a74926": {
+      "author": "Bobby Grayson",
+      "change_id": "30dcbde7-02b9-49b4-8b66-fa0063a74926",
+      "created_at": "2026-11-23T20:47:53.831603-05:00",
+      "metadata": {
+        "branch": "31-heartbeat",
+        "commit": "16b6b0f299445431a2e3e565c73bbb8037ca0d63",
+        "confidence": 90,
+        "files": [
+          "lib/obs_factor/health.ex",
+          "lib/obs_factor_web/controllers/health_controller.ex"
+        ]
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "/health: JSON, 503 when snapshot older than 30 s or ticker gone",
+      "updated_at": "2026-11-23T20:47:53.831603-05:00"
+    },
     "33c8b078-45bd-4560-b610-20eb2282632c": {
       "author": "Bobby Grayson",
       "change_id": "33c8b078-45bd-4560-b610-20eb2282632c",
@@ -1181,6 +1309,19 @@
       "title": "Writeups: Markdown reports generated from any slice (window, selection, filter set, apps) for external consumption",
       "updated_at": "2026-11-23T19:54:35.815001-05:00"
     },
+    "386a4b37-986e-4bdb-81bf-cbdc872fbf7d": {
+      "author": "Bobby Grayson",
+      "change_id": "386a4b37-986e-4bdb-81bf-cbdc872fbf7d",
+      "created_at": "2026-11-23T20:35:44.154749-05:00",
+      "metadata": {
+        "branch": "31-heartbeat",
+        "confidence": 85
+      },
+      "node_type": "decision",
+      "status": "pending",
+      "title": "One /health: JSON, 200 only when last snapshot < 30 s and ticker alive; deploy.sh checks status+ok:true",
+      "updated_at": "2026-11-23T20:35:44.154749-05:00"
+    },
     "38883825-4447-4253-a11d-64d96ca18180": {
       "author": "Bobby Grayson",
       "change_id": "38883825-4447-4253-a11d-64d96ca18180",
@@ -1193,6 +1334,23 @@
       "status": "pending",
       "title": "Access-log collector, snapshot fields (routes, latency, via rates, clients), inspector sections, Caddy snippet, lab and deploy wiring",
       "updated_at": "2026-11-19T02:06:03.085086-05:00"
+    },
+    "38cef362-34ae-4af8-8040-cd28a26fa238": {
+      "author": "Bobby Grayson",
+      "change_id": "38cef362-34ae-4af8-8040-cd28a26fa238",
+      "created_at": "2026-11-23T20:47:53.993684-05:00",
+      "metadata": {
+        "branch": "31-heartbeat",
+        "commit": "cd536702f1bb9b1ae65a3e15f59a2f7fdc4dfe71",
+        "confidence": 90,
+        "files": [
+          "lib/obs_factor/heartbeat.ex"
+        ]
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "ObsFactor.Heartbeat pings HEARTBEAT_URL only while healthy, optional /fail",
+      "updated_at": "2026-11-23T20:47:53.993684-05:00"
     },
     "3c2fd9f5-3e71-4096-932a-d3682c290ae7": {
       "author": "Bobby Grayson",
@@ -1273,6 +1431,25 @@
       "status": "pending",
       "title": "One observer service in the stack: polls Docker, Caddy, Postgres, /proc itself",
       "updated_at": "2026-11-18T17:31:49.776841-05:00"
+    },
+    "49949275-9b17-4156-93bf-a9e7bd4be645": {
+      "author": "Bobby Grayson",
+      "change_id": "49949275-9b17-4156-93bf-a9e7bd4be645",
+      "created_at": "2026-11-23T20:47:54.141393-05:00",
+      "metadata": {
+        "branch": "31-heartbeat",
+        "commit": "33d5bbbc6dfcf651708e99691e90a4f4f44a8acc",
+        "confidence": 90,
+        "files": [
+          "deploy/watchdog.sh",
+          "deploy/watchdog.launchd.plist",
+          "deploy/WATCHDOG.md"
+        ]
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "deploy/watchdog.sh + launchd plist: alert after 3 failures, once on recovery",
+      "updated_at": "2026-11-23T20:47:54.141393-05:00"
     },
     "49a681fd-b54a-430c-b8fb-d85cdbcf1e4c": {
       "author": "Bobby Grayson",
@@ -1846,6 +2023,19 @@
       "title": "factory_report's JSON shape on stdout in prod; ObsFactorWeb.Log replaces Phoenix.Logger",
       "updated_at": "2026-11-23T12:25:51.841750-05:00"
     },
+    "ade9fa05-8c42-4326-a441-1af908d615a8": {
+      "author": "Bobby Grayson",
+      "change_id": "ade9fa05-8c42-4326-a441-1af908d615a8",
+      "created_at": "2026-11-23T20:47:54.282702-05:00",
+      "metadata": {
+        "branch": "31-heartbeat",
+        "confidence": 95
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "Suspended ticker: /health 503 snapshot_stale, heartbeat posted /fail, resumed pings; watchdog alerted and recovered under sh and dash; 424 tests pass",
+      "updated_at": "2026-11-23T20:47:54.282702-05:00"
+    },
     "ae14850f-d771-48dd-8791-f5559c17f16b": {
       "author": "Bobby Grayson",
       "change_id": "ae14850f-d771-48dd-8791-f5559c17f16b",
@@ -1911,6 +2101,19 @@
       "title": "Floor redrawn: 13 buildings by style, rails coloured per destination, items by status class, memory gauges, in-flight crates, Postgres container yard, inspector host breakdown; checked in headless Chrome on both fixtures and on the lab observer",
       "updated_at": "2026-11-19T01:49:19.753107-05:00"
     },
+    "b7fb95ed-11b3-4302-b04a-07e3489fcc96": {
+      "author": "Bobby Grayson",
+      "change_id": "b7fb95ed-11b3-4302-b04a-07e3489fcc96",
+      "created_at": "2026-11-23T20:35:43.944682-05:00",
+      "metadata": {
+        "branch": "31-heartbeat",
+        "confidence": 50
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "Keep /health as plain ok and add a separate /health/deep",
+      "updated_at": "2026-11-23T20:35:43.944682-05:00"
+    },
     "b936e77d-3937-4a18-bdf9-20bc063ac7ed": {
       "author": "Bobby Grayson",
       "change_id": "b936e77d-3937-4a18-bdf9-20bc063ac7ed",
@@ -1937,6 +2140,19 @@
       "title": "Only 2 of 18 containers have a Docker healthcheck; Caddy 2.10.2 exposes no HTTP metrics yet",
       "updated_at": "2026-11-18T17:31:49.594659-05:00"
     },
+    "bc232a48-6cf1-4992-8573-428cc017a9f0": {
+      "author": "Bobby Grayson",
+      "change_id": "bc232a48-6cf1-4992-8573-428cc017a9f0",
+      "created_at": "2026-11-23T20:47:54.558642-05:00",
+      "metadata": {
+        "branch": "31-heartbeat",
+        "confidence": 90
+      },
+      "node_type": "observation",
+      "status": "pending",
+      "title": "Production /health still plain ok: watchdog must be installed after deploy, or it alerts at once",
+      "updated_at": "2026-11-23T20:47:54.558642-05:00"
+    },
     "bd17096e-0fba-4399-98ab-2cf13a3d4e5e": {
       "author": "Bobby Grayson",
       "change_id": "bd17096e-0fba-4399-98ab-2cf13a3d4e5e",
@@ -1950,6 +2166,20 @@
       "status": "pending",
       "title": "Deploy the per-subdomain floor, access log and reports to production",
       "updated_at": "2026-11-19T03:14:13.576502-05:00"
+    },
+    "bd86b5d0-4322-4922-96f6-8ec54434f6dc": {
+      "author": "Bobby Grayson",
+      "change_id": "bd86b5d0-4322-4922-96f6-8ec54434f6dc",
+      "created_at": "2026-11-23T20:35:39.355334-05:00",
+      "metadata": {
+        "branch": "31-heartbeat",
+        "confidence": 90,
+        "prompt": "Do all that"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "Something outside the box notices if the observer dies (heartbeat + watchdog)",
+      "updated_at": "2026-11-23T20:35:39.355334-05:00"
     },
     "be220f49-cc86-4b3e-a498-c1d8dd6ebc21": {
       "author": "Bobby Grayson",
@@ -2019,6 +2249,19 @@
       "status": "pending",
       "title": "Phoenix-level insight into the BEAM and every running LiveView, as a first user of a generic event model for any sub-app",
       "updated_at": "2026-11-19T02:58:05.867736-05:00"
+    },
+    "d129d9e9-cbdb-4122-b821-f188ad9fd5a8": {
+      "author": "Bobby Grayson",
+      "change_id": "d129d9e9-cbdb-4122-b821-f188ad9fd5a8",
+      "created_at": "2026-11-23T20:35:43.760124-05:00",
+      "metadata": {
+        "branch": "31-heartbeat",
+        "confidence": 85
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "/health turns JSON with 503 when stale, push heartbeat only when healthy",
+      "updated_at": "2026-11-23T20:35:43.760124-05:00"
     },
     "d243b111-a926-42e7-82e5-11afe447dcb1": {
       "author": "Bobby Grayson",
