@@ -1254,6 +1254,42 @@ mailbox 100/1000, memory 50/200 MiB, reductions 500k/2M per second).
 The jump list (`jump.js`, Cmd/Ctrl+K) joins `objectives` while it is open.
 
 
+## Hourly rollups: history past the tape's 7 days *(2026-11-23)*
+
+`ObsFactor.Rollups`: one row per UTC hour in `tape_rollups` (objectives
+database, created at runtime), kept 13 months. Computed once per hour from
+the tape's frames, by a job that looks every 5 minutes for hours that are
+over (a minute's grace) and have frames but no row, oldest first; on start
+it catches up on everything the tape still holds. `roll_hour/2` recomputes
+one (an upsert) while its frames exist.
+
+Per hour: `frames`, `tape_s` (each frame counts until the next, at most
+2 min), `alerts_max`, `warns_max`, `down_max`, `blocked_max`, `alert_s`,
+`warn_s` (seconds with any alert / warning), `rps_mean`, `rps_max`,
+`err_rps_mean`, `err_rps_max` (through the proxies), and jsonb:
+`nodes` `{node: {rps, err_rps: {mean, max}}}` (nodes with a request rate on
+the board), `beam` `{"beam:<key>": {app, procs, mem, reds, rq, mbox: {mean,
+max}}}`, `dbs` `{"pg:<db>": {app, conns, commits: {mean, max}}}`, `lanes`
+`{node: {alert_s, warn_s}}`, `wire` `{kind: n}`, `wire_apps` `{app: {kind:
+n}}`. Means are time-weighted.
+
+- `tape` `index` now falls back to rollups before the tape's first frame:
+  the same columns `[t, frames, alerts, warns, down, err_rps, rps]` (each
+  hour's maxima, time-weighted requests, an hour's frames shared out over
+  the columns it spans), and a new key `rollups_to` (unix ms, the tape's
+  first frame; nil when no column came from rollups). The window limit is
+  still 31 days.
+- Writeups: a range may be up to 92 days. Where it starts an hour or more
+  before the tape's first frame, the summary, BEAM and database sections
+  add `### Before the tape, from hourly rollups` (or, with nothing of the
+  range on the tape, are only that), and the head says which part came
+  from where. Incidents, timeline, where it burned and errors need frames
+  and say so when the range has none.
+- Writeup option `compare` (`week` | `month`; HTTP `?compare=week`): a
+  `## Compared with last week|month` section after the summary, both
+  periods from `Rollups.summarize/3` (kept hours; edges and hours not yet
+  rolled computed from the tape).
+
 ## Connecting an app by its labels *(2026-11-24)*
 
 The how-to is docs/CONNECT.md; this is the contract.

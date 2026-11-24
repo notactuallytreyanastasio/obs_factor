@@ -61,6 +61,8 @@ defmodule ObsFactor.Application do
           ObsFactor.History
         ] ++
         ObsFactor.Objectives.child_specs(Application.get_env(:obs_factor, :objectives_pg_url)) ++
+        # hourly rollups of the tape, kept 13 months (same database)
+        ObsFactor.Rollups.child_specs(Application.get_env(:obs_factor, :objectives_pg_url)) ++
         # error budgets per app, read off the tape in the same database (ObsFactor.SLOs)
         ObsFactor.SLOs.child_specs(Application.get_env(:obs_factor, :objectives_pg_url)) ++
         # alerts that go out (ObsFactor.Alerts): routes live in the objectives database

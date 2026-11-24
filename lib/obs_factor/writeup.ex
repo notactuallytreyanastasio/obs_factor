@@ -14,6 +14,16 @@ defmodule ObsFactor.Writeup do
     * `sections` - which of #{inspect(~w(summary incidents timeline hot beam errors db slos method))}
       (all by default)
     * `base_url` - where the floor is, for the replay links
+    * `compare` - `"week"` or `"month"`: a small extra section comparing
+      the range with the same period a week (7 days) or a calendar month
+      earlier, both from `ObsFactor.Rollups.summarize/3`
+
+  A range may be up to 92 days. The tape keeps 7; where a range starts an
+  hour or more before the tape's first frame, the summary, BEAM and
+  database sections add (or, with nothing on the tape, are) the hourly
+  rollups (`ObsFactor.Rollups`) of that part, and say so. Incidents, the
+  timeline, where it burned and errors need the frames and the wire, so
+  they only cover the tape's part.
 
   `build/1` returns `{:ok, %{title, markdown, from, to}}` or
   `{:error, reason}`. Writeups can be saved under an unguessable slug
@@ -21,11 +31,13 @@ defmodule ObsFactor.Writeup do
   (`delete/1`).
   """
 
-  alias ObsFactor.{Insights, Tape, WireFilters}
+  alias ObsFactor.{Insights, Rollups, Tape, WireFilters}
 
   @sections ~w(summary incidents timeline hot beam errors db slos method)
   @error_kinds ~w(error warning failing crash handler)
   @max_rows 200
+  @max_range_ms 92 * 86_400_000
+  @hour 3_600_000
 
   def sections, do: @sections
 
@@ -37,13 +49,19 @@ defmodule ObsFactor.Writeup do
     with {:ok, win} <- window(opts[:window], db),
          {:ok, from, to} <- range(win, opts),
          {:ok, spec} <- spec(opts[:spec]),
+         {:ok, split} <- split(from, to, db),
+         {:ok, old} <- old_part(split, db),
+         {:ok, cmp} <- compare(opts[:compare], from, to, db),
          {:ok, data} <- gather(from, to, db) do
       apps = opts[:apps] |> List.wrap() |> Enum.filter(&is_binary/1)
       sections = (opts[:sections] || @sections) |> Enum.filter(&(&1 in @sections))
       base = opts[:base_url] || "https://factory.bobbby.online"
       title = opts[:title] || (win && win.title) || "obs_factor: #{stamp(from)} – #{stamp(to)} UTC"
 
-      ctx = %{from: from, to: to, win: win, spec: spec, apps: apps, base: base, data: data, labels: labels(data.frame), db: db}
+      ctx = %{from: from, to: to, win: win, spec: spec, apps: apps, base: base, data: data, labels: labels(data.frame), db: db,
+              split: split, old: old, cmp: cmp}
+      # the comparison goes after the summary, or first when there is none
+      sections = if cmp, do: List.insert_at(sections, if("summary" in sections, do: Enum.find_index(sections, &(&1 == "summary")) + 1, else: 0), "compare"), else: sections
       body = Enum.map(sections, &section(&1, ctx)) |> Enum.reject(&(&1 in [nil, ""]))
 
       md = Enum.join([head(title, ctx) | body], "\n\n") <> "\n"
@@ -68,9 +86,53 @@ defmodule ObsFactor.Writeup do
 
   defp range(nil, opts) do
     case {opts[:from], opts[:to]} do
-      {f, t} when is_integer(f) and is_integer(t) and t > f and t - f <= 31 * 86_400_000 -> {:ok, f, t}
-      _ -> {:error, "a writeup needs a window id, or from and to (unix ms, from first, at most 31 days)"}
+      {f, t} when is_integer(f) and is_integer(t) and t > f and t - f <= @max_range_ms -> {:ok, f, t}
+      _ -> {:error, "a writeup needs a window id, or from and to (unix ms, from first, at most 92 days)"}
     end
+  end
+
+  # Which part of [from, to) is on the tape and which only in the hourly
+  # rollups. `tape`: where the tape's part starts (nil: nothing of the range
+  # is on the tape); `old`: {from, to} for the rollups (nil: none). The old
+  # part ends at the hour the tape starts in: a range that starts a few
+  # minutes before the tape (a weekly writeup, as the tape thins) has none.
+  defp split(from, to, db) do
+    with {:ok, start} <- Rollups.tape_start(db) do
+      cond do
+        # no frames at all: a range within the tape's 7 days is still the
+        # tape's (its deploys and wire may be there, and a gap is a gap, not
+        # history); only an older one goes to the rollups. Found merging with
+        # chapter 33: a deploy-only range lost its timeline.
+        start == nil and to > System.system_time(:millisecond) - 7 * 86_400_000 -> {:ok, %{tape: from, old: nil, start: nil}}
+        start == nil or to <= start -> {:ok, %{tape: nil, old: {from, to}, start: start}}
+        from < div(start, @hour) * @hour -> {:ok, %{tape: start, old: {from, div(start, @hour) * @hour}, start: start}}
+        true -> {:ok, %{tape: from, old: nil, start: start}}
+      end
+    end
+  end
+
+  defp old_part(%{old: nil}, _db), do: {:ok, nil}
+  defp old_part(%{old: {f, t}}, db), do: Rollups.summarize(f, t, db)
+
+  defp compare(nil, _, _, _), do: {:ok, nil}
+
+  defp compare(by, from, to, db) when by in ["week", "month"] do
+    {pf, pt} = earlier(by, from, to)
+
+    with {:ok, now} <- Rollups.summarize(from, to, db),
+         {:ok, then} <- Rollups.summarize(pf, pt, db) do
+      {:ok, %{by: by, now: now, then: then, from: pf, to: pt}}
+    end
+  end
+
+  defp compare(other, _, _, _), do: {:error, "compare is week or month, got #{inspect(other)}"}
+
+  @doc "The same period a week (7 days) or a calendar month earlier: `{from, to}`."
+  def earlier("week", from, to), do: {from - 7 * 86_400_000, to - 7 * 86_400_000}
+
+  def earlier("month", from, to) do
+    back = fn ms -> ms |> DateTime.from_unix!(:millisecond) |> DateTime.shift(month: -1) |> DateTime.to_unix(:millisecond) end
+    {back.(from), back.(to)}
   end
 
   defp spec(nil), do: {:ok, nil}
@@ -143,17 +205,60 @@ defmodule ObsFactor.Writeup do
 
     link = if ctx.win, do: "#{ctx.base}/?w=#{ctx.win.id}", else: "#{ctx.base}/?t=#{iso(ctx.from)}"
 
+    sources =
+      case ctx.split do
+        %{old: nil} -> ""
+        %{tape: nil} -> "_All of it from hourly rollups: the tape keeps 7 days#{if ctx.split.start, do: " and starts at #{stamp(ctx.split.start)}", else: " and is empty"}._\n\n"
+        %{old: {f, t}} -> "_#{stamp(f)} – #{stamp(t)} from hourly rollups (summary, BEAM, databases only); from #{stamp(ctx.split.start)}, the tape._\n\n"
+      end
+
     """
     # #{title}
 
     **#{stamp(ctx.from)} – #{stamp(ctx.to)} UTC** (#{dur(ctx.to - ctx.from)})#{if scope != [], do: " · " <> Enum.join(scope, " · "), else: ""}
 
-    #{if ctx.win && ctx.win.note, do: "> " <> String.replace(ctx.win.note, "\n", "\n> ") <> "\n\n", else: ""}Replay it on the floor: #{link}
+    #{if ctx.win && ctx.win.note, do: "> " <> String.replace(ctx.win.note, "\n", "\n> ") <> "\n\n", else: ""}#{sources}Replay it on the floor: #{link}
     """
     |> String.trim_trailing()
   end
 
-  defp section("summary", ctx) do
+  defp section("summary", %{split: %{tape: nil}} = ctx), do: "## Summary\n\n" <> old_summary(ctx)
+
+  defp section("summary", ctx),
+    do: tape_summary(ctx) <> if(ctx.old, do: "\n\n### Before the tape, from hourly rollups\n\n" <> old_summary(ctx), else: "")
+
+  defp section("beam", %{split: %{tape: nil}} = ctx), do: "## The BEAM\n\n" <> old_beam(ctx)
+
+  defp section("beam", ctx),
+    do: tape_beam(ctx) <> if(ctx.old, do: "\n\n### Before the tape, from hourly rollups\n\n" <> old_beam(ctx), else: "")
+
+  defp section("db", %{split: %{tape: nil}} = ctx), do: "## Databases\n\n" <> old_db(ctx)
+
+  defp section("db", ctx),
+    do: tape_db(ctx) <> if(ctx.old, do: "\n\n### Before the tape, from hourly rollups\n\n" <> old_db(ctx), else: "")
+
+  defp section("compare", ctx), do: compare_section(ctx)
+
+  # frames and the wire are gone: say so rather than "nothing happened"
+  defp section(s, %{split: %{tape: nil}}) when s in ~w(incidents timeline hot errors) do
+    title = %{"incidents" => "Incidents", "timeline" => "Timeline", "hot" => "Where it burned", "errors" => "Errors"}[s]
+    "## #{title}\n\n_Not on the tape any more: it keeps 7 days, and this section needs its frames and wire. The summary has what the hourly rollups kept._"
+  end
+
+  defp section("method", ctx) do
+    method(ctx) <>
+      if(ctx.old || ctx.cmp,
+        do: "\n- Hourly rollups (`tape_rollups`, kept 13 months) are made from the tape before it is thinned: per UTC hour, maxima, time-weighted means, seconds with an alert per building, wire items by kind. Ranges in rollups are whole hours#{if (ctx.old && ctx.old.widened) || (ctx.cmp && (ctx.cmp.now.widened || ctx.cmp.then.widened)), do: " (an edge hour off the tape counts whole here)", else: ""}.",
+        else: "")
+  end
+
+  # error budgets as they stood at the end of the range (ObsFactor.SLOs); with
+  # the db in ctx, so a writeup built from another database reads that one
+  defp section("slos", ctx), do: ObsFactor.SLOs.writeup(ctx.to, ctx.apps, ctx.db)
+  defp section("errors", ctx), do: tape_errors(ctx)
+  defp section(name, ctx), do: tape_section(name, ctx)
+
+  defp tape_summary(ctx) do
     s = ctx.data.insights.score
     c = ctx.data.insights.calm
     w = in_apps(ctx.data.wire, ctx)
@@ -178,7 +283,7 @@ defmodule ObsFactor.Writeup do
     "## Summary\n\n" <> table(["Measure", "Value"], rows) <> "\n\n" <> note_if_scoped(ctx)
   end
 
-  defp section("incidents", ctx) do
+  defp tape_section("incidents", ctx) do
     alerts =
       ctx.data.lanes
       |> Enum.filter(fn [node, sev | _] -> sev == "alert" and in_app?(ctx, node) end)
@@ -197,7 +302,7 @@ defmodule ObsFactor.Writeup do
     end
   end
 
-  defp section("timeline", ctx) do
+  defp tape_section("timeline", ctx) do
     wire = ctx.data.wire |> in_apps(ctx) |> Enum.filter(&matches?(ctx.spec, &1))
 
     marks =
@@ -227,7 +332,7 @@ defmodule ObsFactor.Writeup do
     end
   end
 
-  defp section("hot", ctx) do
+  defp tape_section("hot", ctx) do
     hot = Enum.filter(ctx.data.insights.hot, &in_app?(ctx, &1.node))
     peaks = ctx.data.insights.peaks
     worst = ctx.data.insights.worst
@@ -245,7 +350,7 @@ defmodule ObsFactor.Writeup do
       if(Enum.reject(moments, &is_nil/1) != [], do: "\n\n### Worst moments\n\n" <> Enum.join(Enum.reject(moments, &is_nil/1), "\n"), else: "")
   end
 
-  defp section("beam", ctx) do
+  defp tape_beam(ctx) do
     stats = series_stats(ctx.data.beam, ~w(procs mem bin reds rq sched mbox dist_out up))
     keys = stats |> Map.keys() |> Enum.filter(&in_app?(ctx, beam_app(ctx, &1))) |> Enum.sort()
 
@@ -275,7 +380,7 @@ defmodule ObsFactor.Writeup do
     end
   end
 
-  defp section("errors", ctx) do
+  defp tape_errors(ctx) do
     groups =
       ctx.data.wire
       |> in_apps(ctx)
@@ -294,7 +399,7 @@ defmodule ObsFactor.Writeup do
     end
   end
 
-  defp section("db", ctx) do
+  defp tape_db(ctx) do
     pg = series_stats(ctx.data.dbs, ~w(conns commits))
     repo = series_stats(ctx.data.repos, ~w(rate ms err))
     app_of = fn series, k -> Enum.find_value(series, fn [_, m] -> m[k]["app"] end) end
@@ -330,10 +435,7 @@ defmodule ObsFactor.Writeup do
     |> Enum.join("\n\n")
   end
 
-  # error budgets as they stood at the end of the range (ObsFactor.SLOs)
-  defp section("slos", ctx), do: ObsFactor.SLOs.writeup(ctx.to, ctx.apps, ctx.db)
-
-  defp section("method", ctx) do
+  defp method(ctx) do
     """
     ## How these numbers were made
 
@@ -345,6 +447,111 @@ defmodule ObsFactor.Writeup do
     """
     |> String.trim_trailing()
   end
+
+  # ---- from hourly rollups ------------------------------------------------------
+
+  defp old_summary(%{old: %{hours: 0}, split: %{old: {f, t}}}),
+    do: "No hourly rollups for #{stamp(f)} – #{stamp(t)} UTC: they start with the tape obs_factor had when it began keeping them."
+
+  defp old_summary(%{old: o, split: %{old: {f, t}}} = ctx) do
+    lanes = for {node, l} <- o.lanes, in_app?(ctx, node), l["alert_s"] > 0, do: {node, l["alert_s"]}
+    longest = lanes |> Enum.sort_by(&(-elem(&1, 1))) |> Enum.take(3)
+    count = fn kinds -> wire_count(o, ctx, kinds) end
+
+    rows = [
+      ["Hours on record", "#{o.hours} of #{div(t - f + @hour - 1, @hour)}"],
+      ["Calm", if(o.tape_s > 0, do: "#{pct_calm(1 - o.alert_s / o.tape_s)} of the recorded time had no alert", else: "no tape")],
+      ["Time with an alert", dur(round(o.alert_s * 1000))],
+      ["Time with a warning", dur(round(o.warn_s * 1000))],
+      ["Most alerts at once", o.alerts_max],
+      ["Most buildings down at once", o.down_max],
+      ["Requests through the proxies", rate(o.rps_mean, o.rps_max)],
+      ["5xx through the proxies", rate(o.err_rps_mean, o.err_rps_max)],
+      ["Longest burning", if(longest == [], do: "none", else: Enum.map_join(longest, ", ", fn {n, s} -> "#{label(ctx, n)} #{dur(round(s * 1000))}" end))],
+      ["Deploys and restarts", count.(~w(deploy restart joined left))],
+      ["Crashes", count.(~w(crash))],
+      ["Leader moves", count.(~w(leader))],
+      ["Errors and failing streams logged", count.(@error_kinds)]
+    ]
+
+    nodes = for {n, m} <- Enum.sort(o.nodes), in_app?(ctx, n), m["rps"], do: [label(ctx, n), rate(m["rps"]["mean"], m["rps"]["max"]), rate(m["err_rps"]["mean"], m["err_rps"]["max"])]
+
+    "_#{stamp(f)} – #{stamp(t)} UTC, from hourly rollups._\n\n" <> table(["Measure", "Value"], rows) <>
+      if(nodes == [], do: "", else: "\n\nPer building, mean (max):\n\n" <> table(["Building", "Requests", "5xx"], nodes))
+  end
+
+  defp wire_count(o, %{apps: []}, kinds), do: Enum.sum(for {k, n} <- o.wire, k in kinds, do: n)
+  defp wire_count(o, %{apps: apps}, kinds), do: Enum.sum(for a <- apps, {k, n} <- o.wire_apps[a] || %{}, k in kinds, do: n)
+
+  defp old_beam(%{old: %{hours: 0}}), do: "No hourly rollups for this part."
+
+  defp old_beam(ctx) do
+    rows =
+      for {k, m} <- Enum.sort(ctx.old.beam), in_app?(ctx, m["app"]) do
+        [String.replace_prefix(k, "beam:", ""), mean_max(m["procs"], &num/1), mean_max(m["mem"], &bytes/1), mean_max(m["reds"], &"#{num(&1)}/s"),
+         mean_max(m["rq"], &num/1), num(m["mbox"]["max"])]
+      end
+
+    if rows == [],
+      do: "No BEAM node in the hourly rollups of this part.",
+      else: "Per node, mean (max) over the hours.\n\n" <> table(["Node", "Processes", "Memory", "Reductions", "Run queue", "Biggest mailbox"], rows)
+  end
+
+  defp old_db(%{old: %{hours: 0}}), do: "No hourly rollups for this part."
+
+  defp old_db(ctx) do
+    rows =
+      for {k, m} <- Enum.sort(ctx.old.dbs), in_app?(ctx, m["app"]),
+          do: [String.replace_prefix(k, "pg:", ""), label(ctx, m["app"]), mean_max(m["conns"], &num/1), mean_max(m["commits"], &"#{num(&1)}/s")]
+
+    if rows == [],
+      do: "No app database in the hourly rollups of this part.",
+      else: "Each app's own Postgres database, mean (max) over the hours.\n\n" <> table(["Database", "App", "Connections", "Commits"], rows)
+  end
+
+  defp compare_section(%{cmp: c} = ctx) do
+    {a, b} = {c.now, c.then}
+    calm = fn r -> if r.tape_s > 0, do: 1 - r.alert_s / r.tape_s end
+    count = fn r, kinds -> wire_count(r, ctx, kinds) end
+    what = if c.by == "week", do: "last week", else: "last month"
+
+    rows =
+      for {name, x, y, fmt} <- [
+            {"Hours on record", a.hours, b.hours, &num/1},
+            {"Calm", calm.(a), calm.(b), &pct_calm/1},
+            {"Time with an alert", round(a.alert_s * 1000), round(b.alert_s * 1000), &dur/1},
+            {"Most alerts at once", a.alerts_max, b.alerts_max, &num/1},
+            {"Requests through the proxies, mean", a.rps_mean, b.rps_mean, &"#{num(&1)}/s"},
+            {"5xx through the proxies, mean", a.err_rps_mean, b.err_rps_mean, &"#{num(&1)}/s"},
+            {"5xx, worst hour's max", a.err_rps_max, b.err_rps_max, &"#{num(&1)}/s"},
+            {"Deploys and restarts", count.(a, ~w(deploy restart joined left)), count.(b, ~w(deploy restart joined left)), &num/1},
+            {"Crashes", count.(a, ~w(crash)), count.(b, ~w(crash)), &num/1},
+            {"Errors and failing streams logged", count.(a, @error_kinds), count.(b, @error_kinds), &num/1}
+          ] do
+        [name, if(x == nil, do: "–", else: fmt.(x)), if(y == nil, do: "–", else: fmt.(y)), change(x, y)]
+      end
+
+    "## Compared with #{what}\n\n_#{stamp(c.from)} – #{stamp(c.to)} UTC, both periods from hourly rollups (the edges and the hour in progress from the tape)._\n\n" <>
+      table(["Measure", "This period", String.capitalize(what), "Change"], rows) <>
+      if(b.hours == 0, do: "\n\n_Nothing was recorded #{what}: no rollups go back that far._", else: "")
+  end
+
+  defp change(x, y) when is_number(x) and is_number(y) do
+    cond do
+      x == y -> "same"
+      y == 0 -> "+#{num(x)}"
+      round((x - y) / abs(y) * 100) == 0 -> "same"
+      true -> "#{if x > y, do: "+", else: ""}#{round((x - y) / abs(y) * 100)}%"
+    end
+  end
+
+  defp change(_, _), do: "–"
+
+  defp rate(nil, _), do: "–"
+  defp rate(mean, max), do: "#{num(mean)}/s (max #{num(max)})"
+
+  defp mean_max(%{"mean" => m, "max" => x}, f) when is_number(m), do: "#{f.(m)} (#{f.(x)})"
+  defp mean_max(_, _), do: "–"
 
   @doc false
   def __pct__(share), do: pct_calm(share)

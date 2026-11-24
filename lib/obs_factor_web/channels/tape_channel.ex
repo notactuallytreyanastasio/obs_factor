@@ -225,7 +225,9 @@ defmodule ObsFactorWeb.TapeChannel do
   end
 
   defp read("index", %{"from" => f, "to" => t, "buckets" => b}) when is_integer(b) and b in 1..2000,
-    do: window(f, t, fn f, t -> Tape.index(f, t, b) end)
+    # before the tape's first frame, the columns come from the hourly
+    # rollups (ObsFactor.Rollups.index/4 adds `rollups_to`)
+    do: window(f, t, fn f, t -> ObsFactor.Rollups.index(f, t, b) end)
 
   defp read("frame", %{"at" => at}) when is_integer(at) do
     case Tape.frame(at) do
