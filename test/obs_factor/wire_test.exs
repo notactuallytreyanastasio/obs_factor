@@ -24,6 +24,7 @@ defmodule ObsFactor.WireTest do
         "rates" => Map.merge(%{"reductions" => 6000.0, "report.handler_errors" => 0.0}, Keyword.get(opts, :r, %{}))
       },
       "cluster" => %{
+        "distributed" => true,
         "node" => "marginalia@172.18.0.#{addr}",
         "connections" =>
           for(p <- peers, do: %{"node" => "marginalia@172.18.0.#{p}", "out_bps" => 1.0, "send_queue_bytes" => Keyword.get(opts, :sendq, 0)}),
@@ -169,7 +170,7 @@ defmodule ObsFactor.WireTest do
 
     test "a node 10x the others' median is news on the very first tick, and once" do
       {items, st} = Wire.observe(Wire.new(), snap(three(1_000_000.0)), @t)
-      assert [%{kind: "outlier", member: "marginalia@172.18.0.10", head: "reductions 1,000,000/s: 167x the other nodes"}] = items
+      assert [%{kind: "outlier", member: "marginalia@172.18.0.10", head: "reductions 1,000,000/s: 167x the BEAM median"}] = items
       {[], st} = Wire.observe(st, snap(three(1_000_000.0)), @t + 5_000)
       # it ends, and when it starts again it is news again
       {[], st} = Wire.observe(st, snap(three(6000.0)), @t + 10_000)
@@ -208,5 +209,61 @@ defmodule ObsFactor.WireTest do
     m = Wire.metrics(snap(two([sendq: 10])), boxes)["beam:marginalia@172.18.0.10"]
     assert %{hot_name: "Marginalia.Runs", hot_reds: 42_000, big_name: ":code_server", big_mem: 9_000_000} = m
     assert m.links == %{"marginalia@172.18.0.12" => [1.0, 10]}
+  end
+
+  describe "the review's findings (2026-11-24), each a regression test" do
+    defp down(s), do: update_in(s, ["nodes", Access.at(0), "inside"], fn _ -> %{"ok" => false, "error" => "connection refused"} end)
+
+    defp contained(s, up, restarts),
+      do: update_in(s, ["nodes", Access.at(0)], &Map.merge(&1, %{"container" => %{"uptime_s" => up, "restarts" => restarts}, "facts" => [%{"label" => "image", "value" => "m:1"}]}))
+
+    test "a crash is still a crash when the report was unreadable for the tick in between" do
+      {_, st} = Wire.observe(Wire.new(), contained(snap(two()), 5000, 0), @t)
+      # the container is read even while the report is not: the crash is
+      # news on the unreadable tick itself, and not again after
+      {items, st} = Wire.observe(st, down(contained(snap(two()), 2, 1)), @t + 5_000)
+      assert Enum.any?(items, &(&1.kind == "crash"))
+      {items, _} = Wire.observe(st, contained(snap(two([up: 7], up: 7)), 7, 1), @t + 10_000)
+      refute Enum.any?(items, &(&1.kind == "crash"))
+    end
+
+    test "an app's old errors and streams are not news again after one unreadable tick" do
+      e = %{"level" => "error", "name" => "X", "at" => "2026-11-23T21:33:35Z", "message" => "boom"}
+      s = fn -> snap(two(), events: [e], streams: [%{"kind" => "db.query", "name" => "R", "rate" => 0.2, "err_rate" => 0.1, "avg_ms" => 300.0}]) end
+      {_, st} = Wire.observe(Wire.new(), s.(), @t)
+      {_, st} = Wire.observe(st, down(s.()), @t + 5_000)
+      {items, _} = Wire.observe(st, s.(), @t + 70_000)
+      refute Enum.any?(items, &(&1.kind in ["error", "failing", "slowq"]))
+    end
+
+    test "two outliers on one member in one tick are both said" do
+      three = [member("10", g: %{"memory.total" => 3_000_000_000, "memory.binary" => 2_500_000_000}), member("12"), member("20")]
+      {items, _} = Wire.observe(Wire.new(), snap(three), @t)
+      assert Enum.sort(Enum.map(items, & &1.head) |> Enum.map(&hd(String.split(&1, " ")))) == ["binary", "memory"]
+    end
+
+    test "apps without distribution are told apart by their node id, not nonode@nohost" do
+      solo = fn id -> %{"id" => id, "label" => id, "kind" => "app", "inside" => %{"ok" => true, "runtime" => %{"kind" => "beam", "gauges" => %{"process.count" => 1}}, "cluster" => %{"node" => "nonode@nohost", "distributed" => false}}} end
+      m = Wire.metrics(%{"nodes" => [solo.("a"), solo.("b")]})
+      assert Map.has_key?(m, "beam:a") and Map.has_key?(m, "beam:b")
+    end
+
+    test "a member whose own read failed for a tick is not 'left', and its restart is still news" do
+      failed = %{"ok" => false, "address" => "12", "error" => "timeout"}
+      {_, st} = Wire.observe(Wire.new(), snap(two()), @t)
+      {items, st} = Wire.observe(st, snap([member("10", peers: ["12"]), failed]), @t + 5_000)
+      refute Enum.any?(items, &(&1.kind == "left"))
+      {items, _} = Wire.observe(st, snap(two([], up: 3)), @t + 10_000)
+      assert "marginalia@.0.12 restarted" in heads(items)
+      refute Enum.any?(items, &(&1.kind == "joined"))
+    end
+
+    test "baselines of members not seen for an hour are let go" do
+      {_, st} = Wire.observe(Wire.new(), snap(two()), @t)
+      assert Enum.any?(Map.keys(st.base), fn {k, _} -> k == "marginalia@172.18.0.12" end)
+      {_, st} = Wire.observe(st, snap([member("10")]), @t + 3_700_000)
+      refute Enum.any?(Map.keys(st.base), fn {k, _} -> k == "marginalia@172.18.0.12" end)
+      refute Map.has_key?(st.members, "marginalia@172.18.0.12")
+    end
   end
 end

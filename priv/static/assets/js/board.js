@@ -36,7 +36,7 @@ const pad = (n) => String(n).padStart(2, "0");
 const hms = (ms) => { const d = new Date(ms); return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`; };
 const isNum = (v) => typeof v === "number" && Number.isFinite(v);
 const typing = (el) => el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
-function ago(ms) { const m = Math.round(ms / 60e3); return m < 1 ? `${Math.round(ms / 1000)}s` : m < 60 ? `${m}m` : m < 2880 ? `${Math.floor(m / 60)}h ${pad(m % 60)}m` : `${Math.floor(m / 1440)}d`; }
+function ago(ms) { ms = Math.max(0, ms); const m = Math.round(ms / 60e3); return m < 1 ? `${Math.round(ms / 1000)}s` : m < 60 ? `${m}m` : m < 2880 ? `${Math.floor(m / 60)}h ${pad(m % 60)}m` : `${Math.floor(m / 1440)}d`; }
 // "marginalia@172.18.0.12" -> "@.0.12": what tells one compose member from another
 function shortNode(n) { const m = /^([^@]+)@(?:\d+\.\d+\.)?(\d+\.\d+)$/.exec(n ?? ""); return m ? `${m[1]}@.${m[2]}` : n ?? "?"; }
 const shortName = (n) => String(n ?? "").replace(/^Elixir\./, "").replace(/^:/, "");
@@ -50,6 +50,7 @@ const FMT = {
   commits: (v) => `${num(v)}/s`, errors: (v) => num(v), util: (v) => `${Math.round(v * 100)}%`, atoms: (v) => num(v),
 };
 const SEV_RANK = { alert: 0, warn: 1, info: 2 };
+const ERROR_KINDS = ["error", "warning", "failing", "crash", "handler"];
 const EMPTY = () => ({ apps: [], sevs: [], kinds: [], q: "" });
 const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} } };
 const AIR_KEY = "obs.wire.onair";
@@ -92,6 +93,7 @@ export class Board {
       if (e.target.name !== "wq") return;
       this.filter.q = e.target.value;
       this.renderWireList(); // 500 items at most: no need to wait for a pause
+      this.renderSetbar(); // "Save as set" and "Update" follow the search too
     });
     this.el.addEventListener("submit", (e) => { e.preventDefault(); this.saveSet(e.target); });
     this.news.addEventListener("click", (e) => {
@@ -194,21 +196,37 @@ export class Board {
 
   // ---- the numbers and the wire -----------------------------------------------
 
+  // One read at a time. During playback a new read used to supersede the
+  // one in flight every 400 ms, and fetchedEnd only moved when a read
+  // landed, so a slow pair of queries meant nothing ever landed. Now the
+  // read in flight finishes; the next one asks for wherever the moment
+  // has got to by then.
   fetch(end) {
+    if (this.inflight) { this.again = end; return; }
+    this.inflight = true;
     this.fetching = end;
     const from = Math.round(end - 4 * WINDOW), to = Math.round(end);
+    const from6h = Math.round(end - 6 * 3600e3);
     Promise.all([
       bus.push("tape", "series", { from, to, points: 360 }),
-      bus.push("tape", "wire", { from: Math.round(end - 6 * 3600e3), to: to + 1000 }),
+      bus.push("tape", "wire", { from: from6h, to: to + 1000 }),
+      // errors apart, and more of them: on a chatty wire the newest 500 of
+      // everything held only the last hour or so
+      bus.push("tape", "wire", { from: from6h, to: to + 1000, kinds: ["error", "warning", "failing", "crash", "handler"], limit: 3000 }),
     ])
-      .then(([s, w]) => {
-        if (this.fetching !== end) return;
+      .then(([s, w, e]) => {
         this.series = s.series;
         this.wire = w.wire;
+        this.errors = e.wire;
+        this.errorsCut = e.wire.length >= 3000;
         this.fetchedEnd = end;
         this.render();
       })
-      .catch((e) => console.error(`obs_factor board: ${e.message}`));
+      .catch((x) => console.error(`obs_factor board: ${x.message}`))
+      .finally(() => {
+        this.inflight = false;
+        if (this.again != null) { const a = this.again; this.again = null; this.fetch(a); }
+      });
   }
 
   onTick(t) {
@@ -221,6 +239,7 @@ export class Board {
       // live items have no id until read back: key them by time and order
       const fresh = t.wire.map((w, i) => ({ ...w, key: `${t.at}-${i}` })).reverse();
       this.wire = [...fresh, ...this.wire].slice(0, 500);
+      this.errors = [...fresh.filter((w) => ERROR_KINDS.includes(w.kind)), ...(this.errors ?? [])].slice(0, 3000);
       this.story = 0; // the newest story leads
       this.renderChyron();
       if (this.open && this.tab === "wire") this.renderMonitor(false);
@@ -489,8 +508,9 @@ export class Board {
   fingerprints() {
     const fp = (w) => `${w.app}|${w.kind}|${(w.head ?? "").replace(/#PID<[^>]+>|<\d+\.\d+\.\d+>|\b0x[0-9a-f]+\b|\d+(\.\d+)*/gi, "#")}`;
     const groups = new Map();
-    for (const w of this.wireUpTo()) {
-      if (!["error", "warning", "failing", "crash", "handler"].includes(w.kind)) continue;
+    const end = (this.shownAt ?? Date.now()) + 2500;
+    for (const w of this.errors ?? []) {
+      if (w.at > end || !ERROR_KINDS.includes(w.kind)) continue;
       const k = fp(w);
       if (!groups.has(k)) groups.set(k, { k, items: [], app: w.app, label: w.label, kind: w.kind, sev: w.sev });
       groups.get(k).items.push(w);
@@ -510,11 +530,13 @@ export class Board {
     const active = this.el.contains(document.activeElement) && typing(document.activeElement) ? document.activeElement : null;
     if (active && !force) { if (this.tab === "wire") this.renderWireList(); return; }
     // the search box keeps its cursor across a redraw
-    const keep = active?.name === "wq" ? [active.selectionStart, active.selectionEnd] : null;
+    // the input being typed in (the search, or a set's name while someone
+    // else's set arrives) keeps its text, focus and cursor across a redraw
+    const keep = active && (active.name === "wq" || active.name === "name") ? { name: active.name, value: active.value, sel: [active.selectionStart, active.selectionEnd] } : null;
     const body = this.tab === "wire" ? this.wireTab() : this.tab === "errors" ? this.errorsTab() : this.tab === "beam" ? this.beamTab() : this.dbTab();
     this.el.innerHTML = head + body;
     if (this.tab === "wire") this.renderWireList();
-    if (keep) { const i = this.el.querySelector("input[name=wq]"); i?.focus(); i?.setSelectionRange(...keep); }
+    if (keep) { const i = this.el.querySelector(`input[name=${keep.name}]`); if (i) { i.value = keep.value; i.focus(); i.setSelectionRange(...keep.sel); } }
   }
 
   wireTab() {
@@ -536,13 +558,28 @@ export class Board {
       </div>
       <div class="bd-filters">${apps.map((a) => chip("apps", a, this.label(a), count((w) => w.app === a))).join("")}</div>
       ${kinds.length ? `<div class="bd-filters kinds">${kinds.map((k) => chip("kinds", k, k, count((w) => w.kind === k))).join("")}</div>` : ""}
-      <div class="bd-setbar">
-        ${this.naming ? `<form data-form="set" class="tl-form"><input name="name" maxlength="60" placeholder="name this set" value="${esc(this.suggest())}" aria-label="Set name"><button type="submit" class="go">Save</button><button type="button" data-sa="cancel">Cancel</button></form>`
-          : `${any ? `<button type="button" data-f="all:">clear</button>` : ""}${dirty ? `<button type="button" class="go" data-sa="update">Update “${esc(cur.name)}”</button>` : ""}${any && (!cur || dirty) ? `<button type="button" data-sa="saveas">Save as set</button>` : ""}`}
-        <span class="bd-n"></span>
-      </div>
+      <div class="bd-setbar">${this.setbar()}</div>
       <ol class="bd-wire"></ol>
       <p class="bd-empty" hidden></p>`;
+  }
+
+  setbar() {
+    const f = this.filter;
+    const cur = this.sets.find((x) => x.id === this.setId);
+    const dirty = cur && !sameSpec(f, cur.spec);
+    const any = f.apps.length || f.sevs.length || f.kinds.length || f.q.trim();
+    return `${this.naming ? `<form data-form="set" class="tl-form"><input name="name" maxlength="60" placeholder="name this set" value="${esc(this.suggest())}" aria-label="Set name"><button type="submit" class="go">Save</button><button type="button" data-sa="cancel">Cancel</button></form>`
+      : `${any ? `<button type="button" data-f="all:">clear</button>` : ""}${dirty ? `<button type="button" class="go" data-sa="update">Update “${esc(cur.name)}”</button>` : ""}${any && (!cur || dirty) ? `<button type="button" data-sa="saveas">Save as set</button>` : ""}`}<span class="bd-n"></span>`;
+  }
+
+  // the setbar alone, while the search box keeps focus (the name form, when
+  // open, is left as it is: it holds what is being typed)
+  renderSetbar() {
+    const bar = this.el.querySelector(".bd-setbar");
+    if (!bar || this.naming) return;
+    const n = bar.querySelector(".bd-n")?.textContent ?? "";
+    bar.innerHTML = this.setbar();
+    bar.querySelector(".bd-n").textContent = n;
   }
 
   // the list under the filter: drawn on its own so typing a search keeps
@@ -591,7 +628,7 @@ export class Board {
         <span class="n">×${g.items.length}</span>
         <div><b>${esc(g.label ?? g.app ?? "")}</b> ${esc(last.head)}<div class="x">${esc(last.text ?? "")}</div>
         <div class="m">${esc(g.kind)} · first ${hms(first.at)} · last ${hms(last.at)} (${ago(end - last.at)} ago)</div></div>${bars(g.items)}</li>`;
-    }).join("")}</ol><p class="bd-foot">Grouped by app, kind and headline with numbers, pids and hex blanked. Bars: the last 6 hours.</p>`;
+    }).join("")}</ol><p class="bd-foot">Grouped by app, kind and headline with numbers, pids and hex blanked. Bars: the last 6 hours${this.errorsCut ? ", but only the newest 3,000 errors of them: older groups may be missing or undercounted" : ""}.</p>`;
   }
 
   // a clustered app's members on a ring: links as thick as their traffic,

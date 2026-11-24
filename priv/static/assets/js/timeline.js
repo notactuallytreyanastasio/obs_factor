@@ -328,7 +328,7 @@ export class Timeline {
   fetchMarks() {
     if (!this.ok) return;
     const v = this.view();
-    bus.push("tape", "marks", { from: Math.round(v.from), to: Math.round(v.to + 60_000) })
+    bus.push("tape", "marks", this.readWindow())
       .then((r) => {
         this.marks = r.marks.map(([at, kind, id, node, severity, title, by]) => ({ at, kind: KIND[kind] ?? "fire", raw: kind, id, node, severity, title, by }));
         this.draw();
@@ -336,17 +336,27 @@ export class Timeline {
       .catch((e) => console.error(`obs_factor timeline: marks: ${e.message}`));
   }
 
+  // [from, to] for a read: the view and a minute past it, never over the
+  // server's 31 days (at full zoom-out the extra minute went over, every
+  // read was refused, and the rows quietly stayed as they were)
+  readWindow() {
+    const v = this.view();
+    const to = Math.round(v.to + 60_000);
+    return { from: Math.max(Math.round(v.from), to - MAX_SPAN), to };
+  }
+
   // the BEAM rows' numbers and the wire's marks for the view
   fetchBeam() {
     if (!this.ok) return;
-    const v = this.view();
-    const from = Math.round(v.from), to = Math.round(v.to + 60_000);
+    const { from, to } = this.readWindow();
     if (this.expanded)
       bus.push("tape", "series", { from, to, points: Math.max(60, Math.min(600, Math.floor(this.plotW() / 4))), prefix: "beam:" })
         .then((r) => { this.heatSeries = r.series; this.size(); this.draw(); })
         .catch((e) => console.error(`obs_factor timeline: beam rows: ${e.message}`));
-    bus.push("tape", "wire", { from, to })
-      .then((r) => { this.wmarks = r.wire.filter((w) => WIRE_MARK[w.kind]); this.draw(); })
+    // only the kinds drawn, and up to 5,000 of them: the newest 500 of the
+    // whole wire covered a few hours of a week's view
+    bus.push("tape", "wire", { from, to, kinds: Object.keys(WIRE_MARK), limit: 5000 })
+      .then((r) => { this.wmarks = r.wire; this.wmarksCut = r.wire.length >= 5000; this.draw(); })
       .catch((e) => console.error(`obs_factor timeline: wire marks: ${e.message}`));
   }
 
@@ -366,7 +376,7 @@ export class Timeline {
   fetchLanes() {
     if (!this.ok) return;
     const v = this.view();
-    bus.push("tape", "lanes", { from: Math.round(v.from), to: Math.round(v.to + 60_000) })
+    bus.push("tape", "lanes", this.readWindow())
       .then((r) => {
         const by = new Map();
         for (const [node, sev, a, b, , text] of r.lanes) {
@@ -636,13 +646,21 @@ export class Timeline {
     if (!this.live && this.cursor != null && Math.abs(x - this.X(this.cursor)) < 6) return { head: true };
     if (y < L.winY + L.winH + 4) { const w = this.windowAt(x, y); if (w) return { win: w }; }
     if (y >= L.markY - 7 && y <= L.markY + 7) {
-      const wm = this.wmarkAt(x); if (wm) return { wmark: wm };
-      const m = this.markAt(x); if (m) return { mark: m };
+      // the nearer of the two kinds of mark: an objective's flame drawn on
+      // top of a deploy must still be reachable
+      const wm = this.wmarkAt(x), m = this.markAt(x);
+      if (wm && m) return Math.abs(this.X(m.at) - x) <= Math.abs(this.X(wm.at) - x) ? { mark: m } : { wmark: wm };
+      if (wm) return { wmark: wm };
+      if (m) return { mark: m };
     }
     if (this.expanded && L.heatN && y >= L.heatY - 10 && y < L.heatY + L.heatN * HEAT_H) {
-      if (y < L.heatY) return { heatHead: true };
+      // the header is drawn in the gutter; above the rows in the plot, a
+      // click is a click on the time
+      if (y < L.heatY) { if (x < this.plotX()) return { heatHead: true }; }
+      else {
       const key = this.heatKeys()[Math.floor((y - L.heatY) / HEAT_H)];
       if (key) return x < this.plotX() ? { heatRow: key } : { heat: key, t: this.T(x) };
+      }
     }
     if (this.expanded && y >= L.laneY && y < L.laneY + L.lanes * LANE_H) {
       const lane = this.lanes[Math.floor((y - L.laneY) / LANE_H)];
@@ -901,7 +919,7 @@ export class Timeline {
   renderTip(h) {
     if (!this.hover || !this.ok) { this.tip.hidden = true; return; }
     const x = this.hover.x;
-    if (x < this.plotX() && !h.laneLabel) { this.tip.hidden = true; return; }
+    if (x < this.plotX() && !h.laneLabel && !h.heatRow && !h.heatHead) { this.tip.hidden = true; return; }
     const t = this.T(x);
     const lines = [`<b>${this.spanMs > 86400e3 ? dayHm(t) : hms(t)}</b>`];
     if (h.edge) lines.push(`drag to trim the ${h.edge === "a" ? "start" : "end"}`);
@@ -917,7 +935,7 @@ export class Timeline {
       const med = vals[Math.floor(vals.length / 2)];
       let v = null;
       if (h.heat) { for (const [at, m] of this.heatSeries) { if (at > h.t) break; v = this.heatValue(m[key], this.heatMetric) ?? v; } }
-      lines.push(`${esc(key.slice(5))} · ${esc(HEAT_METRICS.find(([k]) => k === this.heatMetric)[1])}` + (v != null ? `<br>${fmtHeat(this.heatMetric, v)}${med ? ` · ${(v / med).toFixed(1)}x its median` : ""}` : ""));
+      lines.push(`${esc(key.slice(5))} · ${esc(HEAT_METRICS.find(([k]) => k === this.heatMetric)[1])}` + (v != null ? `<br>${fmtHeat(this.heatMetric, v)}${med ? ` · ${(v / med).toFixed(1)}x its median` : " · its median in view is 0"}` : ""));
     }
     else if (h.laneLabel) lines.push(`${esc(this.label(h.laneLabel.node))}: ${span(h.laneLabel.alert_ms)} on fire, ${span(h.laneLabel.warn_ms)} smoking in view`);
     else {
@@ -1024,7 +1042,9 @@ export class Timeline {
           const [t, v] = pts[i];
           if (v == null) continue;
           const x = this.X(t), x2 = i + 1 < pts.length ? this.X(pts[i + 1][0]) : x + 3;
-          const k = metric === "rq" ? v : med > 0 ? v / med : v > 0 ? 6 : 0;
+          // a zero median (an idle mailbox) has no multiple: the value
+          // itself, on a log scale, so 1 message is not painted like 50,000
+          const k = metric === "rq" ? v : med > 0 ? v / med : v > 0 ? 1.3 + Math.log10(v + 1) : 0;
           ctx.fillStyle = heatColour(metric === "rq" ? k * 6 : k);
           ctx.fillRect(x, y, Math.max(1, x2 - x), HEAT_H - 1);
         }
@@ -1093,6 +1113,8 @@ export class Timeline {
       if (x < x0 - 6 || x > w + 6) continue;
       wireGlyph(ctx, WIRE_MARK[wm.kind], x, L.markY, L.ovY, h - 11);
     }
+    // never a silent cap: say so when the marks were cut
+    if (this.wmarksCut) { ctx.fillStyle = "rgba(201,184,255,0.8)"; ctx.font = "9px system-ui, sans-serif"; ctx.fillText("only the newest 5,000 BEAM marks", x0 + 4, L.markY + 3); ctx.font = "10px ui-monospace, Menlo, monospace"; }
 
     // what was done
     for (const m of this.marks) {

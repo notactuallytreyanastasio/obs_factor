@@ -21,8 +21,9 @@ defmodule ObsFactorWeb.TapeChannel do
     * `lanes` `%{from, to}`: `%{lanes: [[node, severity, from, to, frames, text]]}`,
       each building's runs of alerts and warnings (`Tape.lanes/3`)
     * `windows` `%{}`: `%{windows: [window]}`
-    * `wire` `%{from, to}`: `%{wire: [item]}`, the BEAM wire (`ObsFactor.Wire`),
-      newest first, at most 500
+    * `wire` `%{from, to, limit, kinds}`: `%{wire: [item]}`, the BEAM wire
+      (`ObsFactor.Wire`), newest first, at most `limit` (500; up to 5000),
+      only `kinds` when given
     * `marks` `%{from, to}`: `%{marks: [[at, kind, id, node, severity, title, by]]}`
     * `insights` `%{from, to}`: `ObsFactor.Insights.compute/2`
 
@@ -116,7 +117,11 @@ defmodule ObsFactorWeb.TapeChannel do
     window(f, t, fn f, t -> wrap(Tape.series(f, t, p, Tape.db(), prefix), :series) end)
   end
 
-  defp read("wire", %{"from" => f, "to" => t}), do: window(f, t, fn f, t -> wrap(Tape.wire(f, t), :wire) end)
+  defp read("wire", %{"from" => f, "to" => t} = a) do
+    limit = if is_integer(a["limit"]) and a["limit"] in 1..5000, do: a["limit"], else: 500
+    kinds = if is_list(a["kinds"]) and Enum.all?(a["kinds"], &is_binary/1) and length(a["kinds"]) <= 40, do: a["kinds"]
+    window(f, t, fn f, t -> wrap(Tape.wire(f, t, limit, Tape.db(), kinds), :wire) end)
+  end
   defp read("lanes", %{"from" => f, "to" => t}), do: window(f, t, fn f, t -> wrap(Tape.lanes(f, t), :lanes) end)
   defp read("windows", _), do: wrap(Tape.windows(), :windows) |> err()
 
