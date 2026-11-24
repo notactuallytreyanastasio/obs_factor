@@ -29,7 +29,10 @@ defmodule ObsFactor.Topology do
     :probe,
     :report,
     :databases,
-    :style
+    :style,
+    # deploys (ObsFactor.Deploys): its .deployed file, and its GitHub repo
+    :deployed,
+    :repo
   ]
 
   # The name of the building the browser draws; the observer passes it through.
@@ -229,11 +232,28 @@ defmodule ObsFactor.Topology do
           )
       end
 
+    # deploys (ObsFactor.Deploys)
+    deployed =
+      case Map.get(n, :deployed) do
+        v when v in [nil, false] -> v
+        p when is_binary(p) and p != "" -> p
+        other -> fail("#{where}: deployed must be the path of a .deployed file, or false, got #{inspect(other)}")
+      end
+
+    repo =
+      case Map.get(n, :repo) do
+        nil -> nil
+        r when is_binary(r) -> (Regex.match?(~r{\A[\w.-]+/[\w.-]+\z}, r) && r) || fail("#{where}: repo must be \"owner/name\", got #{inspect(r)}")
+        other -> fail("#{where}: repo must be \"owner/name\", got #{inspect(other)}")
+      end
+
     %{
       id: id,
       label: label,
       kind: kind,
       style: style,
+      deployed: deployed,
+      repo: repo,
       platform: platform,
       pos: pos,
       service: service,

@@ -1128,6 +1128,8 @@ export class Timeline {
       if (x < x0 - 6 || x > w + 6) continue;
       wireGlyph(ctx, WIRE_MARK[wm.kind], x, L.markY, L.ovY, h - 11);
     }
+    // deploys.js: other modules' marks (deploy shas), drawn with the view's x
+    for (const fn of this.overlays ?? []) fn(ctx, { X: (t) => this.X(t), x0, w, h, L });
     // never a silent cap: say so when the marks were cut
     if (this.wmarksCut) { ctx.fillStyle = "rgba(201,184,255,0.8)"; ctx.font = "9px system-ui, sans-serif"; ctx.fillText("only the newest 5,000 BEAM marks", x0 + 4, L.markY + 3); ctx.font = "10px ui-monospace, Menlo, monospace"; }
 

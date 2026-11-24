@@ -1289,3 +1289,364 @@ n}}`. Means are time-weighted.
   `## Compared with last week|month` section after the summary, both
   periods from `Rollups.summarize/3` (kept hours; edges and hours not yet
   rolled computed from the tape).
+
+## Connecting an app by its labels *(2026-11-24)*
+
+The how-to is docs/CONNECT.md; this is the contract.
+
+**Discovery** (`ObsFactor.Discovery`, run inside `ObsFactor.Labelled.merge/3`
+on every tick). A non-one-off container labelled `obs_factor.report=<http(s)
+URL>` is merged into the topology; optional labels `obs_factor.label`,
+`obs_factor.hosts`, `obs_factor.databases` (comma separated),
+`obs_factor.platform`, `obs_factor.probe`, `obs_factor.id`. One node per
+compose service (the first container by name), or per container name when
+there is no compose service.
+
+- Claimed by a topology node (same `service`, or same `container`): empty
+  `report`, `probe`, `hosts`, `databases` are filled from the labels; a set
+  field the labels contradict keeps the topology's value and adds a
+  `warn` to `attention` (`node: null`): `container <name> (node <id>):
+  obs_factor.<field> says "<label>", the topology says "<topology>"; the
+  topology wins`. `label`, `platform` and `id` are compared the same way and
+  never filled.
+- Claimed by nobody: a node `kind: "app"`, `pos: null`, `platform` the
+  label's if it is a platform, else the proxy's (with a `warn` when the label
+  named an unknown one), `id` = `obs_factor.id` or the compose service
+  (lowercased, other characters as `-`). A taken or malformed id, or a
+  report that is not an http(s) URL: not placed (the container stays
+  `unplaced`), with a `warn`. A host another node has: left off, with a
+  `warn`.
+- A container with `obs_factor.report` is Discovery's, also when it has
+  `obs_factor.id`: the builder's `obs_factor.id` rules (Building apps) apply
+  only to containers without `obs_factor.report`.
+
+The merged topology (`ObsFactor.Discovery.topology/0`) is used by the
+snapshot, the reports collector (static targets plus
+`Discovery.report_targets/0`), the probes, `/api/nodes/:id/observer/*` and
+the wire's mailbox poller. A node whose report URL came from labels and that
+the reports collector has not read yet has `inside.error` `"not read yet:
+connected by its labels since the last read"`; a topology report URL
+missing from the collector's result still fails the snapshot.
+
+**`GET /api/connect`** (behind the session). Query: `app` (required,
+`[a-z][a-z0-9_]*`), `service` (default `app` with `_` as `-`), `kind`
+(`phoenix` | `elixir`, default `phoenix`), optional `label`, `hosts`,
+`databases`, `platform`, `probe_port`, `app_dir` (default `../<app>`),
+`check=false` (no checklist). 422 `{"error"}` names the first bad field.
+200:
+
+```json
+{"input": {"app": "ledger", "service": "ledger", "kind": "phoenix", "module": "Ledger", "label": "Ledger",
+           "hosts": ["ledger.bobbby.online"], "databases": ["ledger_prod"], "platform": null, "probe_port": null,
+           "app_dir": "../ledger"},
+ "report_url": "http://ledger:9568/report",
+ "snippets": [{"id": "install" | "deps" | "dockerfile" | "application" | "prod" | "compose",
+               "title": "...", "file": "mix.exs" | null, "text": "...", "note": "..."}],
+ "checklist": [{"id": "container" | "floor" | "report" | "observer" | "actions",
+                "title": "...", "state": "ok" | "wait" | "bad", "detail": "..."}]}
+```
+
+The checklist reads `Sources` and asks the app's engine (`GET /observer`
+through `ObsFactor.ObserverProxy`) only when its report answered; each step
+is `wait` until the one before it is `ok`. The page is `connect.js`, opened
+from the menu (Connect an app); it asks again every 5 s while open.
+
+
+## Deploys: what code went out *(2026-11-23)*
+
+Every deploy script on the box (blog, marginalia, tyler, obs_factor; dave's
+file is there, its script is not in ~/code) ends with
+
+    ssh "$HOST" "echo '$rev  $(date -u +%FT%TZ)' > $APP_DIR/.deployed"
+
+so `/opt/<dir>/.deployed` is one line, `<short sha>[+dirty]  <ISO time>`, e.g.
+`9047a85+dirty  2026-11-19T09:22:31Z`. It is written AFTER the restart (and
+after migrations and the health check): the wire sees the container start
+again a tick or more before the file changes.
+
+**Reading** (`ObsFactor.Deploys`, source `deploys`, every tick). The
+obs-factor container sees each file read-only at `/host-opt/<dir>/.deployed`
+(one bind mount per file, `deploy/compose.obs-factor.yml`; not `/opt`, which
+holds `/opt/blog/.env`). Which file is a node's: topology `deployed:`
+(a path; relative paths are under `DEPLOYED_ROOT`), else
+`<DEPLOYED_ROOT>/<service>/.deployed` if it exists; `deployed: false` turns
+the guess off. A named file missing, or a line that does not parse, is an
+error on that node, never a guess. `repo: "owner/name"` is the GitHub repo
+the sha is in.
+
+| var | meaning | default |
+|---|---|---|
+| `DEPLOYED_ROOT` | where the `.deployed` files are mounted | `/host-opt` |
+| `GITHUB_TOKEN` | optional: read-only token; with it and a node's `repo`, the commit subject is asked of `GET https://api.github.com/repos/<repo>/commits/<sha>` once per sha (an error is retried after 10 min). Unset: the sha alone | |
+| `GITHUB_API_URL` | tests only | `https://api.github.com` |
+
+**On the snapshot**, every node has `deployed`: null, or
+`{sha, dirty, at, subject?, subject_error?, repo, url}` (`at` unix ms, from the
+file; `url` the commit on GitHub, null without a repo), or `{error}`. A node
+with one also has the fact `deployed` = `"9047a85+dirty 4d 2h ago · <subject>"`,
+which is what the inspector shows.
+
+**On the wire** (`ObsFactor.Wire`, kind `deploy`, for the BEAM apps and the
+database as before): a container that started again (not by the restart
+policy, same image) whose `deployed` changed in the same tick is
+`deployed <sha>[+dirty] (<subject>)`. A restart not explained yet says
+`container started again` as before and is held for 10 minutes; if
+`.deployed` changes in that time, a second item says
+`deployed <sha> (<subject>)`, text `the container started again N s before;
+…`. A `.deployed` that changes with no restart is not news (blog/deploy.sh
+writes it even when it left the app running), nor is the first reading.
+
+**Kept** in `deploys` (objectives database): one row per node, sha and
+`deployed_at`, inserted on first sight and again on every change, so a
+deploy made while the observer was down is on the timeline once it is back.
+
+    CREATE TABLE deploys (id bigserial, node text, sha text, dirty boolean,
+      deployed_at timestamptz, subject text, repo text, seen_at timestamptz,
+      UNIQUE (node, sha, deployed_at))
+
+**Channel `deploys`**: join reply `%{deploys: [deploy]}` (the last 31 days,
+oldest first) or `%{deploys: [], error}`; a `deploy` push per new row;
+`list` `%{from, to}` -> `%{deploys}`. A deploy is
+`%{id, node, sha, dirty, at, subject, repo, url}`. The timeline
+(`deploys.js`, through `timeline.overlays`) draws each as a dotted line with
+its short sha, `+` when dirty.
+
+**Writeups**: the Timeline section has a row per deploy in the range,
+`deployed <sha> (<subject>)` with a link to the commit; `apps` and a filter
+spec apply as to a wire item of kind `deploy`, sev `info`.
+
+## Error budgets: `ObsFactor.SLOs`, topic `slo` *(2026-11-24)*
+
+Targets per app (topology node id), in the objectives database
+(`slo_targets`, created at first use): `availability` (share of requests
+without a 5xx, `0.5 < x < 1`), `window_days` (7 or 30, rolling; 30 when not
+given), optionally `latency_ms` and `latency_target` (share of requests
+served while the node's p95 was at most `latency_ms`; 0.99 when not given).
+Without `OBJECTIVES_PG_URL` there is no server and the topic answers with
+`{error}`.
+
+Measured from the tape's per-node `metrics` (`rps`, `err_rps`, `p95_ms`),
+each frame weighted by the seconds until the next (capped at 2 minutes):
+requests = `rps * s`, 5xx = `err_rps * s`. Only nodes the proxy routes to by
+hostname have `err_rps`; a node reached only by path routes has `rps` alone
+and its report says it cannot be measured. A window longer than the tape
+(7 days) is computed over what exists and `coverage.note` says so.
+
+Burn rate = error rate over a lookback / (1 - target). Flags (SRE workbook,
+multiwindow): `fast` when 1 h and 5 m are both at least `0.02 * window_h`
+(14.4x for 30 days, 3.36x for 7), `slow` when 6 h and 30 m are both at least
+`0.05 * window_h / 6` (6x, 1.4x), and the long lookback had at least 20
+requests.
+
+The server evaluates every minute and broadcasts `{:slo_status, reports}` on
+`ObsFactor.PubSub` `"slo"`. When a flag starts it queues a wire item, the
+`ObsFactor.Wire` shape:
+
+```
+%{at, app: node, label, member: nil, kind: "slo_burn", sev: "alert" (fast) | "warn" (slow),
+  head: "fast burn of the availability budget: 24.0x over 1h",
+  text: "Target 99.5% of requests without a 5xx, 30-day window. Burn 24.0x over 1h and 24.0x over 5m; flagged at 14.4x (2% of the budget in 1h). Budget left: 30.4%."}
+```
+
+`ObsFactor.Ticker` appends `ObsFactor.SLOs.drain()` to its tick's wire, so
+the item is written to `tape_wire`, pushed in the `tape` `tick` and shown
+on the board like any wire item. A flag already burning (kept per row in
+`burning`, across restarts) is not said again; one that stops is forgotten
+and is news the next time it starts.
+
+Topic `slo` (`ObsFactorWeb.SLOChannel`): join reply `{reports, thresholds:
+{"7": {fast, slow}, "30": {fast, slow}}}` or `{error, thresholds}`; pushes
+`status` `{reports}` once a minute and after every write. Events: `save`
+`{node, availability, window_days, latency_ms, latency_target, by}` ->
+`{target}`; `delete` `{node}` -> `{deleted: node}`; errors `{error}`.
+
+A report: `{node, label, window_days, target: {availability, latency_ms,
+latency_target}, by, updated_at, thresholds: {fast, slow}, coverage:
+{window_ms, from, to, covered_ms, tape_from, note}, availability: objective,
+latency: objective | null, burning: {"availability.fast": since_ms, ...},
+note}`; an objective `{target, sli, requests, bad, budget_left_pct, burn:
+{"5m", "1h", "30m", "6h"}, fast, slow}` (`sli`, `budget_left_pct` and a
+burn are null without requests).
+
+The board's SLO tab is `slo.js`; `ObsFactor.Writeup` has a `slos` section
+(as the targets stood at the end of the range).
+
+## Alerts that go out *(2026-11-24)*
+
+`ObsFactor.Alerts` sends a message to webhooks when something breaks, so
+nobody has to be watching the floor. It runs only with an objectives
+database (`OBJECTIVES_PG_URL`); routes live there, in `alert_routes`
+(created at runtime, `CREATE TABLE IF NOT EXISTS`).
+
+What raises one, heard by `ObsFactor.Alerts.Engine` on `ObsFactor.PubSub`
+(the ticker does not wait on it):
+
+* `{:objective, row}` on `objectives`: a `rule` row whose newest event is
+  `seen` or `came back`, written in the last 15 s (the 30 s last_seen flush
+  re-broadcasts the same event; it is not news), fires. A row whose newest
+  event is `cleared itself` or `crossed off` resolves, for the routes that
+  were told it fired. Cleared before its firing was sent: nothing is sent.
+  Pins are not sent.
+* `{:tape_frame, tick}` on `tape`: `tick.wire`, the `ObsFactor.Wire` items
+  of `sev` `alert` (crash, partition, failing, error, atoms past 80 %,
+  mailbox 10 000, pgfull), and `warn` for a route that asks.
+
+Items are held 1.5 s from the first, then each enabled route outside its
+quiet hours gets one message listing what it wants: severity (`alert`, or
+`warn` for both), apps (`node` / wire `app`), and for wire items a
+`WireFilters` spec (by `filter_id`; objectives pass it). The same key
+(`obj:<objective key>`, `wire:<app>|<kind>|<member>`) goes to a route at
+most once per its `dedup_minutes` (default `ALERT_DEDUP_MINUTES`, 15).
+Quiet hours drop, they do not defer.
+
+Delivery: a task under `ObsFactor.TaskSupervisor`, retried once after 5 s;
+the route gets `last_sent_at` and `sent_count`, or `last_error` and
+`last_error_at`; then `{:alert_routes, list}` on `alerts`.
+
+The body (Slack incoming webhooks read `text`, `*bold*` and `<url|label>`):
+
+```json
+{"text": "obs_factor: 2 firing\n*[ALERT]* Marginalia: marginalia down\n    new\n    <https://f.test/?t=2026-11-24T01:46:27Z|replay 01:46:27 UTC> · <https://f.test/?scope=marginalia|building>\n...",
+ "source": "obs_factor", "route": "ops",
+ "items": [{"state": "firing", "severity": "alert", "source": "objective", "kind": "objective",
+            "app": "marginalia", "label": "Marginalia", "title": "marginalia down", "detail": "new",
+            "at": "2026-11-24T01:46:27Z", "key": "obj:marginalia|marginalia down",
+            "replay_url": "https://f.test/?t=2026-11-24T01:46:27Z", "building_url": "https://f.test/?scope=marginalia"}]}
+```
+
+`state` is `firing`, `resolved` or `test`. The base is
+`ObsFactorWeb.Endpoint.url()` (`https://PHX_HOST` in prod).
+
+### Channel `alerts`
+
+Join reply `%{routes, filters, dedup_minutes, allow_private}` or
+`%{error}`. A route is `%{id, name, url_hint, min_severity, apps, filter_id,
+quiet_from, quiet_to, dedup_minutes, enabled, by, created_at, last_sent_at,
+last_error, last_error_at, sent_count}`: never the URL (a Slack webhook URL
+is the credential); `url_hint` is scheme, host and the path's last four
+characters. Pushes: `routes`; `save_route` `%{name, url, min_severity,
+apps, filter_id, quiet_from, quiet_to, dedup_minutes, enabled, by}` (with
+`id` to change one, a blank `url` keeps it) -> `%{route}`; `delete_route`
+`%{id}`; `test_route` `%{id}` -> `%{sent: true}` or the error, sent once
+whatever the filters, and recorded. Changes push `routes` `%{routes}` to
+everyone.
+
+### `ObsFactor.WebhookGuard`
+
+Every webhook the observer POSTs to (alert routes, writeup schedules) is
+checked when saved and when sent: http(s) only; no loopback, RFC 1918,
+fc00::/7, link-local, CGNAT, 0/8, benchmarking, multicast or reserved
+address, also inside ::ffff:0:0/96 and 64:ff9b::/96; not `localhost`. A
+name is resolved: at save a name that does not resolve is accepted, at
+send it is refused. Redirects are not followed (a 3xx is an error).
+`ALERT_ALLOW_PRIVATE_HOSTS=true` turns the address check off.
+
+## Evidence: what a flagged BEAM was doing at that moment *(2026-11-23)*
+
+`ObsFactor.Evidence`. When the ticker's wire items (`ObsFactor.Wire`) include
+an `outlier`, `anomaly`, `crash`, `restart`, `mailbox` or `runq`, a `failing`
+item about a `db.query` stream (head `db.query ...`) or a `surge` of Repo
+queries (head `Repo queries ...`), the ticker casts them to the evidence
+taker (`notice/1`; never a wait) and a task asks the observer engine of that
+BEAM, through `ObsFactor.ObserverProxy` with `member=<address>`:
+
+- `procs?sort=memory&limit=10`, `procs?sort=message_queue_len&limit=10` and
+  `ets` side by side, then `procs?sort=reductions&limit=10&interval_ms=500`
+  alone (beside it, the other reads appear in its own top 10);
+- each process kept as `{pid, registered_name, initial_call,
+  current_function, status, memory, message_queue_len, reductions,
+  reductions_per_s, reductions_delta}`; ETS the 10 biggest as the engine
+  answers them.
+
+The BEAM: an item's `member` (an Erlang node name) is the member of
+`inside.members` whose `cluster.node` it is; an item about the whole app (no
+member, or a scaled service that is not distributed) is every member that
+answered, at most 4; a single node is asked without `member`. From the
+snapshot of that tick: the member's (else the node's) `tables` and
+`liveviews`, and the node's last 20 `events`. A node with `inside: null` has
+no engine: only the snapshot part is kept.
+
+At most one capture per BEAM (`{app, address}`) per 60 s. An item inside
+that minute is linked to the capture already taken, not captured again.
+What could not be read is in `errors`, by name (`"procs by reductions:
+172.18.0.99:9568: connection refused"`), and the capture is stored anyway.
+
+Stored in the objectives database: `wire_evidence (id, at, app, member,
+address, body jsonb)` and `wire_evidence_links (evidence_id, wire_id, at,
+app, member, kind, head)`, `wire_id` the `tape_wire` id (set when the tape
+has written the row; links written before it are resolved by time, app,
+member, kind and head, at once and again 5 s later). Kept 7 days.
+
+```json
+{"app": "marginalia", "member": "marginalia@172.18.0.10", "address": "172.18.0.10", "took_ms": 508,
+ "procs": {"reductions": [{"pid": "0.317.0", "registered_name": null, "initial_call": ":erlang.apply/2",
+                           "current_function": "FactoryReport.Observer.summary/2", "status": "running",
+                           "memory": 142800, "message_queue_len": 0, "reductions": 50326,
+                           "reductions_delta": 1514, "reductions_per_s": 3028}],
+           "memory": [], "message_queue_len": []},
+ "ets": [{"name": ":code_server", "memory_bytes": 753912, "size": 751, "owner_name": ":code_server"}],
+ "tables": [], "liveviews": null, "events": [], "errors": []}
+```
+
+Channel `evidence` (`ObsFactorWeb.EvidenceChannel`): join → `{}` or
+`{error}` (no tape, no taker; the join succeeds either way). Push `captured`
+`{id, at, app, member, address, hot: {name, reductions_per_s}, links: [{wire_id,
+at, app, member, kind, head, captured_before_ms}]}` per capture stored and
+per item linked to one later (`{:evidence, entry}` on PubSub topic
+`evidence`). Reads: `index` `{from, to}` → `{evidence: [entry]}` (captures
+linked to items in the range, newest first, at most 500, no bodies); `get`
+`{id}` or `{wire_id}` → `{evidence: entry + body}`, `{error: "no evidence for
+that"}` when none.
+
+The board (`evidence.js`): on the Wire and Errors tabs an item with a
+capture has an `evidence` expander (the hottest process and its rate on the
+button), matched by `wire_id`, or by time, app, member and kind for a live
+item with no id yet. The writeup's BEAM section lists an item with evidence
+under "Out of the ordinary" whatever its kind, with the three hottest
+processes, the biggest by memory and the biggest mailbox under it.
+
+Configuration: `config :obs_factor, :evidence, kinds: [...], every_ms: 60_000`
+(kinds as above, `"failing:db.query"` and `"surge:db.query"` for the Repo
+cases). Started with the collectors; does nothing without a tape.
+
+## Heartbeat and `/health` *(2026-11-24)*
+
+`GET /health` is still public and unauthenticated, and is now JSON. This
+replaces the `answers ok` line under Auth.
+
+| status | body |
+|---|---|
+| 200 | `{"ok":true,"snapshot_age_s":3,"sources_ok":8,"sources_total":9}` |
+| 503 | `{"ok":false,"reason":"snapshot_stale","snapshot_age_s":94,"sources_ok":2,"sources_total":9}` |
+
+- `ok` (`ObsFactor.Health.check/1`): the last good snapshot was stored under
+  30 s ago (`config :obs_factor, :health_max_age_ms`), measured on the
+  monotonic clock, and a process is registered as `ObsFactor.Ticker`.
+- `reason`, only when not ok: `ticker_down`, `no_snapshot_yet`,
+  `snapshot_stale` (no tick finished), `snapshot_failing` (the latest build
+  raised).
+- Source failures never make it 503. The counts are the only thing said
+  about them: no source names, errors, URLs or hosts.
+- `cache-control: no-store`. On `OBS_ROLE=builder` it is `{"ok":true}`.
+- `deploy.sh` wants 200 and `"ok":true`.
+
+`ObsFactor.Heartbeat` (started with the collectors, only when
+`HEARTBEAT_URL` is set) runs `Health.check/0` every 60 s, the first 20 s
+after boot:
+
+| env | default | |
+|---|---|---|
+| `HEARTBEAT_URL` | unset: no heartbeat | pinged while ok |
+| `HEARTBEAT_FAIL` | off | `1`: when not ok, POST `<url>/fail` (path only; query kept) |
+| `HEARTBEAT_METHOD` | `post` | `get`: no body, for push URLs that only take GET |
+
+A POST carries `text/plain` `ok snapshot_age=3s sources=8/9` (or
+`fail <reason> ...` to `/fail`). 2xx is delivered; anything else is logged
+as `heartbeat.undelivered` and tried again next minute. Log events:
+`heartbeat.started`, `heartbeat.pinging`, `heartbeat.skipped`,
+`heartbeat.failed`, `heartbeat.undelivered`, `heartbeat.error`, each once
+per change of state except the last two.
+
+`deploy/watchdog.sh` (another machine, once a minute) reads the same
+`/health`: 200 with `"ok":true` is healthy, anything else a failure. See
+`deploy/WATCHDOG.md`.

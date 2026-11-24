@@ -27,8 +27,9 @@ defmodule ObsFactorWeb.ApiTest do
   end
 
   describe "health" do
-    test "is public and says ok", %{conn: conn} do
-      assert conn |> get("/health") |> text_response(200) == "ok"
+    # healthy vs stale: test/obs_factor_web/controllers/health_test.exs
+    test "is public, and without a ticker says why it is not ok", %{conn: conn} do
+      assert %{"ok" => false, "reason" => "ticker_down"} = conn |> get("/health") |> json_response(503)
     end
   end
 
