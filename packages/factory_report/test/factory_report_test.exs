@@ -90,10 +90,10 @@ defmodule FactoryReportTest do
       assert report["app"] == "factory_report"
       assert {:ok, at, 0} = DateTime.from_iso8601(report["at"])
       assert DateTime.diff(DateTime.utc_now(), at) in 0..5
-      assert report["truncated"] == %{"units" => 0, "members" => 0, "streams" => 0}
+      assert report["truncated"] == %{"units" => 0, "members" => 0, "streams" => 0, "tables" => 0}
 
       assert Enum.sort(Map.keys(report)) ==
-               ~w(app at cluster events factory_report runtime streams truncated units)
+               ~w(app at cluster events factory_report liveviews runtime streams tables truncated units)
 
       decoded = report |> Jason.encode!() |> Jason.decode!()
       assert decoded == report
@@ -269,6 +269,60 @@ defmodule FactoryReportTest do
                stream(report, "liveview.event", "FactoryReport.TestLive.Room#ping")
 
       assert is_integer(us) and us >= 0
+    end
+
+    test "liveviews: every LiveView process alive now, per view, found by walking the processes" do
+      Process.flag(:trap_exit, true)
+
+      # Mounted before the reporter starts: no telemetry handler saw it, so
+      # it is not a unit, but the walk counts it.
+      {:ok, early, _} = live(build_conn(), "/room/1")
+      start()
+      {:ok, _a, _} = live(build_conn(), "/counter")
+      {:ok, _b, _} = live(build_conn(), "/counter")
+
+      # Not a LiveView: a `{Module, :mount, 3}` whose module has no __live__/0.
+      impostor =
+        spawn(fn ->
+          Process.put(:"$initial_call", {FactoryReport.TestController, :mount, 3})
+          receive(do: (:stop -> :ok))
+        end)
+
+      report = FactoryReport.report()
+      lv = report["liveviews"]
+
+      assert lv["views"] == [
+               %{"view" => "FactoryReport.TestLive.Child", "alive" => 2},
+               %{"view" => "FactoryReport.TestLive.Counter", "alive" => 2},
+               %{"view" => "FactoryReport.TestLive.Room", "alive" => 1}
+             ]
+
+      assert lv["total"] == 5
+      assert lv["views_cut"] == 0
+      assert lv["walk_limit"] == 20_000
+      assert lv["walked"] == lv["processes"] and lv["processes"] > 5
+      assert is_float(lv["took_ms"])
+      refute Map.has_key?(lv, "unavailable")
+      refute unit(report, "liveview", "FactoryReport.TestLive.Room")
+
+      send(impostor, :stop)
+      ref = Process.monitor(early.pid)
+      Process.exit(early.pid, :kill)
+      assert_receive {:DOWN, ^ref, :process, _, _}
+
+      assert %{"total" => 4, "views" => views} = FactoryReport.report()["liveviews"]
+      refute Enum.any?(views, &(&1["view"] == "FactoryReport.TestLive.Room"))
+      assert Jason.encode!(FactoryReport.report())
+    end
+
+    test "liveviews: the walk counts only the pids it is given" do
+      {:ok, view, _} = live(build_conn(), "/room/1")
+      others = for _ <- 1..50, do: spawn(fn -> receive(do: (:stop -> :ok)) end)
+      dead = spawn(fn -> :ok end)
+
+      assert FactoryReport.LiveViews.count(others ++ [dead]) == %{}
+      assert FactoryReport.LiveViews.count([view.pid | others]) == %{FactoryReport.TestLive.Room => 1}
+      Enum.each(others, &send(&1, :stop))
     end
 
     test "a patch moves the member to its new path" do
@@ -496,6 +550,66 @@ defmodule FactoryReportTest do
       assert %{"count" => 1} = stream(report, "db.query", "FactoryReportTest.PlainRepo")
       assert Handlers.repo_event(PlainRepo) == [:factory_report_test, :plain_repo, :query]
       refute Jason.encode!(report) =~ "SELECT"
+    end
+
+    test "each query also counts under its repo and table (Ecto's source), the most time first" do
+      start(repos: [Repo])
+      ms = System.convert_time_unit(1, :millisecond, :native)
+
+      query = fn source, n, result ->
+        :telemetry.execute([:my_app, :repo, :query], %{total_time: n * ms}, %{
+          repo: Repo,
+          source: source,
+          result: result,
+          query: "SELECT secret FROM #{source}"
+        })
+      end
+
+      # In a page's process: db.query gets its `by` row; tables are not attributed.
+      FactoryReport.Attribution.mark({"liveview", "SomeLive"})
+      query.("posts", 3, {:ok, %{}})
+      query.("posts", 1, {:error, %{}})
+      query.("comments", 2, {:ok, %{}})
+      query.("comments", 1, {:ok, %{}})
+      # Repo.query/3 and begin/commit carry source: nil.
+      query.(nil, 1, {:ok, %{}})
+      FactoryReport.Attribution.clear()
+
+      report = FactoryReport.report()
+
+      assert report["tables"] == [
+               %{"repo" => "FactoryReportTest.Repo", "table" => "posts", "count" => 2, "errors" => 1, "duration_us" => 4_000},
+               %{"repo" => "FactoryReportTest.Repo", "table" => "comments", "count" => 2, "errors" => 0, "duration_us" => 3_000},
+               %{"repo" => "FactoryReportTest.Repo", "table" => nil, "count" => 1, "errors" => 0, "duration_us" => 1_000}
+             ]
+
+      # The tables add up to the repo's total; no stream row per table.
+      assert %{"count" => 5, "duration_us" => 8_000} = stream(report, "db.query", "FactoryReportTest.Repo")
+      assert Enum.find(report["streams"], &(&1["kind"] == "db.query" and &1["by"] == %{"kind" => "liveview", "name" => "SomeLive"}))
+      assert Enum.all?(report["streams"], &(&1["kind"] != "db.table"))
+      assert report["truncated"]["tables"] == 0
+      refute Jason.encode!(report) =~ "SELECT"
+    end
+
+    test "tables: past 200 pairs a new table is counted under (other); the report keeps the 100 with the most time" do
+      quiet()
+      start(repos: [Repo])
+
+      for i <- 1..205 do
+        :telemetry.execute([:my_app, :repo, :query], %{total_time: i}, %{repo: Repo, source: "t#{i}", result: {:ok, %{}}})
+      end
+
+      # Admitted before the cap was reached: still its own row.
+      :telemetry.execute([:my_app, :repo, :query], %{total_time: 1}, %{repo: Repo, source: "t1", result: {:ok, %{}}})
+
+      report = FactoryReport.report()
+      assert length(report["tables"]) == 100
+      # 200 admitted pairs + one (other) row = 201 rows, 101 cut.
+      assert report["truncated"]["tables"] == 101
+      assert %{"count" => 5} = Enum.find(report["tables"], &(&1["table"] == "(other)"))
+      names = Enum.map(report["tables"], & &1["table"])
+      refute "t201" in names
+      assert names == Enum.sort_by(report["tables"], &(-&1["duration_us"])) |> Enum.map(& &1["table"])
     end
 
     test "finch requests count under the host" do
