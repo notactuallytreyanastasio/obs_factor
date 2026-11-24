@@ -14,8 +14,17 @@ defmodule ObsFactor.Reports do
   leaves this module is bounded whatever the reporter sent: at most
   100 units, 20 members per unit, 300 streams (the busiest by `count`), 100
   keys per gauge/counter/version map, 50 events, strings cut at 120
-  characters (an event's message at 300). What is cut here is added to the reporter's own `truncated`.
-  A gauge or counter whose value is not a number is ignored.
+  characters (an event's message at 300), 100 tables, 100 LiveView modules.
+  What is cut here is added to the reporter's own `truncated` (the
+  LiveView modules to the section's own `views_cut`). A gauge or counter
+  whose value is not a number is ignored.
+
+  `tables` (per repo and table: cumulative count, errors, duration_us) get
+  what a stream gets, over the window between two reads of the same
+  process: `queries`, `rate`, `err_rate`, `avg_ms` and `total_ms`, with
+  `window_s`. `liveviews` (LiveView processes alive now, per module) is a
+  value now and passes through as validated. Both are optional: a reporter
+  from before them reads as `tables: []` and `liveviews: nil`.
 
   A stream row is one `kind` + `name` + `by`: a breakdown row (`by` says
   whose process caused it) and its total (no `by`) are different rows, each
@@ -61,6 +70,8 @@ defmodule ObsFactor.Reports do
   @max_message 300
   @max_connections 64
   @max_globals 50
+  @max_tables 100
+  @max_views 100
 
   @impl true
   def name, do: :reports
@@ -129,7 +140,13 @@ defmodule ObsFactor.Reports do
 
     lead =
       if length(ok) > 1 do
-        %{lead | units: sum_units(ok), streams: sum_streams(ok), events: newest_events(ok)}
+        Map.merge(lead, %{
+          units: sum_units(ok),
+          streams: sum_streams(ok),
+          events: newest_events(ok),
+          tables: sum_tables(ok),
+          liveviews: sum_liveviews(ok)
+        })
       else
         lead
       end
@@ -163,6 +180,62 @@ defmodule ObsFactor.Reports do
 
       %{s | count: ss |> Enum.map(& &1.count) |> Enum.sum(), rate: rate, err_rate: add.(:err_rate), avg_ms: avg}
     end)
+  end
+
+  # Window values add up where every member knows them; the average is the
+  # total time over the queries.
+  defp sum_tables(datas) do
+    datas
+    |> Enum.flat_map(&(&1[:tables] || []))
+    |> Enum.group_by(&{&1.repo, &1.table})
+    |> Enum.map(fn {_, [t | _] = ts} ->
+      add = fn key -> if Enum.any?(ts, &is_nil(&1[key])), do: nil, else: ts |> Enum.map(& &1[key]) |> Enum.sum() end
+      queries = add.(:queries)
+      total_ms = add.(:total_ms)
+
+      %{
+        t
+        | count: add.(:count),
+          errors: add.(:errors),
+          duration_us: add.(:duration_us),
+          window_s: ts |> Enum.map(& &1.window_s) |> Enum.reject(&is_nil/1) |> Enum.max(fn -> nil end),
+          queries: queries,
+          rate: add.(:rate),
+          err_rate: add.(:err_rate),
+          avg_ms: if(is_number(queries) and queries > 0 and is_number(total_ms), do: total_ms / queries),
+          total_ms: total_ms
+      }
+    end)
+  end
+
+  # Alive per module, summed; the total is unknown if any member's is.
+  defp sum_liveviews(datas) do
+    lvs = datas |> Enum.map(&(&1[:liveviews])) |> Enum.reject(&is_nil/1)
+
+    if lvs == [] do
+      nil
+    else
+      {views, cut} =
+        lvs
+        |> Enum.flat_map(& &1.views)
+        |> Enum.group_by(& &1.view, & &1.alive)
+        |> Enum.map(fn {view, ns} -> %{view: view, alive: Enum.sum(ns)} end)
+        |> Enum.sort_by(&{-&1.alive, &1.view})
+        |> Enum.split(@max_views)
+
+      sum = fn key -> if Enum.any?(lvs, &is_nil(&1[key])), do: nil, else: lvs |> Enum.map(& &1[key]) |> Enum.sum() end
+
+      %{
+        total: if(length(lvs) == length(datas), do: sum.(:total)),
+        views: views,
+        views_cut: sum.(:views_cut) + length(cut),
+        processes: sum.(:processes),
+        walked: sum.(:walked),
+        walk_limit: lvs |> Enum.map(& &1.walk_limit) |> Enum.reject(&is_nil/1) |> Enum.max(fn -> nil end),
+        took_ms: lvs |> Enum.map(& &1.took_ms) |> Enum.reject(&is_nil/1) |> Enum.max(fn -> nil end),
+        unavailable: Enum.find_value(lvs, & &1.unavailable)
+      }
+    end
   end
 
   defp newest_events(datas) do
@@ -236,6 +309,8 @@ defmodule ObsFactor.Reports do
       runtime: reading.runtime |> Map.delete(:counters) |> Map.put(:rates, rates.runtime),
       units: reading.units,
       streams: rates.streams,
+      tables: rates.tables,
+      liveviews: reading.liveviews,
       events: reading.events,
       truncated: reading.truncated,
       cluster: cluster_rates(node_state.prev, reading, rates.restart)
@@ -252,7 +327,9 @@ defmodule ObsFactor.Reports do
   Rates between two readings of one node (each with `:at_ms`). `prev` nil
   (the first read) gives nil rates. Returns `%{restart, runtime, streams}`:
   `runtime` maps every counter of `cur` to its rate per second, `streams` is
-  `cur`'s streams as `%{kind, name, by, count, rate, err_rate, avg_ms}`.
+  `cur`'s streams as `%{kind, name, by, count, rate, err_rate, avg_ms}`,
+  `tables` `cur`'s tables with `window_s`, `queries`, `rate`, `err_rate`,
+  `avg_ms` and `total_ms` over the window.
 
   A counter the previous reading did not have has no rate yet. A stream it
   did not have started from zero, unless the previous reading was truncated:
@@ -295,8 +372,33 @@ defmodule ObsFactor.Reports do
           end
         end)
 
-      %{restart: false, runtime: runtime, streams: streams}
+      prev_tables = Map.new(prev.tables, &{{&1.repo, &1.table}, &1})
+      zero_table = if prev.truncated.tables == 0, do: %{count: 0, errors: 0, duration_us: 0}
+
+      tables =
+        Enum.map(cur.tables, fn t ->
+          case Map.get(prev_tables, {t.repo, t.table}, zero_table) do
+            nil -> table(t, nil, nil)
+            p -> table(t, %{count: t.count - p.count, errors: t.errors - p.errors, us: t.duration_us - p.duration_us}, dt_s)
+          end
+        end)
+
+      %{restart: false, runtime: runtime, streams: streams, tables: tables}
     end
+  end
+
+  defp table(t, nil, _dt_s),
+    do: Map.merge(t, %{window_s: nil, queries: nil, rate: nil, err_rate: nil, avg_ms: nil, total_ms: nil})
+
+  defp table(t, d, dt_s) do
+    Map.merge(t, %{
+      window_s: dt_s,
+      queries: d.count,
+      rate: d.count / dt_s,
+      err_rate: d.errors / dt_s,
+      avg_ms: if(d.count > 0, do: d.us / d.count / 1000),
+      total_ms: d.us / 1000
+    })
   end
 
   # How far behind the observer's clock a report's uptime may fall before it
@@ -322,7 +424,19 @@ defmodule ObsFactor.Reports do
           nil -> false
           p -> s.count < p.count or s.errors < p.errors or s.duration_us < p.duration_us
         end
-      end)
+      end) or
+      tables_back?(prev.tables, cur.tables)
+  end
+
+  defp tables_back?(prev, cur) do
+    before = Map.new(prev, &{{&1.repo, &1.table}, &1})
+
+    Enum.any?(cur, fn t ->
+      case before[{t.repo, t.table}] do
+        nil -> false
+        p -> t.count < p.count or t.errors < p.errors or t.duration_us < p.duration_us
+      end
+    end)
   end
 
   # Bytes per second on each connection, between two reads of the same node
@@ -352,7 +466,8 @@ defmodule ObsFactor.Reports do
     %{
       restart: restart,
       runtime: Map.new(cur.runtime.counters, fn {key, _} -> {key, nil} end),
-      streams: Enum.map(cur.streams, &stream(&1, nil, nil, nil))
+      streams: Enum.map(cur.streams, &stream(&1, nil, nil, nil)),
+      tables: Enum.map(cur.tables, &table(&1, nil, nil))
     }
   end
 
@@ -387,7 +502,7 @@ defmodule ObsFactor.Reports do
   `{:ok, reading}` or `{:error, reason}` naming the first thing that is wrong.
 
   A reading is `%{app, reported_at, runtime: %{kind, versions, uptime_s,
-  gauges, counters}, units, streams, events, truncated}`; the open maps (`versions`,
+  gauges, counters}, units, streams, tables, liveviews, events, truncated}`; the open maps (`versions`,
   `gauges`, `counters`) keep the reporter's string keys.
   """
   def validate(doc) do
@@ -436,6 +551,16 @@ defmodule ObsFactor.Reports do
         {streams, 0}
       end
 
+    {tables, cut_tables} =
+      doc["tables"]
+      |> list!("tables")
+      |> Enum.with_index()
+      |> Enum.map(fn {t, i} -> table!(t, "tables[#{i}]") end)
+      |> Enum.uniq_by(&{&1.repo, &1.table})
+      # The most time first, as the reporter sends them.
+      |> Enum.sort_by(&{-&1.duration_us, -&1.count})
+      |> Enum.split(@max_tables)
+
     events =
       doc["events"]
       |> list!("events")
@@ -458,12 +583,15 @@ defmodule ObsFactor.Reports do
       },
       units: units,
       streams: streams,
+      tables: tables,
+      liveviews: liveviews!(doc["liveviews"]),
       events: events,
       cluster: cluster,
       truncated: %{
         units: optional_count!(truncated, "units", "truncated.units") + length(cut_units),
         members: optional_count!(truncated, "members", "truncated.members") + cut_members,
-        streams: optional_count!(truncated, "streams", "truncated.streams") + cut_streams
+        streams: optional_count!(truncated, "streams", "truncated.streams") + cut_streams,
+        tables: optional_count!(truncated, "tables", "truncated.tables") + length(cut_tables)
       }
     }
   end
@@ -555,6 +683,51 @@ defmodule ObsFactor.Reports do
   end
 
   defp stream!(_other, where), do: fail("#{where} is not an object")
+
+  # A table is null for queries with no Ecto source (Repo.query/3, begin, commit).
+  defp table!(t, where) when is_map(t) do
+    %{
+      repo: string!(t, "repo", "#{where}.repo"),
+      table: optional_string!(t, "table", "#{where}.table"),
+      count: count!(t, "count", "#{where}.count"),
+      errors: count!(t, "errors", "#{where}.errors"),
+      duration_us: count!(t, "duration_us", "#{where}.duration_us")
+    }
+  end
+
+  defp table!(_other, where), do: fail("#{where} is not an object")
+
+  # Optional: reporters before it have none. `total` is null when the VM
+  # cannot read it (`unavailable` says why).
+  defp liveviews!(nil), do: nil
+
+  defp liveviews!(lv) when is_map(lv) do
+    {views, cut} =
+      lv["views"]
+      |> list!("liveviews.views")
+      |> Enum.with_index()
+      |> Enum.map(fn {v, i} ->
+        where = "liveviews.views[#{i}]"
+        v = object!(v, where)
+        %{view: string!(v, "view", "#{where}.view"), alive: count!(v, "alive", "#{where}.alive")}
+      end)
+      |> Enum.uniq_by(& &1.view)
+      |> Enum.sort_by(&{-&1.alive, &1.view})
+      |> Enum.split(@max_views)
+
+    %{
+      total: if(lv["total"] == nil, do: nil, else: count!(lv, "total", "liveviews.total")),
+      views: views,
+      views_cut: optional_count!(lv, "views_cut", "liveviews.views_cut") + length(cut),
+      processes: optional_number(lv["processes"]),
+      walked: optional_number(lv["walked"]),
+      walk_limit: optional_number(lv["walk_limit"]),
+      took_ms: optional_number(lv["took_ms"]),
+      unavailable: optional_string!(lv, "unavailable", "liveviews.unavailable")
+    }
+  end
+
+  defp liveviews!(_other), do: fail("liveviews is not an object")
 
   defp event!(e, where) when is_map(e) do
     %{

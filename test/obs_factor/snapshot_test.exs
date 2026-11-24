@@ -820,8 +820,10 @@ defmodule ObsFactor.SnapshotTest do
                    "avg_ms" => nil
                  }
                ],
+               "tables" => [],
+               "liveviews" => nil,
                "events" => [],
-               "truncated" => %{"units" => 0, "members" => 0, "streams" => 0},
+               "truncated" => %{"units" => 0, "members" => 0, "streams" => 0, "tables" => 0},
                "cluster" => nil,
                "members" => nil
              }
@@ -1020,7 +1022,7 @@ defmodule ObsFactor.SnapshotTest do
       inside = node!(s, "app").inside
       assert length(inside.streams) == 40
       assert Enum.map(inside.streams, & &1.name) == Enum.map(50..11//-1, &"s#{&1}")
-      assert inside.truncated == %{units: 0, members: 0, streams: 17}
+      assert inside.truncated == %{units: 0, members: 0, streams: 17, tables: 0}
     end
 
     test "a failing report: why, when it last worked, every other key nil, same status", %{
@@ -1046,6 +1048,8 @@ defmodule ObsFactor.SnapshotTest do
                runtime: nil,
                units: nil,
                streams: nil,
+               tables: nil,
+               liveviews: nil,
                events: nil,
                truncated: nil,
                cluster: nil,
@@ -1094,6 +1098,8 @@ defmodule ObsFactor.SnapshotTest do
                runtime: nil,
                units: nil,
                streams: nil,
+               tables: nil,
+               liveviews: nil,
                events: nil,
                truncated: nil,
                cluster: nil,
