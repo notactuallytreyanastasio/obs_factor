@@ -1254,6 +1254,86 @@ mailbox 100/1000, memory 50/200 MiB, reductions 500k/2M per second).
 The jump list (`jump.js`, Cmd/Ctrl+K) joins `objectives` while it is open.
 
 
+## PubSub: topics and who listens *(2026-11-24)*
+
+Every Phoenix.PubSub server of every BEAM, and of the observer's own VM.
+Found, not configured: a PubSub server is a `Registry` registered under the
+server's name whose metadata holds `pubsub: {adapter, adapter_name,
+dispatcher}` (phoenix_pubsub 2.4.1, started and read in
+`packages/factory_report/test/pubsub_test.exs`); a subscription is one
+registry entry, key the topic.
+
+**In the report** (`factory_report`): `"pubsub"`, a list, one per server,
+at most 10 by name (`truncated.pubsub` the rest). Optional: a reporter
+from before it reads as `inside.pubsub: null`.
+
+```json
+"pubsub": [{"name": "Blog.PubSub", "adapter": "Phoenix.PubSub.PG2", "keys": "duplicate", "partitions": 3,
+            "topics": 212, "subscriptions": 431, "subscribers": 220,
+            "top": [{"pattern": "post:#", "topics": 180, "subscriptions": 190}],
+            "patterns_cut": 0, "counts_only": null, "walk_limit": 100000, "took_ms": 0.31}]
+```
+
+- The report **names no topic**. A topic carries ids (`room:user-1234`,
+  `lv:phx-F_xUq1abc`) and the report promises no user identifiers and no
+  full channel topics, so `top` is the 25 busiest *patterns*: the topic
+  with digit runs, hex/UUID runs of 8+ and `phx-...` ids blanked to `#`,
+  with how many topics and subscriptions each holds.
+- `subscriptions` is registry entries; `subscribers` distinct processes;
+  `topics` distinct topics. Past 100,000 subscriptions on a server the
+  topics are not walked: `topics`, `subscribers` `null`, `top` `[]`,
+  `counts_only` says why. The walk at the limit: 24 to 40 ms (100,000
+  subscriptions, 5,000 topics, M-series laptop, OTP 28), every 5 s.
+- A topic that is not a binary (the registry takes any term) is written
+  with `inspect/2`; every string is valid UTF-8, at most 120 bytes.
+
+**Inside** (`ObsFactor.Topics`): `inside.pubsub` as reported, validated
+(10 servers, 25 patterns); `inside.members[].pubsub` per member; a
+cluster's node sums its members' servers by name (a topic on two members is
+two topics: each member's registry is its own).
+
+**On the tape** (`ObsFactor.Wire.Topics`, through `Wire.metrics/2`), per
+member and server: `"pubsub:<member>:<server>" => {app, member, server,
+topics, subs}`; the member keyed as the wire keys it (the node name of a
+distributed member, else the app's id), `"observer"` for the observer's
+own VM. The observer's own servers are read in-process each tick and given
+to the wire only (`snap["observer_pubsub"]`); they are not in the snapshot.
+
+**On the wire**, kind `"pubsub"`:
+
+- a subscription leak, `warn`: one server's subscriptions higher at every
+  one-minute sample for 30 minutes, up in each 10-minute third, by at
+  least 20 and 10 %: `Blog.PubSub subscriptions 100 → 160, never down in 30 min`.
+  Said once a run; a minute lower than the one before ends it.
+- a topic jump: +50 and +50 % in one tick, `info` (`warn` at 3x):
+  `Blog.PubSub topics 60 → 130`, `+117% in one tick on blog`.
+
+**Observer engine**: `GET /observer/pubsub[?server=&limit=1..1000 (100)&sort=subscriptions|topic]`
+→ `{"servers": [{...the report's server without top..., "topics_list": [{"topic", "pattern", "subscriptions"}], "topics_cut"}], "servers_cut", "limit", "sort", "walk_limit"}`.
+Whole topics: these are on demand and behind the observer's read auth, as
+process names are. `GET /observer/pubsub?server=Blog.PubSub&topic=post:42`
+→ `{"server", "topic", "subscriptions", "subscribers": [summary + {"kind": "liveview"|"channel"|"process", "module", "entries", "fastlane"}], "subscribers_cut", "subscribers_limit": 200}`,
+the biggest mailbox first; a topic nobody holds is 200 with `[]`; an
+unknown server 404 (`no PubSub server "Nope" in this VM (it has Blog.PubSub)`);
+`topic` without `server` 400. A LiveView is a subscriber whose
+`$initial_call` is `{View, :mount, 3}` with `View.__live__/0`; a channel
+`{Channel, :join, 3}` with `Channel.__intercepts__/0` (its entry's value
+is the fastlane `[Phoenix.Channel.Server | {transport, serializer, intercepts}]`).
+Checked on LiveView 1.2.13 and 1.0 (Phoenix 1.7).
+
+**Feeds** (`ObsFactor.Feeds.ObserverViews`): `observer:<node>:<member>:pubsub`
+(`pubsub?limit=1000`, 5 s) and `observer:<node>:<member>:pubsub:<server>:<topic>`
+(2 s; the topic is the rest of the feed topic, colons included, printable,
+at most 120 bytes; else refused: `pubsub:<server>:<topic> needs a server
+name and a printable topic of at most 120 bytes, got ...`). Interval keys
+`pubsub`, `pubsub_topic`.
+
+**The board's PubSub tab** (`board_pubsub.js`) and the writeup's `pubsub`
+section read the above. **Not observable**: broadcasts. Phoenix.PubSub
+emits no telemetry; an app that wants broadcast counts calls
+`FactoryReport.PubSub.broadcast/3`, which counts a `pubsub.broadcast`
+stream under the topic's pattern and then broadcasts.
+
 ## Identities and roles *(2026-11-23)*
 
 Who is on the page is a GitHub login, not a typed name

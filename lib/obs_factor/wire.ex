@@ -21,6 +21,8 @@ defmodule ObsFactor.Wire do
       surging or slowing, LiveView mounts surging;
     * mailboxes: a process holding 100 or more messages (read by
       `ObsFactor.Wire.Mailboxes` from the observer engine);
+    * PubSub, per server of each member and of the observer: a
+      subscription leak, a topic jump (`ObsFactor.Wire.Topics`);
     * Postgres, per app database (the topology's `databases:`): connections
       jumping, commits surging, the server's connections near its limit.
 
@@ -37,7 +39,9 @@ defmodule ObsFactor.Wire do
 
   def new,
     do: %{first: true, members: %{}, events: MapSet.new(), streams: %{}, db: %{}, total_conns: nil, mbox: %{}, said: %{},
-          outliers: MapSet.new(), base: %{}, odd: MapSet.new(), containers: %{}, last_seen: %{}}
+          outliers: MapSet.new(), base: %{}, odd: MapSet.new(), containers: %{}, last_seen: %{},
+          # PubSub servers: subscription samples and topic counts (ObsFactor.Wire.Topics)
+          pubsub: %{}}
 
   # baselines and remembered members not seen for this long are dropped: a
   # compose redeploy gives members new addresses, so new node names
@@ -65,6 +69,8 @@ defmodule ObsFactor.Wire do
     {peers_items, outliers} = peer_outliers(state.outliers, beams)
     {odd_items, base, odd} = baseline(state.base, state.odd, beams)
     {deploys, containers} = container_news(state.containers, nodes, state.first, now_ms)
+    # PubSub: subscription leaks and topic jumps (ObsFactor.Wire.Topics)
+    {pubsub_items, pubsub} = ObsFactor.Wire.Topics.news(Map.get(state, :pubsub, %{}), snap, now_ms)
 
     # a standing condition is news the moment it is first seen, even on the
     # first tick: the blog's reductions were 60x everyone else's before
@@ -75,7 +81,7 @@ defmodule ObsFactor.Wire do
       else
         member_news(state, beams, partial) ++
           app_news(state, nodes) ++ db_news(state, dbs, nodes) ++ mailbox_news(state, beams, mailboxes) ++
-          peers_items ++ odd_items ++ deploys
+          peers_items ++ odd_items ++ deploys ++ pubsub_items
       end
 
     {items, said} = quiet(items, state.said, now_ms)
@@ -96,7 +102,8 @@ defmodule ObsFactor.Wire do
         base: Map.reject(base, fn {{k, _}, _} -> MapSet.member?(stale, k) end),
         odd: MapSet.reject(odd, fn {k, _} -> MapSet.member?(stale, k) end),
         containers: containers,
-        last_seen: Map.drop(last_seen, MapSet.to_list(stale))
+        last_seen: Map.drop(last_seen, MapSet.to_list(stale)),
+        pubsub: pubsub
     }
 
     {Enum.map(items, &Map.put(&1, :at, now_ms)), state}
@@ -160,7 +167,11 @@ defmodule ObsFactor.Wire do
         {"pg:" <> db, %{app: d.app, conns: d.conns, commits: d.commits}}
       end
 
-    members |> Map.merge(queries) |> Map.merge(dbs)
+    members
+    |> Map.merge(queries)
+    |> Map.merge(dbs)
+    # "pubsub:<member>:<server>": topics and subscriptions (ObsFactor.Wire.Topics)
+    |> Map.merge(ObsFactor.Wire.Topics.metrics(snap))
   end
 
   # ---- reading the snapshot ------------------------------------------------

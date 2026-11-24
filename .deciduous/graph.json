@@ -191,6 +191,16 @@
       "to_change_id": "a299a523-e932-46a8-89ee-a0c47a1e19ff",
       "weight": 1.0
     },
+    "1f302d38005180289d69": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:52:36.068647-05:00",
+      "edge_id": "1f302d38005180289d69",
+      "edge_type": "leads_to",
+      "from_change_id": "6eb43045-d930-4404-9d7f-b69121febf2c",
+      "rationale": "rejected: leaks ids",
+      "to_change_id": "cb00f216-c214-494c-99e8-a1d4ab2de147",
+      "weight": 1.0
+    },
     "1fdf860587b5178c72ab": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-23T20:47:54.349611-05:00",
@@ -321,6 +331,16 @@
       "to_change_id": "ae926e12-a459-4543-9d75-bcace7d5be96",
       "weight": 1.0
     },
+    "34596bb1d983e62e50ac": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T21:02:20.304611-05:00",
+      "edge_id": "34596bb1d983e62e50ac",
+      "edge_type": "leads_to",
+      "from_change_id": "d81e1fd1-3513-4c73-9bea-68a4e4e4449a",
+      "rationale": "result",
+      "to_change_id": "c64ef650-cbe5-4ebe-91eb-de2e6e4cf031",
+      "weight": 1.0
+    },
     "36117f64c61f5323e50c": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T01:35:44.367210-05:00",
@@ -379,6 +399,16 @@
       "from_change_id": "8f727b32-cbec-4e48-b138-d96f05be1599",
       "rationale": "result",
       "to_change_id": "db243864-fc0a-4514-bce7-612f6b32a67f",
+      "weight": 1.0
+    },
+    "3cbcaccdc63a999bef0e": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T21:02:14.103729-05:00",
+      "edge_id": "3cbcaccdc63a999bef0e",
+      "edge_type": "leads_to",
+      "from_change_id": "cb00f216-c214-494c-99e8-a1d4ab2de147",
+      "rationale": "implementation",
+      "to_change_id": "324ade2e-8cba-4d81-b1d8-429e68782f2d",
       "weight": 1.0
     },
     "3cbfb256f3e57cedbdbe": {
@@ -451,6 +481,16 @@
       "to_change_id": "1094b22e-21ab-4ab6-a887-f1b8d723f366",
       "weight": 1.0
     },
+    "45b686e715ad0e4f4afc": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:52:36.003309-05:00",
+      "edge_id": "45b686e715ad0e4f4afc",
+      "edge_type": "leads_to",
+      "from_change_id": "475f8786-395c-4adf-812b-a7d8ac24453b",
+      "rationale": "chosen",
+      "to_change_id": "cb00f216-c214-494c-99e8-a1d4ab2de147",
+      "weight": 1.0
+    },
     "46d815caf2ed7fb5d9f5": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-23T20:48:30.114978-05:00",
@@ -470,6 +510,16 @@
       "from_change_id": "38883825-4447-4253-a11d-64d96ca18180",
       "rationale": "measurement approach",
       "to_change_id": "c2a5b9d1-1590-4c43-bd8c-d59df8b92f7b",
+      "weight": 1.0
+    },
+    "4ccc572a4ee108197d01": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:58:32.672005-05:00",
+      "edge_id": "4ccc572a4ee108197d01",
+      "edge_type": "leads_to",
+      "from_change_id": "cb00f216-c214-494c-99e8-a1d4ab2de147",
+      "rationale": "implementation",
+      "to_change_id": "1c2d697f-1bc2-4b28-a5d6-5a6643387e75",
       "weight": 1.0
     },
     "4e4b9425070d1f77785f": {
@@ -502,6 +552,16 @@
       "to_change_id": "ade9fa05-8c42-4326-a441-1af908d615a8",
       "weight": 1.0
     },
+    "52b3d77fab1d81402e3b": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T21:02:20.176709-05:00",
+      "edge_id": "52b3d77fab1d81402e3b",
+      "edge_type": "leads_to",
+      "from_change_id": "324ade2e-8cba-4d81-b1d8-429e68782f2d",
+      "rationale": "result",
+      "to_change_id": "c64ef650-cbe5-4ebe-91eb-de2e6e4cf031",
+      "weight": 1.0
+    },
     "53d3e4118cded4958b0a": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-18T17:31:50.049838-05:00",
@@ -510,6 +570,16 @@
       "from_change_id": "83ff9921-6146-4837-be4b-0f44e1d1b897",
       "rationale": "found on the box",
       "to_change_id": "4012b0cb-2f11-4e92-9059-3f81a39c4b33",
+      "weight": 1.0
+    },
+    "543f52a14899d8887328": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T21:02:20.242681-05:00",
+      "edge_id": "543f52a14899d8887328",
+      "edge_type": "leads_to",
+      "from_change_id": "1c2d697f-1bc2-4b28-a5d6-5a6643387e75",
+      "rationale": "result",
+      "to_change_id": "c64ef650-cbe5-4ebe-91eb-de2e6e4cf031",
       "weight": 1.0
     },
     "5464cd07feebc5c8fede": {
@@ -622,6 +692,16 @@
       "to_change_id": "763946f4-bfad-49cf-b026-0af4d1784b98",
       "weight": 1.0
     },
+    "68df28449f62fa629b3c": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:52:42.819925-05:00",
+      "edge_id": "68df28449f62fa629b3c",
+      "edge_type": "leads_to",
+      "from_change_id": "6db238ee-ede3-46a4-b165-96d22101b35c",
+      "rationale": "option",
+      "to_change_id": "475f8786-395c-4adf-812b-a7d8ac24453b",
+      "weight": 1.0
+    },
     "695a6918b3dcf6c97fc0": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-23T20:50:04.651-05:00",
@@ -700,6 +780,16 @@
       "from_change_id": "d5babe13-4a38-4d79-96df-8663d2d9b298",
       "rationale": "option",
       "to_change_id": "e14fd550-b542-4ebb-8388-78911ce3b42b",
+      "weight": 1.0
+    },
+    "725c5ac25ac8bd3cf810": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:52:36.205235-05:00",
+      "edge_id": "725c5ac25ac8bd3cf810",
+      "edge_type": "leads_to",
+      "from_change_id": "cb00f216-c214-494c-99e8-a1d4ab2de147",
+      "rationale": "implementation",
+      "to_change_id": "d81e1fd1-3513-4c73-9bea-68a4e4e4449a",
       "weight": 1.0
     },
     "76520596d3ade4eab3f2": {
@@ -810,6 +900,16 @@
       "from_change_id": "d1ce37d0-5437-4068-85c3-0c1a6f9338d5",
       "rationale": "result",
       "to_change_id": "3ff62650-4ee7-4963-8f39-44b570518053",
+      "weight": 1.0
+    },
+    "9146af65e1bda4379b1b": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:52:42.755898-05:00",
+      "edge_id": "9146af65e1bda4379b1b",
+      "edge_type": "leads_to",
+      "from_change_id": "6db238ee-ede3-46a4-b165-96d22101b35c",
+      "rationale": "option",
+      "to_change_id": "6eb43045-d930-4404-9d7f-b69121febf2c",
       "weight": 1.0
     },
     "91554401d0b2cc7da0b7": {
@@ -933,6 +1033,17 @@
       "to_change_id": "51eb816a-ca96-48b8-8eb7-bf21203d22af",
       "weight": 1.0
     },
+    "b31ac6bee0e5b293251f": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:52:35.874063-05:00",
+      "deleted_at": "2026-11-23T20:52:42.697331-05:00",
+      "edge_id": "b31ac6bee0e5b293251f",
+      "edge_type": "leads_to",
+      "from_change_id": "1190c87e-b14c-4370-9f5f-0a4b00a2b943",
+      "rationale": "option",
+      "to_change_id": "475f8786-395c-4adf-812b-a7d8ac24453b",
+      "weight": 1.0
+    },
     "b5bb59be37ce41b3b401": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-23T20:50:10.597161-05:00",
@@ -1041,6 +1152,17 @@
       "from_change_id": "abd8abf6-acb8-4362-a165-01fdca19c416",
       "rationale": "implements",
       "to_change_id": "59bdc4bf-295e-42ea-b396-1f408c16672c",
+      "weight": 1.0
+    },
+    "ce916c925b821adbb7a7": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:52:35.728218-05:00",
+      "deleted_at": "2026-11-23T20:52:42.630880-05:00",
+      "edge_id": "ce916c925b821adbb7a7",
+      "edge_type": "leads_to",
+      "from_change_id": "1190c87e-b14c-4370-9f5f-0a4b00a2b943",
+      "rationale": "option",
+      "to_change_id": "6eb43045-d930-4404-9d7f-b69121febf2c",
       "weight": 1.0
     },
     "cf38be40c30adf24101e": {
@@ -1405,6 +1527,20 @@
       "title": "Timeline (replay, select, loop) + Fires panel + burning buildings",
       "updated_at": "2026-11-23T17:04:35.673826-05:00"
     },
+    "1c2d697f-1bc2-4b28-a5d6-5a6643387e75": {
+      "author": "Bobby Grayson",
+      "change_id": "1c2d697f-1bc2-4b28-a5d6-5a6643387e75",
+      "created_at": "2026-11-23T20:58:30.636015-05:00",
+      "metadata": {
+        "branch": "37-pubsub",
+        "commit": "0c6388096b5cb4206da7e2152808b261f23ed3b5",
+        "confidence": 85
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "obs_factor: pubsub into inside, tape metrics, wire news (leak, jump), feed views, writeup section",
+      "updated_at": "2026-11-23T20:58:30.636015-05:00"
+    },
     "1cc44800-b9ad-4926-8d32-56f73b5142fa": {
       "author": "Bobby Grayson",
       "change_id": "1cc44800-b9ad-4926-8d32-56f73b5142fa",
@@ -1515,6 +1651,20 @@
       "status": "pending",
       "title": "/health: JSON, 503 when snapshot older than 30 s or ticker gone",
       "updated_at": "2026-11-23T20:47:53.831603-05:00"
+    },
+    "324ade2e-8cba-4d81-b1d8-429e68782f2d": {
+      "author": "Bobby Grayson",
+      "change_id": "324ade2e-8cba-4d81-b1d8-429e68782f2d",
+      "created_at": "2026-11-23T21:02:11.367137-05:00",
+      "metadata": {
+        "branch": "37-pubsub",
+        "commit": "431960e3121d7134e16a4ca5bd7f4b5798c7b790",
+        "confidence": 80
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Board PubSub tab with live subscriber graph; contract section",
+      "updated_at": "2026-11-23T21:02:11.367137-05:00"
     },
     "33c8b078-45bd-4560-b610-20eb2282632c": {
       "author": "Bobby Grayson",
@@ -1677,6 +1827,19 @@
       "status": "pending",
       "title": "Board/timeline density: sparks, movers, outliers, errors by fingerprint, cluster map, BEAM heat rows, deploy marks",
       "updated_at": "2026-11-23T19:05:04.424299-05:00"
+    },
+    "475f8786-395c-4adf-812b-a7d8ac24453b": {
+      "author": "Bobby Grayson",
+      "change_id": "475f8786-395c-4adf-812b-a7d8ac24453b",
+      "created_at": "2026-11-23T20:52:35.808897-05:00",
+      "metadata": {
+        "branch": "37-pubsub",
+        "confidence": 80
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "Report topic patterns (ids blanked); full topics only in the on-demand observer read",
+      "updated_at": "2026-11-23T20:52:35.808897-05:00"
     },
     "477d1080-b674-47e8-8b1d-c1b691ae3acc": {
       "author": "Bobby Grayson",
@@ -2003,6 +2166,33 @@
       "status": "pending",
       "title": "Count frames, not requests (every frame equal)",
       "updated_at": "2026-11-23T20:50:04.467460-05:00"
+    },
+    "6db238ee-ede3-46a4-b165-96d22101b35c": {
+      "author": "Bobby Grayson",
+      "change_id": "6db238ee-ede3-46a4-b165-96d22101b35c",
+      "created_at": "2026-11-23T20:52:35.585159-05:00",
+      "metadata": {
+        "branch": "37-pubsub",
+        "confidence": 85,
+        "prompt": "We should be able to visualize pubsub topics too"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "Visualize Phoenix PubSub topics",
+      "updated_at": "2026-11-23T20:52:35.585159-05:00"
+    },
+    "6eb43045-d930-4404-9d7f-b69121febf2c": {
+      "author": "Bobby Grayson",
+      "change_id": "6eb43045-d930-4404-9d7f-b69121febf2c",
+      "created_at": "2026-11-23T20:52:35.660568-05:00",
+      "metadata": {
+        "branch": "37-pubsub",
+        "confidence": 40
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "Report full topics in the report section",
+      "updated_at": "2026-11-23T20:52:35.660568-05:00"
     },
     "763946f4-bfad-49cf-b026-0af4d1784b98": {
       "author": "Bobby Grayson",
@@ -2636,6 +2826,19 @@
       "title": "/opt/blog/.env holds every secret; deploy scripts rewrite .deployed in place (echo >), so single-file binds stay live; a rename would go stale",
       "updated_at": "2026-11-23T20:47:38.974486-05:00"
     },
+    "c64ef650-cbe5-4ebe-91eb-de2e6e4cf031": {
+      "author": "Bobby Grayson",
+      "change_id": "c64ef650-cbe5-4ebe-91eb-de2e6e4cf031",
+      "created_at": "2026-11-23T21:02:14.187550-05:00",
+      "metadata": {
+        "branch": "37-pubsub",
+        "confidence": 80
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "PubSub visible end to end: root 413/0, factory_report 110/0, compat 110/0; board tab untested in the live page",
+      "updated_at": "2026-11-23T21:02:14.187550-05:00"
+    },
     "c7cf1c8f-2857-476d-bfaf-97e625528b75": {
       "author": "Bobby Grayson",
       "change_id": "c7cf1c8f-2857-476d-bfaf-97e625528b75",
@@ -2661,6 +2864,19 @@
       "status": "pending",
       "title": "Production tape: only proxy-routed nodes have err_rps; path-routed nodes (deciduous-mcp, lumines, soldat...) have rps alone; p95_ms only in frames with requests",
       "updated_at": "2026-11-23T20:50:04.777691-05:00"
+    },
+    "cb00f216-c214-494c-99e8-a1d4ab2de147": {
+      "author": "Bobby Grayson",
+      "change_id": "cb00f216-c214-494c-99e8-a1d4ab2de147",
+      "created_at": "2026-11-23T20:52:35.943513-05:00",
+      "metadata": {
+        "branch": "37-pubsub",
+        "confidence": 85
+      },
+      "node_type": "decision",
+      "status": "pending",
+      "title": "Report ranks patterns, never names a topic: the existing privacy test (no user-1234 in the report) failed with full topics",
+      "updated_at": "2026-11-23T20:52:35.943513-05:00"
     },
     "d025ec0b-4481-4ed2-a9b8-3e8c6d700eca": {
       "author": "Bobby Grayson",
@@ -2804,6 +3020,22 @@
       "status": "pending",
       "title": "Deploys source, wire pairing, snapshot fact, writeup rows",
       "updated_at": "2026-11-23T20:48:30.047129-05:00"
+    },
+    "d81e1fd1-3513-4c73-9bea-68a4e4e4449a": {
+      "author": "Bobby Grayson",
+      "change_id": "d81e1fd1-3513-4c73-9bea-68a4e4e4449a",
+      "created_at": "2026-11-23T20:52:36.142701-05:00",
+      "metadata": {
+        "branch": "37-pubsub",
+        "confidence": 85,
+        "files": [
+          "packages/factory_report/lib/factory_report/pubsub.ex"
+        ]
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "factory_report: FactoryReport.PubSub, report section pubsub, GET /observer/pubsub, broadcast/3 opt-in",
+      "updated_at": "2026-11-23T20:52:36.142701-05:00"
     },
     "db243864-fc0a-4514-bce7-612f6b32a67f": {
       "author": "Bobby Grayson",

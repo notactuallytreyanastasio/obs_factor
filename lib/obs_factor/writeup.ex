@@ -11,7 +11,7 @@ defmodule ObsFactor.Writeup do
     * `spec` - a wire filter (`ObsFactor.WireFilters` spec: apps, sevs,
       kinds, q), which narrows the timeline and the errors
     * `apps` - node ids: every section only about those buildings
-    * `sections` - which of #{inspect(~w(summary incidents timeline hot beam errors db slos method))}
+    * `sections` - which of #{inspect(~w(summary incidents timeline hot beam errors db slos pubsub method))}
       (all by default)
     * `base_url` - where the floor is, for the replay links
     * `compare` - `"week"` or `"month"`: a small extra section comparing
@@ -33,7 +33,7 @@ defmodule ObsFactor.Writeup do
 
   alias ObsFactor.{Insights, Rollups, Tape, WireFilters}
 
-  @sections ~w(summary incidents timeline hot beam errors db slos method)
+  @sections ~w(summary incidents timeline hot beam errors db slos pubsub method)
   @error_kinds ~w(error warning failing crash handler)
   @max_rows 200
   @max_range_ms 92 * 86_400_000
@@ -255,6 +255,9 @@ defmodule ObsFactor.Writeup do
   # error budgets as they stood at the end of the range (ObsFactor.SLOs); with
   # the db in ctx, so a writeup built from another database reads that one
   defp section("slos", ctx), do: ObsFactor.SLOs.writeup(ctx.to, ctx.apps, ctx.db)
+
+  # PubSub servers and their top topic patterns at the end (ObsFactor.Writeup.Topics)
+  defp section("pubsub", ctx), do: ObsFactor.Writeup.Topics.section(ctx.data.frame, &in_app?(ctx, &1))
   defp section("errors", ctx), do: tape_errors(ctx)
   defp section(name, ctx), do: tape_section(name, ctx)
 

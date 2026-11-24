@@ -181,3 +181,31 @@ ol.bd-errs .m { font: 10px var(--mono); color: var(--dim); }
 .eb rect { fill: #ff7a3a; }
 ol.bd-errs li.warn .eb rect { fill: #ffb347; }
 #board tr.grp .lv { color: #9fdcf0; font: 400 11px var(--mono); letter-spacing: 0; }
+
+/* The PubSub tab (board_pubsub.js): the patterns, and beside them a topic's
+   subscribers as a graph. */
+.ps-wrap { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
+.ps-tops { flex: 1 1 250px; min-width: 0; }
+.ps-side { flex: 0 1 290px; min-width: 0; border: 1px solid rgba(127, 224, 255, 0.25); border-radius: 8px; padding: 6px 8px; margin-top: 12px; background: rgba(127, 224, 255, 0.03); }
+.ps-h { display: flex; align-items: center; gap: 6px; font: 700 11px var(--mono); color: #e8fbff; }
+.ps-h b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-chips { display: flex; flex-wrap: wrap; gap: 3px; margin: 6px 0; }
+.ps-chips .bd-chip { font: 10px var(--mono); height: 20px; padding: 0 6px; }
+#board tr.ps-pat { cursor: pointer; }
+#board tr.ps-pat:hover td, #board tr.ps-pat.on td { background: rgba(127, 224, 255, 0.1); }
+#board tr.ps-pat.on td.nm { color: #7fe0ff; font-weight: 700; }
+.ps-graph { width: 100%; height: auto; display: block; }
+.ps-graph line { stroke: rgba(127, 224, 255, 0.25); stroke-width: 1; }
+.ps-graph text { fill: #c3c9d8; font: 12px var(--mono); pointer-events: none; }
+.ps-graph .ps-c circle { fill: rgba(127, 224, 255, 0.15); stroke: #7fe0ff; }
+.ps-graph .ps-c text { fill: #e8fbff; font-weight: 700; }
+.ps-graph .ps-n { cursor: pointer; }
+.ps-graph .ps-n circle { fill: #8b93a7; stroke: rgba(0, 0, 0, 0.4); }
+.ps-graph .ps-n.k-liveview circle, .k-liveview { fill: #b388ff; color: #b388ff; }
+.ps-graph .ps-n.k-channel circle, .k-channel { fill: #f2c94c; color: #f2c94c; }
+.k-process { color: #8b93a7; }
+.ps-graph .ps-n.bad circle { stroke: #ff5a5a; stroke-width: 2; }
+.ps-graph .ps-n.on circle { stroke: #fff; stroke-width: 2; }
+.ps-graph .ps-n:hover circle { stroke: #e8fbff; }
+#board table.ps-proc td { font-size: 10.5px; }
+#board table.ps-proc td.nm { color: var(--muted); }

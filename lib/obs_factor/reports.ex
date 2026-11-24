@@ -147,7 +147,9 @@ defmodule ObsFactor.Reports do
           streams: sum_streams(ok),
           events: newest_events(ok),
           tables: sum_tables(ok),
-          liveviews: sum_liveviews(ok)
+          liveviews: sum_liveviews(ok),
+          # PubSub servers per name, summed (ObsFactor.Topics)
+          pubsub: ObsFactor.Topics.sum(ok)
         })
       else
         lead
@@ -313,6 +315,8 @@ defmodule ObsFactor.Reports do
       streams: rates.streams,
       tables: rates.tables,
       liveviews: reading.liveviews,
+      # PubSub servers and topic patterns (ObsFactor.Topics); nil from an older reporter
+      pubsub: reading[:pubsub],
       events: reading.events,
       truncated: reading.truncated,
       cluster: cluster_rates(node_state.prev, reading, rates.restart)
@@ -587,6 +591,8 @@ defmodule ObsFactor.Reports do
       streams: streams,
       tables: tables,
       liveviews: liveviews!(doc["liveviews"]),
+      # PubSub: validated by ObsFactor.Topics (docs/contract.md, "PubSub")
+      pubsub: ObsFactor.Topics.validate!(doc["pubsub"]),
       events: events,
       cluster: cluster,
       truncated: %{

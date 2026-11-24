@@ -93,6 +93,8 @@ defmodule FactoryReport.Observer do
   defp route("GET", ["proc", pid], params, opts), do: {200, proc(local_pid!(pid), params, opts)}
   defp route("GET", ["ets"], _params, _opts), do: {200, ets()}
   defp route("GET", ["ports"], _params, _opts), do: {200, ports()}
+  # PubSub servers, their topics, one topic's subscribers (FactoryReport.PubSub).
+  defp route("GET", ["pubsub"], params, _opts), do: {200, FactoryReport.PubSub.read(params)}
 
   defp route("POST", ["proc", pid, verb], params, opts) when verb in ~w(kill gc exit),
     do: act(verb, local_pid!(pid), params, opts)
@@ -111,13 +113,13 @@ defmodule FactoryReport.Observer do
   end
 
   defp safe_route_exists("POST", path), do: if(action?(path), do: {:post, path})
-  defp safe_route_exists("GET", [p | _] = path) when p in ~w(system apps tree procs proc ets ports) and length(path) <= 2, do: {:get, path}
+  defp safe_route_exists("GET", [p | _] = path) when p in ~w(system apps tree procs proc ets ports pubsub) and length(path) <= 2, do: {:get, path}
   defp safe_route_exists(_, _), do: nil
 
   defp index(opts) do
     %{
       "observer" => 1,
-      "reads" => ~w(system apps tree/:app procs proc/:pid ets ports),
+      "reads" => ~w(system apps tree/:app procs proc/:pid ets ports pubsub),
       "actions" => ~w(proc/:pid/kill proc/:pid/gc proc/:pid/exit tree/:app/restart logger/level),
       "inspect_state" => Keyword.get(opts, :inspect_state, false) == true
     }
