@@ -530,6 +530,16 @@
       "to_change_id": "e0da1a22-c64a-4d9a-b4ee-2df64ffe7851",
       "weight": 1.0
     },
+    "8688e70fdb018ab1d52c": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:00:19.486189-05:00",
+      "edge_id": "8688e70fdb018ab1d52c",
+      "edge_type": "leads_to",
+      "from_change_id": "379bc5cb-5fff-4ff7-adb4-119ad4cc996c",
+      "rationale": "implements",
+      "to_change_id": "6bbb05ec-564c-40f8-88a9-b1e37936bd94",
+      "weight": 1.0
+    },
     "88aa7b579827e70f13d4": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-23T12:25:51.987694-05:00",
@@ -568,6 +578,16 @@
       "from_change_id": "9f67e5a8-2441-4aff-9f41-74316446efdf",
       "rationale": "Result",
       "to_change_id": "b0f5a2f3-13f8-4033-9611-b5e28fbbedb6",
+      "weight": 1.0
+    },
+    "94c72f5e633d2db9afca": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-23T20:00:19.426676-05:00",
+      "edge_id": "94c72f5e633d2db9afca",
+      "edge_type": "leads_to",
+      "from_change_id": "379bc5cb-5fff-4ff7-adb4-119ad4cc996c",
+      "rationale": "implements",
+      "to_change_id": "52efeeac-0b3d-4324-a361-61b190fb9de1",
       "weight": 1.0
     },
     "95cfdb4ab770a595b73e": {
@@ -1127,6 +1147,20 @@
       "title": "Build the lab stack and production wiring: Dockerfile, deploy.sh, topology, compose and Caddy snippets",
       "updated_at": "2026-11-18T17:36:30.709851-05:00"
     },
+    "379bc5cb-5fff-4ff7-adb4-119ad4cc996c": {
+      "author": "Bobby Grayson",
+      "change_id": "379bc5cb-5fff-4ff7-adb4-119ad4cc996c",
+      "created_at": "2026-11-23T19:54:35.815001-05:00",
+      "metadata": {
+        "branch": "26-writeups",
+        "confidence": 80,
+        "prompt": "Now let's make report generation that runs on top of the slicing and dicing for external consumption -- markdown docs are a good start"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "Writeups: Markdown reports generated from any slice (window, selection, filter set, apps) for external consumption",
+      "updated_at": "2026-11-23T19:54:35.815001-05:00"
+    },
     "38883825-4447-4253-a11d-64d96ca18180": {
       "author": "Bobby Grayson",
       "change_id": "38883825-4447-4253-a11d-64d96ca18180",
@@ -1342,6 +1376,20 @@
       "title": "BEAM-only news: wire of happenings inside live BEAM systems (marginalia, messaging, db)",
       "updated_at": "2026-11-23T18:31:14.241365-05:00"
     },
+    "52efeeac-0b3d-4324-a361-61b190fb9de1": {
+      "author": "Bobby Grayson",
+      "change_id": "52efeeac-0b3d-4324-a361-61b190fb9de1",
+      "created_at": "2026-11-23T19:57:47.628593-05:00",
+      "metadata": {
+        "branch": "26-writeups",
+        "commit": "1c68bf1e9ec8f27b11cf2797651a55eeeadb79f4",
+        "confidence": 85
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Writeup generator, /api/writeup.md, shared /w/<slug>.md, channel events",
+      "updated_at": "2026-11-23T19:57:47.628593-05:00"
+    },
     "53d3622a-0085-40a1-ab81-a236f95a4677": {
       "author": "Bobby Grayson",
       "change_id": "53d3622a-0085-40a1-ab81-a236f95a4677",
@@ -1432,6 +1480,20 @@
       "status": "pending",
       "title": "OpenTelemetry in every app plus a collector",
       "updated_at": "2026-11-19T02:58:16.409375-05:00"
+    },
+    "6bbb05ec-564c-40f8-88a9-b1e37936bd94": {
+      "author": "Bobby Grayson",
+      "change_id": "6bbb05ec-564c-40f8-88a9-b1e37936bd94",
+      "created_at": "2026-11-23T20:00:19.365058-05:00",
+      "metadata": {
+        "branch": "26-writeups",
+        "commit": "5c0aec8644da9ce9759f6dfa16eb09a7837679d7",
+        "confidence": 85
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Write up panel: preview, download, copy, share/revoke; entry points",
+      "updated_at": "2026-11-23T20:00:19.365058-05:00"
     },
     "763946f4-bfad-49cf-b026-0af4d1784b98": {
       "author": "Bobby Grayson",
