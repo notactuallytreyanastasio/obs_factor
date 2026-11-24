@@ -17,6 +17,8 @@ defmodule ObsFactorWeb.UserSocket do
   channel "logs", ObsFactorWeb.LogsChannel
   channel "actions", ObsFactorWeb.ActionsChannel
   channel "tape", ObsFactorWeb.TapeChannel
+  # error budgets per app (ObsFactor.SLOs), the board's SLO tab
+  channel "slo", ObsFactorWeb.SLOChannel
   channel "observer:*", ObsFactorWeb.FeedChannel
   channel "history:*", ObsFactorWeb.FeedChannel
   channel "builds:*", ObsFactorWeb.FeedChannel

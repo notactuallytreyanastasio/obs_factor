@@ -1253,3 +1253,60 @@ mailbox 100/1000, memory 50/200 MiB, reductions 500k/2M per second).
 
 The jump list (`jump.js`, Cmd/Ctrl+K) joins `objectives` while it is open.
 
+
+
+## Error budgets: `ObsFactor.SLOs`, topic `slo` *(2026-11-24)*
+
+Targets per app (topology node id), in the objectives database
+(`slo_targets`, created at first use): `availability` (share of requests
+without a 5xx, `0.5 < x < 1`), `window_days` (7 or 30, rolling; 30 when not
+given), optionally `latency_ms` and `latency_target` (share of requests
+served while the node's p95 was at most `latency_ms`; 0.99 when not given).
+Without `OBJECTIVES_PG_URL` there is no server and the topic answers with
+`{error}`.
+
+Measured from the tape's per-node `metrics` (`rps`, `err_rps`, `p95_ms`),
+each frame weighted by the seconds until the next (capped at 2 minutes):
+requests = `rps * s`, 5xx = `err_rps * s`. Only nodes the proxy routes to by
+hostname have `err_rps`; a node reached only by path routes has `rps` alone
+and its report says it cannot be measured. A window longer than the tape
+(7 days) is computed over what exists and `coverage.note` says so.
+
+Burn rate = error rate over a lookback / (1 - target). Flags (SRE workbook,
+multiwindow): `fast` when 1 h and 5 m are both at least `0.02 * window_h`
+(14.4x for 30 days, 3.36x for 7), `slow` when 6 h and 30 m are both at least
+`0.05 * window_h / 6` (6x, 1.4x), and the long lookback had at least 20
+requests.
+
+The server evaluates every minute and broadcasts `{:slo_status, reports}` on
+`ObsFactor.PubSub` `"slo"`. When a flag starts it queues a wire item, the
+`ObsFactor.Wire` shape:
+
+```
+%{at, app: node, label, member: nil, kind: "slo_burn", sev: "alert" (fast) | "warn" (slow),
+  head: "fast burn of the availability budget: 24.0x over 1h",
+  text: "Target 99.5% of requests without a 5xx, 30-day window. Burn 24.0x over 1h and 24.0x over 5m; flagged at 14.4x (2% of the budget in 1h). Budget left: 30.4%."}
+```
+
+`ObsFactor.Ticker` appends `ObsFactor.SLOs.drain()` to its tick's wire, so
+the item is written to `tape_wire`, pushed in the `tape` `tick` and shown
+on the board like any wire item. A flag already burning (kept per row in
+`burning`, across restarts) is not said again; one that stops is forgotten
+and is news the next time it starts.
+
+Topic `slo` (`ObsFactorWeb.SLOChannel`): join reply `{reports, thresholds:
+{"7": {fast, slow}, "30": {fast, slow}}}` or `{error, thresholds}`; pushes
+`status` `{reports}` once a minute and after every write. Events: `save`
+`{node, availability, window_days, latency_ms, latency_target, by}` ->
+`{target}`; `delete` `{node}` -> `{deleted: node}`; errors `{error}`.
+
+A report: `{node, label, window_days, target: {availability, latency_ms,
+latency_target}, by, updated_at, thresholds: {fast, slow}, coverage:
+{window_ms, from, to, covered_ms, tape_from, note}, availability: objective,
+latency: objective | null, burning: {"availability.fast": since_ms, ...},
+note}`; an objective `{target, sli, requests, bad, budget_left_pct, burn:
+{"5m", "1h", "30m", "6h"}, fast, slow}` (`sli`, `budget_left_pct` and a
+burn are null without requests).
+
+The board's SLO tab is `slo.js`; `ObsFactor.Writeup` has a `slos` section
+(as the targets stood at the end of the range).

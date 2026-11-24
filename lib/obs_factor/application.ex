@@ -61,6 +61,8 @@ defmodule ObsFactor.Application do
           ObsFactor.History
         ] ++
         ObsFactor.Objectives.child_specs(Application.get_env(:obs_factor, :objectives_pg_url)) ++
+        # error budgets per app, read off the tape in the same database (ObsFactor.SLOs)
+        ObsFactor.SLOs.child_specs(Application.get_env(:obs_factor, :objectives_pg_url)) ++
         collectors(topology) ++ [ObsFactorWeb.Endpoint]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: ObsFactor.Supervisor)
