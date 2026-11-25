@@ -22,6 +22,8 @@
 //                     DB    each app's Repo stream and its Postgres database
 //                     PubSub  each Phoenix.PubSub server, its topics and who
 //                           listens (board_pubsub.js)
+//                     Oban    the observer's own jobs: queues, cron, workers,
+//                           every job and its errors (board_oban.js)
 //
 // The numbers are the tape's (each frame's `beam:`, `repo:` and `pg:`
 // metrics) and the wire is the tape's, so a replayed moment shows the
@@ -33,6 +35,7 @@ import { esc, num, bytes } from "./fmt.js";
 import { SLOs } from "./slo.js";
 import { Evidence } from "./evidence.js"; // the "evidence" expander on wire items
 import { PubSubTab } from "./board_pubsub.js"; // the PubSub tab
+import { ObanTab } from "./board_oban.js"; // the Oban tab: the observer's own jobs (ObsFactor.Jobs)
 
 const WINDOW = 15 * 60e3; // what the sparklines and moves look back over
 const MOVE = 5 * 60e3; // a move is against this long ago
@@ -88,6 +91,7 @@ export class Board {
     this.setId = null; // the saved set the filter was loaded from
     this.air = store.get(AIR_KEY); // the set on air: the chyron and crawl follow it (this viewer only)
     this.pubsub = new PubSubTab(this); // the PubSub tab (board_pubsub.js)
+    this.oban = new ObanTab(this); // the Oban tab (board_oban.js)
     this.el = document.getElementById("board");
     // evidence (evidence.js): a capture arriving or opening redraws the list
     this.ev = new Evidence(() => { if (this.open && (this.tab === "wire" || this.tab === "errors")) this.renderMonitor(this.tab === "errors"); });
@@ -140,7 +144,7 @@ export class Board {
     this.btn.setAttribute("aria-expanded", String(on));
     document.body.classList.toggle("board-open", on);
     if (on) this.renderMonitor();
-    else this.pubsub.idle(); // the PubSub tab's live feeds go with the board
+    else { this.pubsub.idle(); this.oban.idle(); } // the PubSub and Oban tabs' live feeds go with the board
     this.api.onToggle?.();
   }
 
@@ -148,6 +152,7 @@ export class Board {
     if (this.ev.click(e)) return; // an evidence expander, or a click inside one: not a replay
     if (e.target.closest("[data-a=close]")) return this.toggle(false);
     if (this.tab === "pubsub" && this.pubsub.onClick(e)) return; // the PubSub tab's own clicks
+    if (this.tab === "oban" && this.oban.onClick(e)) return; // the Oban tab's own clicks
     const tab = e.target.closest("[data-tab]");
     if (tab) { this.tab = tab.dataset.tab; return this.renderMonitor(); }
     const f = e.target.closest("[data-f]");
@@ -549,6 +554,8 @@ export class Board {
     const tabs = [["wire", `Wire <b>${this.wireUpTo().length}</b>`], ["errors", `Errors <b>${this.fingerprints().length}</b>`], ["beam", `BEAM <b>${this.keys("beam:").length}</b>`], ["db", "DB"]];
     tabs.push(["slo", `SLO <b>${this.slo.count()}${this.slo.burning() ? "!" : ""}</b>`]); // slo.js: "!" while a burn flag is up
     tabs.push(["pubsub", `PubSub <b>${this.pubsub.count()}</b>`]);
+    if (this.open) this.oban.sync(true); // joined while the board is open: its label counts the jobs waiting
+    tabs.push(["oban", this.oban.label()]); // "!" while a job waits to be retried or failed in 24 h
     const head = `<div class="bd-head"><h3>Board</h3><div class="bd-tabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${this.tab === k}">${l}</button>`).join("")}</div>
       <span class="bd-at">${this.api.timeline.replaying ? "REPLAY" : "LIVE"} ${at}</span><button type="button" class="fi-x" data-a="close" aria-label="Close">×</button></div>`;
     const active = this.el.contains(document.activeElement) && typing(document.activeElement) ? document.activeElement : null;
@@ -558,8 +565,12 @@ export class Board {
     // else's set arrives) keeps its text, focus and cursor across a redraw
     const keep = active && (active.name === "wq" || active.name === "name") ? { name: active.name, value: active.value, sel: [active.selectionStart, active.selectionEnd] } : null;
     if (this.tab !== "pubsub") this.pubsub.idle(); // its feeds only while it shows
-    const body = this.tab === "slo" ? this.slo.tab() : this.tab === "wire" ? this.wireTab() : this.tab === "errors" ? this.errorsTab() : this.tab === "beam" ? this.beamTab() : this.tab === "pubsub" ? this.pubsub.tab() : this.dbTab();
+    const body = this.tab === "slo" ? this.slo.tab() : this.tab === "wire" ? this.wireTab() : this.tab === "errors" ? this.errorsTab() : this.tab === "beam" ? this.beamTab() : this.tab === "pubsub" ? this.pubsub.tab() : this.tab === "oban" ? this.oban.tab() : this.dbTab();
+    this.el.classList.toggle("wide", this.tab === "oban"); // board_oban.js: the Oban tab wants the room
     this.el.innerHTML = head + body;
+    // a phone shows a few tabs at a time: keep the open one in view
+    const tl = this.el.querySelector(".bd-tabs"), on = tl?.querySelector("[aria-selected=true]");
+    if (on && on.offsetLeft + on.offsetWidth > tl.clientWidth) tl.scrollLeft = on.offsetLeft + on.offsetWidth - tl.clientWidth;
     if (this.tab === "wire") this.renderWireList();
     if (keep) { const i = this.el.querySelector(`input[name=${keep.name}]`); if (i) { i.value = keep.value; i.focus(); i.setSelectionRange(...keep.sel); } }
   }

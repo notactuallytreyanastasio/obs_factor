@@ -115,9 +115,7 @@ defmodule ObsFactor.Objectives do
       ),
       {__MODULE__, db: @db},
       # the tape lives in the same database, through the same pool
-      {ObsFactor.Tape, db: @db},
-      # scheduled writeups, read from the same database
-      ObsFactor.Writeup.Scheduler
+      {ObsFactor.Tape, db: @db}
     ]
   end
 

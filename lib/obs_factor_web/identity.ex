@@ -36,7 +36,8 @@ defmodule ObsFactorWeb.Identity do
   require Logger
 
   @operator_only ~w(observer_action create_token revoke_token save_schedule delete_schedule run_schedule
-                    save_alert_route delete_alert_route test_alert_route save_slo delete_slo)
+                    save_alert_route delete_alert_route test_alert_route save_slo delete_slo
+                    retry_job cancel_job delete_job pause_queue resume_queue run_cron)
 
   @what %{
     "observer_action" => "act on a process (observer action)",
@@ -50,7 +51,14 @@ defmodule ObsFactorWeb.Identity do
     "delete_alert_route" => "delete an alert route",
     "test_alert_route" => "send a test alert",
     "save_slo" => "set an error budget",
-    "delete_slo" => "remove an error budget"
+    "delete_slo" => "remove an error budget",
+    # the Oban tab (ObsFactorWeb.JobsChannel)
+    "retry_job" => "retry a job",
+    "cancel_job" => "cancel a job",
+    "delete_job" => "delete a job",
+    "pause_queue" => "pause a queue",
+    "resume_queue" => "resume a queue",
+    "run_cron" => "run a cron job now"
   }
 
   defp role_words(%{"role" => r}) when is_binary(r), do: "a " <> r

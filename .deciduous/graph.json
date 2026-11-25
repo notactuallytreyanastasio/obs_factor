@@ -40,6 +40,16 @@
       "to_change_id": "d4e8aefe-984f-4b9e-9a1e-a37e0d38947b",
       "weight": 1.0
     },
+    "0386b155bdb18c75c41c": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-24T21:09:56.734110-05:00",
+      "edge_id": "0386b155bdb18c75c41c",
+      "edge_type": "leads_to",
+      "from_change_id": "775a4a18-edad-4917-9ee1-f758c8e46216",
+      "rationale": "rejected: tape writes would queue behind jobs",
+      "to_change_id": "ca20ce92-8fd9-48e3-9f78-797e8c8f9b76",
+      "weight": 1.0
+    },
     "04b0cf2fd26780ed0926": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T03:28:14.211279-05:00",
@@ -652,6 +662,16 @@
       "to_change_id": "d45b6fc9-bb48-4fbe-bd37-07115dd8bca0",
       "weight": 1.0
     },
+    "5e1edc1eed08d2aec5bd": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-24T21:33:42.149887-05:00",
+      "edge_id": "5e1edc1eed08d2aec5bd",
+      "edge_type": "leads_to",
+      "from_change_id": "7d5355b3-bf61-4b6b-a5c2-f7240c8b7afd",
+      "rationale": "constraint",
+      "to_change_id": "ebeef691-4813-4312-85c2-668b16fabaa4",
+      "weight": 1.0
+    },
     "5e7403dc4fc60397a533": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-19T01:35:44.582344-05:00",
@@ -872,6 +892,16 @@
       "to_change_id": "517d818c-5456-4480-8a2f-1c749a45c0f5",
       "weight": 1.0
     },
+    "84a5cfdb50a4e624576f": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-24T21:09:56.633744-05:00",
+      "edge_id": "84a5cfdb50a4e624576f",
+      "edge_type": "leads_to",
+      "from_change_id": "ee808d94-8376-4cea-96d3-588eb36eb0a9",
+      "rationale": "chosen",
+      "to_change_id": "ca20ce92-8fd9-48e3-9f78-797e8c8f9b76",
+      "weight": 1.0
+    },
     "866ff861b2de0285f79e": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-23T13:46:12.861394-05:00",
@@ -910,6 +940,16 @@
       "from_change_id": "481fdbca-bf53-48e6-936e-fb4295fa4beb",
       "rationale": "implementation",
       "to_change_id": "c0345030-d9a3-4176-bf11-a70c2f199d3b",
+      "weight": 1.0
+    },
+    "89579a2c6cd049683135": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-24T21:33:41.965147-05:00",
+      "edge_id": "89579a2c6cd049683135",
+      "edge_type": "leads_to",
+      "from_change_id": "ca20ce92-8fd9-48e3-9f78-797e8c8f9b76",
+      "rationale": "implementation",
+      "to_change_id": "3044eaf9-ac3d-4b54-b55b-4b6ec575becf",
       "weight": 1.0
     },
     "8a5de29ce6e704fbddbe": {
@@ -1265,6 +1305,16 @@
       "to_change_id": "49a681fd-b54a-430c-b8fb-d85cdbcf1e4c",
       "weight": 1.0
     },
+    "d2cb5907e3cdf12217be": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-24T21:09:56.434828-05:00",
+      "edge_id": "d2cb5907e3cdf12217be",
+      "edge_type": "leads_to",
+      "from_change_id": "7d5355b3-bf61-4b6b-a5c2-f7240c8b7afd",
+      "rationale": "option",
+      "to_change_id": "ee808d94-8376-4cea-96d3-588eb36eb0a9",
+      "weight": 1.0
+    },
     "d6dd4e98831cea1611ce": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-23T20:48:30.420240-05:00",
@@ -1414,6 +1464,16 @@
       "from_change_id": "33c8b078-45bd-4560-b610-20eb2282632c",
       "rationale": "approach",
       "to_change_id": "5fcc99f5-7a76-40c3-a9cb-d284894fd0a1",
+      "weight": 1.0
+    },
+    "f94526ef3e5fa388587c": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-24T21:09:56.535043-05:00",
+      "edge_id": "f94526ef3e5fa388587c",
+      "edge_type": "leads_to",
+      "from_change_id": "7d5355b3-bf61-4b6b-a5c2-f7240c8b7afd",
+      "rationale": "option",
+      "to_change_id": "775a4a18-edad-4917-9ee1-f758c8e46216",
       "weight": 1.0
     },
     "fadb9ed27930e147e783": {
@@ -1728,6 +1788,20 @@
       "status": "pending",
       "title": "Disk 87% -> 13% (125G -> 18G used): 33.9 GB dangling images + 74.2 GB build cache freed; all 18 containers still up; tagged images, volumes and /opt/backups untouched",
       "updated_at": "2026-11-19T02:00:19.416217-05:00"
+    },
+    "3044eaf9-ac3d-4b54-b55b-4b6ec575becf": {
+      "author": "Bobby Grayson",
+      "change_id": "3044eaf9-ac3d-4b54-b55b-4b6ec575becf",
+      "created_at": "2026-11-24T21:33:41.850144-05:00",
+      "metadata": {
+        "branch": "42-oban",
+        "commit": "3839c64dbb61e609f1f7f64c7b3cec5f9f8f618c",
+        "confidence": 85
+      },
+      "node_type": "action",
+      "status": "pending",
+      "title": "Oban jobs (writeups, rollups, webhooks) on ObsFactor.Repo; Oban tab on the board; tour stop",
+      "updated_at": "2026-11-24T21:33:41.850144-05:00"
     },
     "30dcbde7-02b9-49b4-8b66-fa0063a74926": {
       "author": "Bobby Grayson",
@@ -2343,6 +2417,19 @@
       "title": "BEAM wire + BEAM-only board (index, chyron, crawl, Wire/BEAM/DB tabs)",
       "updated_at": "2026-11-23T18:38:08.143114-05:00"
     },
+    "775a4a18-edad-4917-9ee1-f758c8e46216": {
+      "author": "Bobby Grayson",
+      "change_id": "775a4a18-edad-4917-9ee1-f758c8e46216",
+      "created_at": "2026-11-24T21:09:48.436809-05:00",
+      "metadata": {
+        "branch": "42-oban",
+        "confidence": 30
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "Share the existing 2-connection Postgrex pool by shrinking it to 1 for Oban",
+      "updated_at": "2026-11-24T21:09:48.436809-05:00"
+    },
     "78810910-f875-4f4f-b2bd-049ed61bcc29": {
       "author": "Bobby Grayson",
       "change_id": "78810910-f875-4f4f-b2bd-049ed61bcc29",
@@ -2369,6 +2456,20 @@
       "status": "pending",
       "title": "Write up panel: schedules and script tokens",
       "updated_at": "2026-11-23T20:20:31.914949-05:00"
+    },
+    "7d5355b3-bf61-4b6b-a5c2-f7240c8b7afd": {
+      "author": "Bobby Grayson",
+      "change_id": "7d5355b3-bf61-4b6b-a5c2-f7240c8b7afd",
+      "created_at": "2026-11-24T21:07:56.234342-05:00",
+      "metadata": {
+        "branch": "main",
+        "confidence": 80,
+        "prompt": "Ok so now build a special Oban view and bake in oban to the app"
+      },
+      "node_type": "goal",
+      "status": "pending",
+      "title": "Oban baked into obs_factor, with a special Oban view",
+      "updated_at": "2026-11-24T21:07:56.234342-05:00"
     },
     "7e0c4208-d03d-45d2-bf21-a78159179b41": {
       "author": "Bobby Grayson",
@@ -3026,6 +3127,19 @@
       "title": "Production tape: only proxy-routed nodes have err_rps; path-routed nodes (deciduous-mcp, lumines, soldat...) have rps alone; p95_ms only in frames with requests",
       "updated_at": "2026-11-23T20:50:04.777691-05:00"
     },
+    "ca20ce92-8fd9-48e3-9f78-797e8c8f9b76": {
+      "author": "Bobby Grayson",
+      "change_id": "ca20ce92-8fd9-48e3-9f78-797e8c8f9b76",
+      "created_at": "2026-11-24T21:09:56.333949-05:00",
+      "metadata": {
+        "branch": "42-oban",
+        "confidence": 80
+      },
+      "node_type": "decision",
+      "status": "pending",
+      "title": "Oban on its own Ecto repo in the objectives database; writeups, rollups and webhooks move to jobs; an Oban tab on the board",
+      "updated_at": "2026-11-24T21:09:56.333949-05:00"
+    },
     "cb00f216-c214-494c-99e8-a1d4ab2de147": {
       "author": "Bobby Grayson",
       "change_id": "cb00f216-c214-494c-99e8-a1d4ab2de147",
@@ -3346,6 +3460,19 @@
       "title": "Error budgets per app (SLOs) from the tape",
       "updated_at": "2026-11-23T20:50:04.264700-05:00"
     },
+    "ebeef691-4813-4312-85c2-668b16fabaa4": {
+      "author": "Bobby Grayson",
+      "change_id": "ebeef691-4813-4312-85c2-668b16fabaa4",
+      "created_at": "2026-11-24T21:33:42.033624-05:00",
+      "metadata": {
+        "branch": "42-oban",
+        "confidence": 90
+      },
+      "node_type": "observation",
+      "status": "pending",
+      "title": "Prod Postgres at 91/100 connections (apps' idle pools); Oban's 2 more leave ~4 non-superuser slots",
+      "updated_at": "2026-11-24T21:33:42.033624-05:00"
+    },
     "ecab76ce-52bf-4a79-a2f8-844f41fe77a5": {
       "author": "Bobby Grayson",
       "change_id": "ecab76ce-52bf-4a79-a2f8-844f41fe77a5",
@@ -3358,6 +3485,19 @@
       "status": "pending",
       "title": "Distinct building per subdomain plus bus belts, containers and gauges on the existing 2D canvas, over numbers-only and over a 3D rewrite",
       "updated_at": "2026-11-19T01:35:44.478374-05:00"
+    },
+    "ee808d94-8376-4cea-96d3-588eb36eb0a9": {
+      "author": "Bobby Grayson",
+      "change_id": "ee808d94-8376-4cea-96d3-588eb36eb0a9",
+      "created_at": "2026-11-24T21:09:48.315218-05:00",
+      "metadata": {
+        "branch": "42-oban",
+        "confidence": 80
+      },
+      "node_type": "option",
+      "status": "pending",
+      "title": "Oban on an Ecto repo in the objectives database (pool 2, PG notifier, Global peer); role limit raised 2 -> 4",
+      "updated_at": "2026-11-24T21:09:48.315218-05:00"
     },
     "f4920972-2ab4-47e2-b312-e1224fb6fd69": {
       "author": "Bobby Grayson",

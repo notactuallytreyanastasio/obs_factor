@@ -9,11 +9,14 @@ defmodule ObsFactor.Writeup.Schedules do
   schedule has a webhook, POSTs `{"text", "title", "url"}` to it: Slack's
   incoming webhooks read `text`, anything else can read the rest.
 
-  `ObsFactor.Writeup.Scheduler` looks every minute for schedules due: the
-  latest scheduled instant at or before now, if it is after both the last
-  run and the schedule's creation (so a schedule made at 10:00 for 09:00
-  first runs tomorrow, not at once). A missed instant (the observer was
-  down) runs when it comes back, once.
+  `ObsFactor.Jobs.ScheduleTick` (Oban cron, every minute) looks for
+  schedules due: the latest scheduled instant at or before now, if it is
+  after both the last run and the schedule's creation (so a schedule made at
+  10:00 for 09:00 first runs tomorrow, not at once), and enqueues a
+  `ObsFactor.Jobs.ScheduledWriteup` for it. A missed instant (the observer
+  was down) runs when it comes back, once. The webhook is a job of its own
+  (`ObsFactor.Jobs.Webhook`), retried; its final failure is recorded here
+  (`record_webhook/3`).
   """
 
   alias ObsFactor.{Tape, Writeup}
@@ -42,6 +45,17 @@ defmodule ObsFactor.Writeup.Schedules do
          {:ok, %{rows: rows}} <- q(db, "SELECT #{@cols} FROM writeup_schedules ORDER BY name, id", []) do
       now = System.system_time(:millisecond)
       {:ok, Enum.map(rows, &(&1 |> row() |> with_next(now)))}
+    end
+  end
+
+  @doc "One schedule by id: `{:ok, s}` or `{:error, \"no schedule <id>\"}`."
+  def get(id, db \\ Tape.db()) when is_integer(id) do
+    with :ok <- ensure(db),
+         {:ok, %{rows: rows}} <- q(db, "SELECT #{@cols} FROM writeup_schedules WHERE id = $1", [id]) do
+      case rows do
+        [r] -> {:ok, r |> row() |> with_next(System.system_time(:millisecond))}
+        [] -> {:error, "no schedule #{id}"}
+      end
     end
   end
 
@@ -153,6 +167,15 @@ defmodule ObsFactor.Writeup.Schedules do
   defp record(db, id, instant, slug, err) do
     q(db, "UPDATE writeup_schedules SET last_run_at = $2, last_slug = coalesce($3, last_slug), last_error = $4 WHERE id = $1",
       [id, DateTime.from_unix!(instant, :millisecond), slug, err])
+  end
+
+  @doc """
+  What became of a run's webhook, posted later by `ObsFactor.Jobs.Webhook`:
+  `:ok` clears the schedule's error, `{:error, e}` records it.
+  """
+  def record_webhook(id, result, db \\ Tape.db()) do
+    err = case result do :ok -> nil; {:error, e} -> "written, but the webhook failed: #{e}" end
+    q(db, "UPDATE writeup_schedules SET last_error = $2 WHERE id = $1", [id, err])
   end
 
   # ObsFactor.WebhookGuard: no private, loopback or link-local destination,

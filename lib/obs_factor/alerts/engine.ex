@@ -52,7 +52,9 @@ defmodule ObsFactor.Alerts.Engine do
     {:ok,
      %{
        db: Keyword.get(opts, :db, Tape.db()),
-       post: Keyword.get(opts, :post, &ObsFactor.WebhookGuard.post/2),
+       # nil: a job per delivery when Oban runs (ObsFactor.Jobs.Webhook,
+       # retried for a quarter of an hour), else posted here; tests pass one
+       post: Keyword.get(opts, :post),
        base_url: Keyword.get(opts, :base_url),
        flush_ms: Keyword.get(opts, :flush_ms, 1_500),
        retry_ms: Keyword.get(opts, :retry_ms, 5_000),
@@ -211,6 +213,17 @@ defmodule ObsFactor.Alerts.Engine do
       end
     else
       %{}
+    end
+  end
+
+  defp deliver(%{post: nil} = st, route, body) do
+    if ObsFactor.Jobs.enabled?() do
+      case ObsFactor.Jobs.Webhook.enqueue_for(:alert, route.id).(route.url, body) do
+        :ok -> Logger.info("alert to #{route.name} enqueued: #{length(body.items)} item(s)", event: "alerts.enqueued", route: route.id)
+        {:error, e} -> Alerts.record(route.id, {:error, e}, st.db)
+      end
+    else
+      deliver(%{st | post: &ObsFactor.WebhookGuard.post/2}, route, body)
     end
   end
 

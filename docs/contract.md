@@ -1825,3 +1825,67 @@ per change of state except the last two.
 `deploy/watchdog.sh` (another machine, once a minute) reads the same
 `/health`: 200 with `"ok":true` is healthy, anything else a failure. See
 `deploy/WATCHDOG.md`.
+
+## Jobs: Oban in the observer *(2026-11-24)*
+
+`ObsFactor.Jobs` runs Oban 2.24 on `ObsFactor.Repo`, an Ecto repo with a
+pool of 2 in the objectives database. It runs only with `OBJECTIVES_PG_URL`
+set. The tape and the objectives keep their own 2-connection Postgrex pool,
+so the role needs `CONNECTION LIMIT 4`. `deploy/objectives-db.sql` gives the
+`ALTER ROLE` for a store made before Oban. Oban's tables (migration version
+14) are created at start by `ObsFactor.Jobs.Migrate`. If that fails, it logs
+`jobs.migrate_failed` and the observer starts anyway.
+
+| queue | limit | worker | runs |
+|---|---|---|---|
+| `writeups` | 2 | `ScheduleTick` | cron `* * * * *`: enqueues the scheduled writeups that are due |
+| `writeups` | 2 | `ScheduledWriteup` | `%{id, instant}`, unique on both, 3 attempts; a deleted schedule cancels it |
+| `maintenance` | 1 | `Rollup` | cron `*/5 * * * *`: `ObsFactor.Rollups.run/3` |
+| `webhooks` | 3 | `Webhook` | `%{url, body, for: alert \| schedule, ref}`, 5 attempts after 5 s, 30 s, 2 min, 10 min |
+
+The notifier is `Oban.Notifiers.PG` and the peer `Oban.Peers.Global`: no
+LISTEN connection and no peers table polling. Plugins: Cron, Pruner (7
+days) and Lifeline (rescue after 30 min).
+
+**What moved.** `ObsFactor.Writeup.Scheduler` and `ObsFactor.Rollups` are
+no longer processes. The scheduler module keeps `run_now/1` (the page waits
+for it, so it runs in the caller) and `broadcast/0`.
+
+The alerts engine posts through a `Webhook` job when Oban runs. Without
+Oban it posts in a task with one retry, as before. A webhook's failure is
+recorded on its route or schedule only after the last attempt.
+
+**What did not move.** The tape's thinning, the SLO evaluation, the alerts
+engine and the objectives probe hold state between runs, so they stay
+processes.
+
+### Channel `jobs`
+
+The join (params `%{filter: %{state, queue, worker}}`) replies with
+`ObsFactor.Jobs.View.view/1`:
+
+- `queues`: `name`, `limit`, `paused`, `running`, `executing`, `available`,
+  `scheduled`, `retryable`, `completed` and `discarded` (24 h).
+- `states`: the 7 states, each with its count.
+- `minutes`: 60 entries of `[t, completed, failed, errored_attempts]`.
+- `workers`: per worker, the last 24 h: `completed`, `discarded`,
+  `cancelled`, `retried`, `pending`, `p50`, `p95`, `wait_p95` (ms), and
+  `last` as `%{id, state, at}`.
+- `cron`: `expr`, `worker`, `next_at` and `last`.
+- `jobs`: the newest 60 matching the filter.
+
+Without Oban the join still succeeds, with `error` and empty lists.
+
+A `view` push follows each change (`ObsFactor.Jobs.Live`: Oban telemetry,
+throttled to one per 1.5 s, at least one per 10 s, nothing when the topic
+has no subscriber). It carries this socket's filter.
+
+| push | payload | reply |
+|---|---|---|
+| `filter` | `%{state, queue, worker}` | `%{jobs, filter}` |
+| `job` | `%{id}` | `%{job}`, with `args`, `meta`, `errors` `[%{attempt, at, error}]` and every timestamp |
+| `retry` / `cancel` / `delete` | `%{id}` | `%{ok}`, an operator's |
+| `pause` / `resume` | `%{queue}`, a configured queue | `%{ok}`, an operator's |
+| `run_cron` | `%{worker}`, on the crontab | `%{ok}`, an operator's |
+
+A viewer is refused with `only an operator may <what>`. Times are unix ms.

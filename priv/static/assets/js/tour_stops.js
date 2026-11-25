@@ -185,7 +185,7 @@ function board(api) {
       title: "The board",
       target: () => $("board"),
       enter: async () => { await tab("wire"); },
-      body: () => `${code("b")} opens it. Six tabs, every one following the tape: the wire, errors, every BEAM node, each app's database, error budgets and PubSub.
+      body: () => `${code("b")} opens it. Seven tabs: the wire, errors, every BEAM node, each app's database, error budgets and PubSub follow the tape; Oban is the observer's own jobs, now.
         <p>The Wire tab is the whole feed, filterable by app, kind and severity, or by search.</p>`,
     },
     {
@@ -258,6 +258,25 @@ function board(api) {
         return `Every Phoenix.PubSub in every app: topics and subscriptions over time. The report ranks topic <b>patterns</b> (${code("post:#")}), never the topics, so no user id leaves an app.
           ${topic ? `<p>Opened ${code(topic)}: the graph is live, one dot per subscriber, sized by its mailbox, coloured LiveView, channel or plain process. Click one to open that process.</p>` : ""}
           ${plural(n, "server")} reporting. A subscription count that climbs for 30 minutes is said on the wire as a leak.`;
+      },
+    },
+    {
+      title: "Oban: the observer's own jobs",
+      target: () => q("#board .ob") ?? $("board"),
+      enter: async () => {
+        await tab("oban");
+        await waitFor(() => q("#board .ob-strip"), 3000);
+      },
+      body: () => {
+        const v = B().oban.v;
+        if (!v || !(v.queues ?? []).length) return `The observer runs its background work on Oban: scheduled writeups, hourly rollups, and every webhook. ${B().oban.error ? `Here it says: <i>${esc(B().oban.error)}</i>` : ""}`;
+        const s = v.states ?? {};
+        const done = (v.minutes ?? []).reduce((n, m) => n + m[1], 0);
+        const tick = (v.cron ?? [])[0];
+        const bad = (s.retryable ?? 0) + (s.discarded ?? 0);
+        return `The observer's background work runs on Oban: scheduled writeups, the hourly rollups, and every webhook (an alert, a writeup), retried for a quarter of an hour when Slack is down.
+          <p>${plural(done, "job")} completed in the last hour.${bad ? ` <b>${plural(bad, "job")}</b> failed or waiting to retry: click one for each attempt's error.` : " Nothing failing."}${tick ? ` The cron runs ${code(tick.worker.replace(/^ObsFactor\.Jobs\./, ""))} every minute.` : ""}</p>
+          Click a state, a queue or a worker to filter the jobs. Retry, cancel, delete, pause a queue and run a cron entry now are an operator's.`;
       },
     },
   ];
@@ -358,7 +377,7 @@ export function chapters(api, old) {
       id: "fires", title: "Fires and missions", blurb: "The score of the shift, and what to check before you leave",
       anchor: () => $("firesbtn"), steps: [...fires(api), ...pickOld("Missions: what to check before you leave")],
     },
-    { id: "board", title: "The board", blurb: "The BEAM wire, filter sets, evidence, errors, nodes, databases, budgets, PubSub", anchor: () => $("boardbtn"), steps: board(api) },
+    { id: "board", title: "The board", blurb: "The BEAM wire, filter sets, evidence, errors, nodes, databases, budgets, PubSub, Oban", anchor: () => $("boardbtn"), steps: board(api) },
     { id: "reporting", title: "Writeups", blurb: "Any stretch as Markdown: shared links, schedules, script tokens", anchor: () => $("menubtn"), steps: reporting(api) },
     { id: "operating", title: "Running it", blurb: "Alerts out, roles, and connecting a new app", anchor: () => $("alertsbtn"), steps: operating(api) },
     {

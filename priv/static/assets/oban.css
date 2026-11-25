@@ -1,0 +1,60 @@
+/* The board's Oban tab (board_oban.js): the observer's own jobs. The board
+   is wider while it shows (board.js sets .wide): queues and cron side by
+   side, a job open beside the list. */
+@media (min-width: 760px) { #board.wide { width: min(1180px, calc(100vw - 20px)); } }
+.ob h4 { margin: 10px 0 4px; }
+.ob h4 .dim { text-transform: none; letter-spacing: 0; font: 11px var(--sans); }
+/* the states: one cell each, a click filters the jobs by it */
+.ob-strip { display: flex; flex-wrap: wrap; gap: 3px; align-items: stretch; margin: 2px 0 6px; }
+.ob-lab { align-self: center; color: var(--dim); font: 700 9px var(--sans); letter-spacing: 0.14em; text-transform: uppercase; margin: 0 2px 0 6px; }
+.ob-lab:first-child { margin-left: 0; }
+.ob-st { flex: 1 1 0; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; padding: 2px 7px; border-radius: 5px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.02); color: var(--text); cursor: pointer; }
+.ob-st i { font: 700 8.5px var(--sans); font-style: normal; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+.ob-st b { font: 700 15px var(--mono); }
+.ob-st.on b { color: #7fe0ff; }
+.ob-st.bad { border-color: rgba(255, 90, 60, 0.5); background: rgba(255, 60, 20, 0.1); }
+.ob-st.bad b { color: #ff6b6b; }
+.ob-st.sel { outline: 1px solid #7fe0ff; }
+/* the last hour */
+.ob-hour svg { display: block; width: 100%; height: 54px; background: rgba(255, 255, 255, 0.02); border-radius: 4px; }
+.ob-hour rect.c { fill: #3ddc84; } .ob-hour rect.f { fill: #ff5a3a; } .ob-hour rect.e { fill: #ffc46b; }
+.ob-hour line { stroke: rgba(255, 255, 255, 0.15); stroke-width: 1; }
+.ob-hour-l { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 3px 0 0; color: var(--muted); font: 11px var(--sans); }
+.ob-hour-l b { font: 700 11px var(--mono); }
+.ob-hour-l b.c { color: #3ddc84; } .ob-hour-l b.f { color: #ff6b6b; } .ob-hour-l b.e { color: #ffc46b; }
+.ob-grid { display: flex; flex-wrap: wrap; gap: 0 14px; }
+.ob-grid > div { flex: 1 1 300px; min-width: 0; }
+/* a job's state, as a small pill */
+.ob-s { display: inline-block; padding: 0 5px; border-radius: 3px; font: 700 9px var(--sans); letter-spacing: 0.06em; text-transform: uppercase; background: rgba(255, 255, 255, 0.08); color: var(--muted); }
+.ob-s.s-completed { color: #3ddc84; background: rgba(61, 220, 132, 0.12); }
+.ob-s.s-executing { color: #7fe0ff; background: rgba(127, 224, 255, 0.14); }
+.ob-s.s-available, .ob-s.s-scheduled { color: #c3c9d8; }
+.ob-s.s-retryable { color: #ffc46b; background: rgba(255, 196, 107, 0.14); }
+.ob-s.s-discarded { color: #ff6b6b; background: rgba(255, 60, 20, 0.16); }
+.ob-s.s-cancelled { color: #b388ff; background: rgba(179, 136, 255, 0.14); }
+.ob-link { cursor: pointer; border-bottom: 1px dotted rgba(255, 255, 255, 0.25); }
+.ob-link:hover, .ob-link.sel { color: #7fe0ff; border-color: #7fe0ff; }
+#board .ob td.warn { color: #ffc46b; }
+#board .ob td.nm { max-width: 190px; }
+#board .ob td.ob-args, #board .ob td.ob-err { text-align: left; max-width: 220px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+#board .ob td.ob-err { color: #ff8a80; }
+#board .ob tr.ob-row { cursor: pointer; }
+#board .ob tr.ob-row:hover td, #board .ob tr.ob-row.on td { background: rgba(127, 224, 255, 0.07); }
+#board .ob .slo-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+.ob-chips { display: flex; flex-wrap: wrap; gap: 3px; margin: 0 0 4px; }
+.ob-chips .bd-chip { font: 10px var(--mono); height: 20px; padding: 0 6px; }
+.ob-wrap { flex-wrap: nowrap; }
+.ob-jobs { flex: 1 1 auto; min-width: 0; }
+.ob-side { flex: 0 0 320px; max-height: 70vh; overflow: auto; }
+.ob-side p { margin: 6px 0; font: 11px var(--sans); }
+.ob-acts { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 4px 0 6px; }
+.ob-json, .ob-e pre { margin: 0; padding: 4px 6px; max-height: 180px; overflow: auto; background: rgba(0, 0, 0, 0.3); border-radius: 4px; font: 10.5px/1.35 var(--mono); color: #c3c9d8; white-space: pre-wrap; word-break: break-word; }
+.ob-e { margin: 0 0 6px; }
+.ob-e pre { color: #ffb4a8; }
+.ob-e .dim { font: 10px var(--mono); margin-bottom: 2px; }
+/* a phone: the job opens under the list, not beside it */
+@media (max-width: 759px) {
+  .ob-wrap { flex-wrap: wrap; }
+  .ob-side { flex: 1 1 100%; max-height: none; }
+  .ob-st { flex-basis: 70px; }
+}
