@@ -862,6 +862,16 @@
       "to_change_id": "ab6e076a-5636-48a5-ab30-6f1d771f374c",
       "weight": 1.0
     },
+    "78b01a76c18263f411b7": {
+      "author": "Bobby Grayson",
+      "created_at": "2026-11-24T21:38:30.987820-05:00",
+      "edge_id": "78b01a76c18263f411b7",
+      "edge_type": "leads_to",
+      "from_change_id": "3044eaf9-ac3d-4b54-b55b-4b6ec575becf",
+      "rationale": "result",
+      "to_change_id": "0def7565-d9d0-4af8-af4f-5d08b2dc5eba",
+      "weight": 1.0
+    },
     "7d93650d8aa2ac07f4ab": {
       "author": "Bobby Grayson",
       "created_at": "2026-11-23T20:47:54.062344-05:00",
@@ -1573,6 +1583,19 @@
       "status": "pending",
       "title": "Marginalia.Singleton leads only while holding pg_try_advisory_lock on a non-reconnecting connection; marginalia PR #28 merged and deployed",
       "updated_at": "2026-11-23T12:47:57.746991-05:00"
+    },
+    "0def7565-d9d0-4af8-af4f-5d08b2dc5eba": {
+      "author": "Bobby Grayson",
+      "change_id": "0def7565-d9d0-4af8-af4f-5d08b2dc5eba",
+      "created_at": "2026-11-24T21:38:30.824785-05:00",
+      "metadata": {
+        "branch": "main",
+        "confidence": 90
+      },
+      "node_type": "outcome",
+      "status": "pending",
+      "title": "Oban live on factory.bobbby.online: migrated, 2+2 connections, cron running, Oban tab and tour stop verified (desktop + phone in lab), 542 tests pass",
+      "updated_at": "2026-11-24T21:38:30.824785-05:00"
     },
     "1094b22e-21ab-4ab6-a887-f1b8d723f366": {
       "author": "Bobby Grayson",
