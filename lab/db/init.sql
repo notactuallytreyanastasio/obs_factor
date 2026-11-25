@@ -17,6 +17,6 @@ CREATE ROLE obs_factor LOGIN PASSWORD 'obslab' CONNECTION LIMIT 1 IN ROLE pg_mon
 -- deploy/objectives-db.sql makes them in production. Lab-only password. A
 -- lab whose volume predates this: run these three lines once as `blog`
 -- (psql postgresql://blog:obslab@127.0.0.1:15433/postgres).
-CREATE ROLE obs_factor_app LOGIN CONNECTION LIMIT 2 PASSWORD 'obslab';
+CREATE ROLE obs_factor_app LOGIN CONNECTION LIMIT 4 PASSWORD 'obslab';
 CREATE DATABASE obs_factor OWNER obs_factor_app;
 REVOKE CONNECT ON DATABASE obs_factor FROM PUBLIC;

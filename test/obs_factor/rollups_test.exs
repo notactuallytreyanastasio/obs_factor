@@ -116,11 +116,11 @@ defmodule ObsFactor.RollupsTest do
     assert {:ok, :empty} = Rollups.roll_hour(h + 2 * @hour, db)
   end
 
-  test "the job catches up on start, by itself", %{db: db} do
-    start_supervised!({Rollups, db: db, first_ms: 0, every_ms: 3_600_000})
-
-    count = fn -> with {:ok, r} <- Postgrex.query(db, "SELECT count(*) FROM tape_rollups", []), do: r.rows end
-    assert Enum.any?(1..40, fn _ -> count.() == [[3]] or (Process.sleep(50) && false) end)
+  test "the job (Oban cron, ObsFactor.Jobs.Rollup) catches up on everything the tape has", %{db: db} do
+    assert {:ok, %{rolled: 3, pruned: 0}} = ObsFactor.Jobs.Rollup.perform(%Oban.Job{args: %{}})
+    assert %{rows: [[3]]} = Postgrex.query!(db, "SELECT count(*) FROM tape_rollups", [])
+    # run again: nothing left to roll
+    assert {:ok, %{rolled: 0}} = ObsFactor.Jobs.Rollup.perform(%Oban.Job{args: %{}})
   end
 
   test "rollups past 13 months are deleted", %{now: now, db: db} do

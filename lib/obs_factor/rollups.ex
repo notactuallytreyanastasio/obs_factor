@@ -27,8 +27,8 @@ defmodule ObsFactor.Rollups do
   Means are weighted by time, so an hour that is half fine frames (5 s)
   and half minute frames (60 s) is not dominated by the fine half.
 
-  The job (this GenServer) looks every `every_ms` (5 minutes) for hours
-  that are over (a minute's grace for the last writes) and have frames but
+  The job (`ObsFactor.Jobs.Rollup`, Oban cron every 5 minutes, `run/3`)
+  looks for hours that are over (a minute's grace for the last writes) and have frames but
   no row, oldest first, and rolls them up: on start it catches up on
   everything the tape still has. Rolling an hour again (`roll_hour/2`)
   replaces its row, so a rollup can always be recomputed while the frames
@@ -39,8 +39,6 @@ defmodule ObsFactor.Rollups do
   timeline's strip, falling back to rollups before the tape starts), and
   `ObsFactor.Writeup`.
   """
-  use GenServer
-  require Logger
 
   alias ObsFactor.Tape
 
@@ -77,8 +75,6 @@ defmodule ObsFactor.Rollups do
 
   @cols ~w(frames tape_s alerts_max warns_max down_max blocked_max alert_s warn_s rps_mean rps_max err_rps_mean err_rps_max nodes beam dbs lanes wire wire_apps)a
 
-  def child_specs(nil), do: []
-  def child_specs(_url), do: [__MODULE__]
 
   def child_spec(opts), do: %{id: __MODULE__, start: {__MODULE__, :start_link, [opts]}}
 
@@ -443,49 +439,6 @@ defmodule ObsFactor.Rollups do
         end
       end
     end
-  end
-
-  # ---- the job -------------------------------------------------------------------
-
-  @impl true
-  def init(opts) do
-    state = %{
-      db: Keyword.get(opts, :db, Tape.db()),
-      every_ms: Keyword.get(opts, :every_ms, 5 * 60_000),
-      keep_months: Keyword.get(opts, :keep_months, 13),
-      logged_at: 0
-    }
-
-    # after the tape has made its tables
-    Process.send_after(self(), :roll, Keyword.get(opts, :first_ms, 20_000))
-    {:ok, state}
-  end
-
-  @impl true
-  def handle_info(:roll, state) do
-    Process.send_after(self(), :roll, state.every_ms)
-
-    state =
-      case run(System.system_time(:millisecond), state.db, state.keep_months) do
-        {:ok, %{rolled: rolled, pruned: pruned}} ->
-          if rolled != [] or pruned > 0,
-            do: Logger.info("rollups: #{length(rolled)} hours rolled up, #{pruned} past #{state.keep_months} months deleted",
-                  event: "rollups.rolled", hours: length(rolled), pruned: pruned)
-
-          state
-
-        {:error, e} ->
-          now = System.monotonic_time(:millisecond)
-
-          if now - state.logged_at > 60_000 do
-            Logger.error("rollups: #{Tape.message(e)}", event: "rollups.failed", reason: Tape.message(e))
-            %{state | logged_at: now}
-          else
-            state
-          end
-      end
-
-    {:noreply, state}
   end
 
   # ---- helpers -----------------------------------------------------------------

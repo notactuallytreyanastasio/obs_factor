@@ -47,6 +47,9 @@ defmodule ObsFactor.MixProject do
       {:bandit, "~> 1.5"},
       {:req, "~> 0.5"},
       {:postgrex, "~> 0.20"},
+      # background jobs (ObsFactor.Jobs): scheduled writeups, rollups, webhooks
+      {:oban, "~> 2.24"},
+      {:ecto_sql, "~> 3.14"},
       # FactoryReport.Observer answers for the observer's own VM in-process
       # (node id "observer" under /api/nodes/:id/observer). Only the library
       # is used; no reporter is started here.

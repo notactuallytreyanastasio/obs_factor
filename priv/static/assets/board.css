@@ -97,7 +97,9 @@ body.inspecting #board { display: none; }
 .cr.wire b { color: #c9b8ff; }
 .cr.wire.alert b { color: #ff7a3a; } .cr.wire.warn b { color: #ffc46b; }
 .cr .bad, #board .bad { color: #ff6b6b; font-weight: 700; }
-.bd-tabs { display: flex; gap: 2px; }
+.bd-tabs { display: flex; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.bd-tabs::-webkit-scrollbar { display: none; }
+.bd-tabs button { flex: 0 0 auto; }
 .bd-tabs button { height: 26px; padding: 0 9px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; font: 700 11px var(--sans); letter-spacing: 0.06em; }
 .bd-tabs button b { font: 700 10px var(--mono); color: var(--dim); margin-left: 3px; }
 .bd-tabs button[aria-selected="true"] { color: #e8fbff; border-color: rgba(127, 224, 255, 0.6); background: rgba(127, 224, 255, 0.12); }

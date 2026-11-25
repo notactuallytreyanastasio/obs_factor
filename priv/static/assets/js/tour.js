@@ -574,6 +574,9 @@ export class Tour {
         if (!a || !a.isConnected || a.closest("[hidden]") || !a.getClientRects().length) continue;
         const r = a.getBoundingClientRect();
         if (r.width === 0 || r.right < 0 || r.bottom < 0 || r.left > window.innerWidth || r.top > window.innerHeight) continue;
+        // a panel over the anchor (the wide board over the dock) hides its beacon too
+        const top = document.elementFromPoint(Math.min(window.innerWidth - 1, r.left + r.width / 2), Math.min(window.innerHeight - 1, r.top + r.height / 2));
+        if (top && !a.contains(top) && !top.closest(".tour-beacon")) continue;
         out.push(`<button type="button" class="tour-beacon" data-ch="${c.id}" style="left:${Math.round(r.right - 6)}px;top:${Math.round(r.top - 6)}px" title="Tour: ${esc(c.title)}" aria-label="Tour: ${esc(c.title)}"><i></i></button>`);
       }
     }

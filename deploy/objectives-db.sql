@@ -15,17 +15,20 @@
 -- (deploy/postgres-role.sql): that one is read-only on purpose and limited
 -- to one connection. This one writes, so it gets a database it owns and
 -- nothing else:
--- - CONNECTION LIMIT 2: the store's pool is two connections
---   (Objectives.child_specs, pool_size: 2); a third is refused by the server.
---   On a box near max_connections these two come out of the ordinary slots,
+-- - CONNECTION LIMIT 4: the store's pool is two connections
+--   (Objectives.child_specs, pool_size: 2) and Oban's repo two more
+--   (ObsFactor.Jobs, ObsFactor.Repo); a fifth is refused by the server.
+--   On a box near max_connections these come out of the ordinary slots,
 --   the same trade-off README "Postgres" describes for the monitor role.
+--   A store made before Oban was LIMIT 2; raise it once:
+--     ALTER ROLE obs_factor_app CONNECTION LIMIT 4;
 -- - CREATE DATABASE ... OWNER: the tables are created at start
 --   (CREATE TABLE IF NOT EXISTS) by the role that owns the database.
 -- - REVOKE CONNECT FROM PUBLIC: no other role connects to it by default.
 --   Superusers still can.
 -- CREATE DATABASE cannot run in a transaction: do not wrap this file in one.
 
-CREATE ROLE obs_factor_app LOGIN CONNECTION LIMIT 2 PASSWORD :'pw';
+CREATE ROLE obs_factor_app LOGIN CONNECTION LIMIT 4 PASSWORD :'pw';
 CREATE DATABASE obs_factor OWNER obs_factor_app;
 REVOKE CONNECT ON DATABASE obs_factor FROM PUBLIC;
 GRANT CONNECT ON DATABASE obs_factor TO obs_factor_app;

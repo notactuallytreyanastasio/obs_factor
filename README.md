@@ -331,7 +331,11 @@ something publishes there). No request is made on a timer; the one GET of
 change then arrived.
 
 It needs `OBJECTIVES_PG_URL`, a database and role of its own
-(`deploy/objectives-db.sql`, run as its header says). Unset, the Missions
+(`deploy/objectives-db.sql`, run as its header says). The same database holds the observer's
+Oban jobs (`ObsFactor.Jobs`: scheduled writeups, hourly rollups, webhooks,
+on a second pool of two), so the role is `CONNECTION LIMIT 4`. The board's
+Oban tab shows its queues, cron, workers and every job (docs/contract.md
+"Jobs"). Unset, the Missions
 control is hidden and `/api/objectives` answers 503 `no objectives store`;
 set but unreachable, the control shows `!` and the panel the error. For
 `mix phx.server` on the laptop:
